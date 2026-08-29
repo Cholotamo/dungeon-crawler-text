@@ -7,7 +7,10 @@ authors = [
     { name = "Cholotamo", email = "cholorafaeltamo@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "google-genai>=2.20.0",
+    "python-dotenv>=1.2.3",
+]
 
 [project.scripts]
 dungeon-crawler-text = "dungeon_crawler_text:main"

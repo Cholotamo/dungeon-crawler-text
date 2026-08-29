@@ -1,2 +1,8 @@
+from dungeon_crawler_text.storywriter import StoryWriter, run_interactive_session
+
+
 def main() -> None:
-    print("Hello from dungeon-crawler-text!")
+    run_interactive_session()
+
+
+__all__ = ["StoryWriter", "run_interactive_session", "main"]
