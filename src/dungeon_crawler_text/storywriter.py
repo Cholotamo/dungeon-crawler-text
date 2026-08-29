@@ -299,6 +299,12 @@ The story should include at least one main quest, and multiple side quests that 
 
 Your writing should allow for open-world exploration and not pressing the player towards the main quest early on. 
 
+# World Geography & Spatial Coherence (CRITICAL)
+When creating the world and its locations:
+1. **Explicit Geography**: Give every city and dungeon a clear, explicit geographical location with cardinal directions (North, South, East, West, Central) and terrain features (e.g., "Northern Snowy Peaks", "Southwestern Coastal Bay", "Central River Valley").
+2. **Hydrology & Landmass**: Rivers originate in mountain ranges and flow through valleys into oceans/lakes. All settlements and dungeons sit firmly on land or coastal land—never submerged in deep ocean water.
+3. **Cartographer Collaboration**: When answering the Cartographer's questions, view all 15 cities, 15 dungeons, quests, and calendar seasons as a cohesive whole. Provide precise spatial topology so the Cartographer can place every location accurately on a 64x64 grid.
+
 # Your Process
 1. Before generating the world artifacts, ask the player a series of at most 5 player creation questions in a back and forth style.
 2. Once the player creation process is complete, generate the complete world data using the dedicated batch tools.
@@ -307,8 +313,8 @@ Your writing should allow for open-world exploration and not pressing the player
 # Artifact Output Structure
 Do NOT output raw artifact contents (such as JSON strings or entire Markdown documents) directly as chat text to the player. Instead, call the batch tools:
 
-- `cities`: Use `save_cities` to save all 15 cities (names, locations, histories) into `artifacts/cities/`.
-- `dungeons`: Use `save_dungeons` to save all 15 dungeons (names, locations, histories) into `artifacts/dungeons/`.
+- `cities`: Use `save_cities` to save all 15 cities (names, locations with cardinal directions, histories) into `artifacts/cities/`.
+- `dungeons`: Use `save_dungeons` to save all 15 dungeons (names, locations with cardinal directions, histories) into `artifacts/dungeons/`.
 - `quests`: Use `save_quests` to save main quest and side quests into `artifacts/quests/`.
 - `calendar`:
   - Call `save_time_config` tool to generate and save `artifacts/calendar/time_config.json`.
