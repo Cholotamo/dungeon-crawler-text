@@ -4,12 +4,43 @@ This module contains the StoryWriter which is responsible for generating the wor
 
 from collections.abc import Generator
 import os
+from pathlib import Path
 import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
 load_dotenv()
+
+
+def save_artifact(category: str, filename: str, content: str) -> str:
+    """Saves a markdown artifact file into the artifacts directory under the specified subfolder.
+
+    Args:
+        category: Subfolder category. Must be one of: 'quests', 'cities', 'dungeons', 'calendar', 'player'.
+        filename: Name of the file (e.g., 'main_quest.md', 'stats.md').
+        content: The markdown content to write into the file.
+
+    Returns:
+        A status message indicating success or failure.
+    """
+    valid_categories = {"quests", "cities", "dungeons", "calendar", "player"}
+    cat = category.strip().lower()
+    if cat not in valid_categories:
+        return f"Error: '{category}' is not a valid category. Valid categories are: {', '.join(sorted(valid_categories))}."
+
+    if not filename.endswith(".md"):
+        filename = f"{filename}.md"
+
+    dir_path = Path("artifacts") / cat
+    dir_path.mkdir(parents=True, exist_ok=True)
+    file_path = dir_path / filename
+
+    try:
+        file_path.write_text(content, encoding="utf-8")
+        return f"Successfully saved artifact to '{file_path.as_posix()}'."
+    except Exception as e:
+        return f"Failed to save artifact '{filename}': {e}"
 
 
 system_prompt = """
@@ -21,47 +52,30 @@ The story should include at least one main quest, and multiple side quests that 
 
 Your writing should allow for open-world exploration and not pressing the player towards the main quest early on. 
 
-# Generation
-You are to generate:
-1. The name and history of the country
-2. 15 cities’ names, geographical locations, and histories within the country
-3. 15 dungeons’ names, geographical locations, and histories in the wilderness of the country. Dungeons need not be underground, as long as they are places where the player can find danger. 
-4. The world’s calendar, including the ranges of dates for each season
-5. The player’s history, and stats
-  - To generate the player, ask them a series of at most 5 questions. The questions must be asked in a back and forth style. 
+# Your Process
+1. Before generating the world artifacts, ask the player a series of at most 5 player creation questions in a back and forth style.
+2. Once the player creation process is complete, generate the complete world data and save each piece into .md files inside the `artifacts` directory using the `save_artifact` tool.
 
-# Output
-The output is not for the player. It is supposed to be sent to an agent that will carry the player through the story, so be as detailed as possible for the quest actions. 
-You are to follow this style of output:
+# Artifact Output Structure
+Do NOT output the detailed game world files as standard chat responses to the player. Instead, use the `save_artifact` tool to write .md files into the following subfolders:
 
-## Overarching story
-Here you will write the main history of the land and the details of the main quest. 
+- `quests`:
+  - Main history of the land and details/stages of the main quest (e.g. `main_quest.md`).
+  - Details and required stages of each side quest (e.g. individual quest files `side_quest_1.md`, `side_quest_2.md`, etc.).
+- `cities`:
+  - 15 cities' names, geographical locations, histories, and quest involvements (e.g. individual city files `city_1.md`, `city_2.md`, etc.).
+- `dungeons`:
+  - 15 dungeons' names, geographical locations (wilderness or underground), histories, and quest involvements (e.g. individual dungeon files `dungeon_1.md`, `dungeon_2.md`, etc.).
+- `calendar`:
+  - The world's calendar system, time system, and date ranges for each season (e.g. `calendar.md`).
+- `player`:
+  - Player background history based on their answers (e.g. `history.md`).
+  - Player stats (Strength, Intelligence, Endurance, Faith, Luck: each 0-100, biased under 40) (e.g. `stats.md`).
 
-## Quest details
-Here you will write the details and required stages of each quest and how they can be progressed. For each quest, think about relevant locations and objectives. 
-
-## Geography - Civilization
-Here you will write the list of cities and their histories. If the city is involved in a quest, state its involvement here. 
-
-## Geography - Dungeons
-Here you will write the list of dungeons and their histories. If the dungeon is involved in a quest, state its involvement here. 
-
-## Calendar
-Here you will write the time system the world uses, and the current season it is
-
-## Player - History
-Here you will write the background of the player 
-
-## Player - Stats
-Each stat is a number from 0-100, biased to be under 40.
-- Strength
-- Intelligence
-- Endurance
-- Faith
-- Luck
-
-# Your process
-Before outputting anything to the player, ask them their player creation questions first.
+When saving files with `save_artifact`, provide:
+- `category`: one of 'quests', 'cities', 'dungeons', 'calendar', or 'player'
+- `filename`: the destination file name (e.g. 'main_quest.md')
+- `content`: the complete markdown content for that section.
 """
 
 
@@ -81,8 +95,10 @@ class StoryWriter:
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=0.7,
+                tools=[save_artifact],
             ),
         )
+
 
     def start_chat(
         self,
