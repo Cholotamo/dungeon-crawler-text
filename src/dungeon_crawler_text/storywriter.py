@@ -71,7 +71,7 @@ def save_artifact(category: str, filename: str, content: str) -> str:
     Returns:
         A status message indicating success or failure.
     """
-    valid_categories = {"quests", "cities", "dungeons", "calendar", "player"}
+    valid_categories = {"quests", "cities", "dungeons", "calendar", "player", "map"}
     cat = category.strip().lower()
     if cat not in valid_categories:
         return f"Error: '{category}' is not a valid category. Valid categories are: {', '.join(sorted(valid_categories))}."
@@ -450,6 +450,14 @@ def run_interactive_session(model: str = "gemini-3.6-flash") -> None:
             for chunk in writer.send_message_stream(user_input):
                 print(chunk, end="", flush=True)
             print("\n")
+
+            cities_dir = Path("artifacts/cities")
+            map_json = Path("artifacts/map/locations.json")
+            if cities_dir.exists() and any(cities_dir.glob("*.md")) and not map_json.exists():
+                print("\n[World creation artifacts detected! Launching Cartographer collaboration...]\n")
+                from dungeon_crawler_text.cartographer import run_cartographer_collaboration
+
+                run_cartographer_collaboration(writer=writer)
         except Exception as err:
             print(f"\n[Error during conversation: {err}]")
             break
