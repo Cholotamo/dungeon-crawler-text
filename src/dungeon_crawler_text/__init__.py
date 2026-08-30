@@ -1,2 +1,2 @@
-def main() -> None:
-    print("Hello from dungeon-crawler-text!")
+"""dungeon_crawler_text package."""
+
