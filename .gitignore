@@ -11,3 +11,7 @@ wheels/
 
 # Environment variables
 .env
+
+# Antigravity
+.agents
+skills-lock.json
