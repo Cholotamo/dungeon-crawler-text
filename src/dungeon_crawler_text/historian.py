@@ -23,10 +23,12 @@ class Historian:
 
     def __init__(
         self,
-        model_name: str = "gemini-3.6-flash",
+        model_name: str = "gemini-3.7-flash",
+        thinking_level: str = "HIGH",
         client: Optional[genai.Client] = None,
     ) -> None:
         self.model_name = model_name
+        self.thinking_level = thinking_level
         self.client = client or genai.Client()
         self.system_prompt = _load_prompt("Historian.md")
         self.chat = self.client.chats.create(
@@ -34,6 +36,7 @@ class Historian:
             config=types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
                 temperature=0.8,
+                thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level),
             ),
         )
 

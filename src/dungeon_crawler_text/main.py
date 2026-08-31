@@ -11,7 +11,11 @@ from dungeon_crawler_text.cartographer import Cartographer
 from dungeon_crawler_text.historian import Historian
 
 
-def run_simulation(num_turns: int = 3, model_name: str = "gemini-3.6-flash") -> None:
+def run_simulation(
+    num_turns: int = 3,
+    model_name: str = "gemini-3.7-flash",
+    thinking_level: str = "HIGH",
+) -> None:
     """Initializes Cartographer and Historian agents and runs their multi-turn collaboration."""
     load_dotenv()
 
@@ -19,11 +23,11 @@ def run_simulation(num_turns: int = 3, model_name: str = "gemini-3.6-flash") -> 
     print(" 🗺️  WORLD BUILDER SIMULATION: CARTOGRAPHER & HISTORIAN  📜", flush=True)
     print("=" * 80, flush=True)
 
-    print(f"\nInitializing Cartographer agent ({model_name})...", flush=True)
-    cartographer = Cartographer(model_name=model_name)
+    print(f"\nInitializing Cartographer agent ({model_name}, thinking={thinking_level})...", flush=True)
+    cartographer = Cartographer(model_name=model_name, thinking_level=thinking_level)
 
-    print(f"Initializing Historian agent ({model_name})...", flush=True)
-    historian = Historian(model_name=model_name)
+    print(f"Initializing Historian agent ({model_name}, thinking={thinking_level})...", flush=True)
+    historian = Historian(model_name=model_name, thinking_level=thinking_level)
 
     # Initial question from Cartographer
     query = cartographer.start_chronicle()
@@ -64,14 +68,20 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-3.6-flash",
-        help="Gemini model to use (default: gemini-3.6-flash)",
+        default="gemini-3.7-flash",
+        help="Gemini model to use (default: gemini-3.7-flash)",
+    )
+    parser.add_argument(
+        "--thinking",
+        type=str,
+        default="HIGH",
+        help="Thinking level for Gemini models (default: HIGH)",
     )
 
     args = parser.parse_args()
 
     try:
-        run_simulation(num_turns=args.turns, model_name=args.model)
+        run_simulation(num_turns=args.turns, model_name=args.model, thinking_level=args.thinking)
     except Exception as e:
         print(f"\n❌ Error running simulation: {e}", file=sys.stderr)
         sys.exit(1)
