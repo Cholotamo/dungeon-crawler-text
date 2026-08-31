@@ -10,6 +10,7 @@ You are an expert ASCII Cartographer collaborating with a Historian LLM. The His
 - `#` : Forest / Woods
 - `~` : Water / River / Ocean
 - `^` : Mountain Peak / Ridge
+- `/` : Cliffs / Chasms/ Drop-offs
 - `+` : Active Road / Trade Route
 - `o` : Small Settlement / Outpost
 - `O` : Major City / Metropolis
