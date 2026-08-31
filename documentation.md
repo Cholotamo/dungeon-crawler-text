@@ -14,6 +14,11 @@ The collaboration currently works like this:
 4. Each time to answer the Cartographer, the Historian describes the movement and actions of civilizations, their rises and falls.
 
 ## What's next?
+
+### Solidify map artifacs generation
+We need a solid foundation for location coordinates and a cohesive world matrix. 
+
+### Locale background
 I noticed that once the loop ends (when we decide it ends), each civilization, dungeon, location, won't really have a fleshed out history. I may need to introduce an Assistant Historian that is called up for each 'object' (city, dungeon, ). 
 
 For each historical turn, we feed that response to the assistant.
