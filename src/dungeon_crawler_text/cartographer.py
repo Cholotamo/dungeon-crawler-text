@@ -29,17 +29,27 @@ class Cartographer:
         model_name: str = "gemini-3.7-flash",
         thinking_level: str = "HIGH",
         client: Optional[genai.Client] = None,
+        enable_code_execution: bool = True,
     ) -> None:
         self.model_name = model_name
         self.thinking_level = thinking_level
         self.client = client or genai.Client()
         self.system_prompt = _load_prompt("Cartographer.md")
+        self.enable_code_execution = enable_code_execution
+
+        tools = (
+            [types.Tool(code_execution=types.ToolCodeExecution())]
+            if enable_code_execution
+            else None
+        )
+
         self.chat = self.client.chats.create(
             model=self.model_name,
             config=types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
                 temperature=0.7,
                 thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level),
+                tools=tools,
             ),
         )
 
