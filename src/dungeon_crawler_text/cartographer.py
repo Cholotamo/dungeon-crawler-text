@@ -47,7 +47,7 @@ class Cartographer:
         """Returns the initial query asking the Historian for the lay of the land."""
         return (
             "What is the lay of the land? Describe the foundational geography "
-            "(oceans, mountain chains, major rivers, and ancient forests) of this world."
+            "(oceans, mountain chains, hills, major rivers, and ancient forests) of this world."
         )
 
     def process_narrative(self, historian_narrative: str) -> str:

@@ -1,3 +1,17 @@
+# 01/09/2026
+I have tried running the simulation on a full 5 epochs, there are some issues.
+
+1. The quality is remarkably poorer when using the gemini flash models. Particularly, between epochs, objects will move places, and also object placements and dimensions sometimes don't make sense (The Historian described a plateau, the Cartographer only made a 2x2 box of cliffs, fair enough. But in a later epoch, when a civilization makes their home on top of the plateau, the Cartographer doesn't place it on the plateau, but rather to the side of it.)
+
+I do not want to invest more money into going the OpenAI route, so I should think more about how to optimize the simulation. Some things I could do is:
+  - Enable  *code interpreter* for the Cartographer, and instruct it to use that when generating maps.
+  - For the Historian, and ask it to observe the map first before making decisions on what happens next in the chronicle. 
+  - Let the agents ask each other questions a little if unsure about things.
+
+2. There are alot of instances of 503 errors. I need a *retry mechanism*.
+
+3. The repeating names are so boring, maybe I can give the Historian a knowledge-base for a made up language to refer to when thinking up names.
+
 # 31/08/2026
 We explore the usage of LLM's collaborating with each other to create an actual cohesive environment that can immerse players.
 
