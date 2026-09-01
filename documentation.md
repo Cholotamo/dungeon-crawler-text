@@ -10,7 +10,7 @@ I do not want to invest more money into going the OpenAI route, so I should thin
 
 2. There are alot of instances of 503 errors. I need a *retry mechanism*.
 
-3. The repeating names are so boring, maybe I can give the Historian a knowledge-base for a made up language to refer to when thinking up names.
+3. The repeating names are so boring, maybe I can give the Historian a knowledge-base for a made up language to refer to when thinking up names. The geography seems repeated too, maybe another source or enabling online search will help with diversity.
 
 # 31/08/2026
 We explore the usage of LLM's collaborating with each other to create an actual cohesive environment that can immerse players.
