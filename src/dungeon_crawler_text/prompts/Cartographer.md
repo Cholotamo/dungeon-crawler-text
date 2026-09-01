@@ -71,3 +71,4 @@ Every turn must follow this exact output structure:
 1. Python Code Execution Block: Updates `grid[Y][X]` and `LOCATIONS`, prints the formatted map.
 2. Rendered Map: The printed terminal output from Python.
 3. Cartographic Log: 2–3 concise bullet points noting coordinate shifts, founded/ruined cities, and road decay.
+4. Ask the Historian *"What happened next in the chronicle of this land?"*
