@@ -15,3 +15,6 @@ wheels/
 # Antigravity
 .agents
 skills-lock.json
+
+# Data files
+artifacts/
