@@ -1,3 +1,35 @@
+# 02/09/2026
+## intended current process
+1. historian input: told to generate land
+2. historian output: primordial world description
+
+3. cartographer input: 2. 
+4. cartographer output: code execution to generate content*, grid*, registry*, log, and request to advance story
+
+5. historian input: grid, registry, log, and request to advance story + its conversation memory
+6. historian output: chronicle of events
+
+7. cartographer input: 6. + its conversation memory
+8. cartographer output: code execution to generate content* + grid* + registry* + log, and request to advance story
+
+9. repeat
+
+## wanted optimized process
+1. historian input: told to generate land
+2. historian output: primordial world description
+
+3. cartographer input: 2. 
+4. cartographer output: code execution to generate content*, tool call to save world state snapshot (grid*, registry *), log, and request to advance story
+
+5. historian input: tool call to get world state snapshot, log and request to advance story + its conversation memory
+6. historian output: chronicle of events
+
+7. cartographer input: 6. - its conversation memory (save tokens) + tool call to get world state snapshot
+8. cartographer output: code execution to generate content* + tool call to save world state snapshot (grid*, registry *), log, and request to advance story
+
+9. repeat
+
+
 # 01/09/2026
 I have tried running the simulation on a full 5 epochs, there are some issues.
 
