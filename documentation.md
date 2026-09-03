@@ -4,13 +4,13 @@
 2. historian output: primordial world description
 
 3. cartographer input: 2. 
-4. cartographer output: code execution to generate content*, grid*, registry*, log, and request to advance story
+4. cartographer output: code execution to generate content*, grid*, locations registry*, log, and request to advance story
 
 5. historian input: grid, registry, log, and request to advance story + its conversation memory
 6. historian output: chronicle of events
 
 7. cartographer input: 6. + its conversation memory
-8. cartographer output: code execution to generate content* + grid* + registry* + log, and request to advance story
+8. cartographer output: code execution to generate content* + grid* + locations registry* + log, and request to advance story
 
 9. repeat
 
@@ -18,17 +18,162 @@
 1. historian input: told to generate land
 2. historian output: primordial world description
 
-3. cartographer input: 2. 
-4. cartographer output: code execution to generate content*, tool call to save world state snapshot (grid*, registry *), log, and request to advance story
+3. cartographer input: 2. + instruction to use code execution
+4. cartographer output: code execution to generate content*, python call (not tool) to save world state snapshot* from them model's output, log, and request to advance story
 
-5. historian input: tool call to get world state snapshot, log and request to advance story + its conversation memory
+5. historian input: python injection to get world state snapshot, log and request to advance story + its conversation memory
 6. historian output: chronicle of events
 
-7. cartographer input: 6. - its conversation memory (save tokens) + tool call to get world state snapshot
-8. cartographer output: code execution to generate content* + tool call to save world state snapshot (grid*, registry *), log, and request to advance story
+7. cartographer input: 6. - its conversation memory (save tokens, do this by using generate_content instead of chat) + python injection to get world state snapshot + instruction to use code execution
+8. cartographer output: code execution to generate updated content* + python call (not tool) to save world state snapshot* from them model's output, log, and request to advance story
 
-9. repeat
+9. repeat from 5. to 8.
 
+### notes
+*means content generated with code
+world snapshot sample
+```json
+{
+  "name": "The Shattered Reach",
+  "terrain_grid": [
+    "^^^^^^^^^^,,..................~~",
+    "^^^^^^^^^,,,,...............~~~~",
+    "^^^^^^^^,,,,,,.............~~~~~",
+    "^^^^^^^,,,,,,,,...######..~~~~~~",
+    "^^^^^^,,,,,,,,...########.~~~~~~",
+    "^^^^^,,,,,,,,...##########.~~~~~",
+    "^^^^,,,,,,,,...############.~~~~",
+    "^^^,,,,,,,,...##############.~~~",
+    "^^,,,,,,,,...################.~~",
+    "^,,,,,,,,...##################~~",
+    ",,,,,,,,....##################~~",
+    ",,,,,,,.....##################~~",
+    ",,,,,,.......################.~~",
+    ",,,,,.........##############.~~~",
+    ",,,,...........############.~~~~",
+    ",,,.............##########.~~~~~",
+    ",,...............########.~~~~~~",
+    ",.................######..~~~~~~",
+    "...........................~~~~~",
+    "...................%%%%%....~~~~",
+    "..................%%%%%%%...~~~~",
+    ".................%%%%%%%%%..~~~~",
+    "..................%%%%%%%...~~~~",
+    "...................%%%%%....~~~~",
+    ".............................~~~",
+    "..................******.....~~~",
+    ".................********....~~~",
+    "................**********...~~~",
+    ".................********....~~~",
+    "..................******.....~~~",
+    ".............................~~~",
+    ".............................~~~"
+  ],
+  "region_grid": [
+    "33333333330000000000000000000011",
+    "33333333300000000000000000001111",
+    "33333333000000000000000000011111",
+    "33333330000000000022222200111111",
+    "33333300000000000222222220111111",
+    "33333000000000002222222222011111",
+    "33330000000000022222222222201111",
+    "33300000000000222222222222220111",
+    "33000000000002222222222222222011",
+    "30000000000022222222222222222211",
+    "00000000000022222222222222222211",
+    "00000000000022222222222222222211",
+    "00000000000002222222222222220011",
+    "00000000000000222222222222220111",
+    "00000000000000022222222222201111",
+    "00000000000000002222222222011111",
+    "00000000000000000222222220111111",
+    "00000000000000000022222200111111",
+    "00000000000000000000000000011111",
+    "00000000000000000004444400001111",
+    "00000000000000000044444440001111",
+    "00000000000000000444444444001111",
+    "00000000000000000044444440001111",
+    "00000000000000000004444400001111",
+    "00000000000000000000000000000111",
+    "00000000000000000055555500000111",
+    "00000000000000000555555550000111",
+    "00000000000000005555555555000111",
+    "00000000000000000555555550000111",
+    "00000000000000000055555500000111",
+    "00000000000000000000000000000111",
+    "00000000000000000000000000000111"
+  ],
+  "regions": {
+    "0": { "name": "Sunlit Plains", "type": "wilderness" },
+    "1": { "name": "Silver River", "type": "river" },
+    "2": { "name": "Whispering Woods", "type": "forest" },
+    "3": { "name": "Iron Peaks", "type": "mountain" },
+    "4": { "name": "Duskfen Bog", "type": "swamp" },
+    "5": { "name": "The Ashen Scars", "type": "wasteland" }
+  },
+  "landmarks": {
+    "Highwatch": {
+      "name": "Highwatch Metropolis",
+      "char": "O",
+      "type": "major_city",
+      "pos": [14, 11]
+    },
+    "Oakhaven": {
+      "name": "Oakhaven Outpost",
+      "char": "o",
+      "type": "outpost",
+      "pos": [10, 4]
+    },
+    "King's Bridge": {
+      "name": "King's River Crossing",
+      "char": "=",
+      "type": "bridge",
+      "pos": [29, 11]
+    },
+    "Dread Den": {
+      "name": "Dread Hollow",
+      "char": "!",
+      "type": "beast_den",
+      "pos": [4, 2]
+    }
+  },
+  "roads": {
+    "King's Highway": {
+      "type": "paved",
+      "tiles": [
+        [10, 4], [10, 5], [10, 6], [10, 7], [11, 7],
+        [12, 8], [13, 9], [14, 10], [14, 11],
+        [15, 11], [16, 11], [17, 11], [18, 11], [19, 11],
+        [20, 11], [21, 11], [22, 11], [23, 11], [24, 11],
+        [25, 11], [26, 11], [27, 11], [28, 11], [29, 11]
+      ]
+    }
+  }
+}
+```
+to render the snapshot
+```python
+# 1. Start with the base terrain layer
+screen = [list(row) for row in state["terrain_grid"]]
+
+# 2. Overlay roads ('+' for standard road tiles, '=' for bridges)
+for road in state["roads"].values():
+  for x, y in road["tiles"]:
+    screen[y][x] = "=" if state["terrain_grid"][y][x] == "~" else "+"
+
+# 3. Overlay landmarks on top
+for landmark in state["landmarks"].values():
+  x, y = landmark["pos"]
+  screen[y][x] = landmark["char"]
+
+# 4. Print final rendered frame
+for row in screen:
+  print("".join(row))
+```
+- I think, with the new snapshot format, the cartographer's instructions should be updated to "generate the terrain grid before the region grid". Both agents should also be informed of what the snapshot means like:
+```
+The terrain_grid stores natural ground only. To inspect or place features at a coordinate (x, y), check landmarks and roads first, then fall back to terrain_grid and region_grid for the underlying biome.
+```
 
 # 01/09/2026
 I have tried running the simulation on a full 5 epochs, there are some issues.
