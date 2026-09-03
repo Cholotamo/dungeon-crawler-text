@@ -19,12 +19,12 @@
 2. historian output: primordial world description
 
 3. cartographer input: 2. + instruction to use code execution
-4. cartographer output: code execution to generate content*, python call (not tool) to save world state snapshot* from them model's output, log, and request to advance story
+4. cartographer output: code execution to generate content*, python call (not tool) to save world state snapshot* from the model's output, log, and request to advance story
 
-5. historian input: python injection to get world state snapshot, log and request to advance story + its conversation memory
+5. historian input: python injection to get world state snapshot (terrain and region side by side + the registries), log and request to advance story + its conversation memory
 6. historian output: chronicle of events
 
-7. cartographer input: 6. - its conversation memory (save tokens, do this by using generate_content instead of chat) + python injection to get world state snapshot + instruction to use code execution
+7. cartographer input: 6. - its conversation memory (save tokens, do this by using generate_content instead of chat) + python injection to get world state snapshot (terrain and region side by side + the registries) + instruction to use code execution
 8. cartographer output: code execution to generate updated content* + python call (not tool) to save world state snapshot* from them model's output, log, and request to advance story
 
 9. repeat from 5. to 8.
@@ -35,6 +35,8 @@ world snapshot sample
 ```json
 {
   "name": "The Shattered Reach",
+  "Year": 142,
+  "epoch": 3,
   "terrain_grid": [
     "^^^^^^^^^^,,..................~~",
     "^^^^^^^^^,,,,...............~~~~",
@@ -147,6 +149,10 @@ world snapshot sample
         [20, 11], [21, 11], [22, 11], [23, 11], [24, 11],
         [25, 11], [26, 11], [27, 11], [28, 11], [29, 11]
       ]
+    },
+    "King's Bridge": {
+      "type": "bridge",
+      "tiles": [[30,12]]
     }
   }
 }
