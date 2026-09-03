@@ -1,3 +1,6 @@
+# 03/09/2026
+I've edited the prompts to try and follow the new "wanted optimized process" from yesterday.
+
 # 02/09/2026
 ## intended current process
 1. historian input: told to generate land
