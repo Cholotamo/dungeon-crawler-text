@@ -65,8 +65,8 @@ def extract_cartographic_log(text: str) -> str:
         pattern = re.escape(SNAPSHOT_START_DELIMITER) + r"[\s\S]*?" + re.escape(SNAPSHOT_END_DELIMITER)
         cleaned = re.sub(pattern, "", cleaned)
 
-    # Remove any standalone JSON blocks that might look like raw dumps
-    cleaned = re.sub(r"```json[\s\S]*?```", "", cleaned)
+    # Remove any markdown code blocks (python, json, or generic)
+    cleaned = re.sub(r"```[a-zA-Z0-9_-]*[\s\S]*?```", "", cleaned)
 
     lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
     return "\n".join(lines)
