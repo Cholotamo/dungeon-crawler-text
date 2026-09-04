@@ -18,7 +18,20 @@ considerations
   - **Fort Krag:** Garrison commander assassinated; iron shipments to Oakhaven halted.
   - **Barrow Mounds:** Cult activity reported around the unsealed tomb.
   ```
+5. each output is made in an appending manner to a .md file for the location `artifacts/locations/location_name/history.md`
+  ```md
+  # Location: Oakhaven
+  - Current Status: Major Port
+  - Active Factions: Harbor Guild, Iron Smugglers
 
+  ---
+
+  ## Epoch 1 (Year 120) — The First Docks
+  A modest fishing settlement founded along the brackish delta...
+
+  ## Epoch 2 (Year 165) — Stone and Timber
+  Discovery of iron upstream caused rapid dock expansion...
+  ```
 # 04/09/2026
 Transitioned Turn 2+ world state evolution from code-execution regeneration to fine-grained tool calling:
 - **Snapshot Management:** The Python runner (`main.py`) handles versioning and initializes each epoch snapshot file (`world_state_epoch_{epoch}.json`) from the previous epoch.
