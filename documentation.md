@@ -1,4 +1,25 @@
 # 04/09/2026
+I want to flesh out the simulation alot more. for that, i need an assistant for the historian to really go into details of what's happening each epoch for each location (settlement or dungeon).This could be a scribe agent. 
+
+The purpose of the scribe agent is that its output will be used to seed multiple systems:
+1. The sub-map system: the scribe's content should contain content that describes the location in prose as well as changes that occur to the location ecross epochs. This will seed an architect agent to procedurally generate location layouts and possibly even housing. (there may be introduction of relational database containing persons and houses and quests)
+2. The NPC system: the scribe's content should contain mentions of key persons that could be the driving reasons behind the events the main historian is mentioning. a socio agent will then generate a csv of hundreds of NPC's with random names, and some of them will be marked as notable.
+3. The quest system: the scribe's content will be passed to a future agent, maybe quest writer agent, to formulate a quest for the player.
+4. The map generation system: all scribes' content will consolidate into a short report that will seed the next epoch's events, this could enhance history cohesiveness 
+
+considerations
+1. the scribe agent should be event-driven, only dispatched for locations where the location experienced a state mutation or was mentioned by the historian in that epoch.
+2. inputs will be the historian's output for that epoch + the location's current historical content .md (if it exists)
+3. parallel execution: the scribes can work all at the same time
+4. the scribe will also output a mini report of what happened internally in each city. these mini reports will be consolidated and passed to the main historian to help seed what's going to happen in the next epoch, thus creating a bottom-up emergence loop.
+  ```md
+  ### Rumors & Frontier Dispatches (Epoch 3 Aftermath):
+  - **Oakhaven:** Harbor Master Alden Vane executed; lingering famine and black-market arms trade in the Ash Quarter.
+  - **Fort Krag:** Garrison commander assassinated; iron shipments to Oakhaven halted.
+  - **Barrow Mounds:** Cult activity reported around the unsealed tomb.
+  ```
+
+# 04/09/2026
 Transitioned Turn 2+ world state evolution from code-execution regeneration to fine-grained tool calling:
 - **Snapshot Management:** The Python runner (`main.py`) handles versioning and initializes each epoch snapshot file (`world_state_epoch_{epoch}.json`) from the previous epoch.
 - **Turn 1 (Primordial Canvas):** Retained procedural Python code execution for generating the initial 32x32 terrain and region grids.
