@@ -1,7 +1,7 @@
 """Cartographer Agent module.
 
 Translates ongoing historical chronicles into ASCII world maps using Gemini LLM.
-Optimized to run statelessly using generate_content to save tokens.
+Optimized to run statelessly across epochs to save tokens.
 """
 
 import copy

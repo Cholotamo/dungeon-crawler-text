@@ -36,7 +36,7 @@ def retry_with_backoff(
                     if attempt == max_retries:
                         raise
                     print(
-                        f"\n⚠️ Transient API error (attempt {attempt}/{max_retries}): {err}. Retrying in {delay:.1f}s...",
+                        f"\n[WARNING] Transient API error (attempt {attempt}/{max_retries}): {err}. Retrying in {delay:.1f}s...",
                         flush=True,
                     )
                     time.sleep(delay)
@@ -48,7 +48,7 @@ def retry_with_backoff(
                         if attempt == max_retries:
                             raise
                         print(
-                            f"\n⚠️ Network/service error (attempt {attempt}/{max_retries}): {err}. Retrying in {delay:.1f}s...",
+                            f"\n[WARNING] Network/service error (attempt {attempt}/{max_retries}): {err}. Retrying in {delay:.1f}s...",
                             flush=True,
                         )
                         time.sleep(delay)

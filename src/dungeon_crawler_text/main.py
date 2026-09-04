@@ -38,7 +38,7 @@ def run_simulation(
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 80, flush=True)
-    print(" 🗺️  WORLD BUILDER SIMULATION: CARTOGRAPHER & HISTORIAN  📜", flush=True)
+    print(" WORLD BUILDER SIMULATION: CARTOGRAPHER & HISTORIAN", flush=True)
     print("=" * 80, flush=True)
 
     print(
@@ -61,19 +61,19 @@ def run_simulation(
         print(f"\n{'='*35} TURN {turn} (EPOCH {turn}) {'='*35}\n", flush=True)
 
         if turn == 1:
-            print("🧭 CARTOGRAPHER PROMPTS HISTORIAN (PRIMORDIAL CREATION):", flush=True)
+            print("CARTOGRAPHER PROMPTS HISTORIAN (PRIMORDIAL CREATION):", flush=True)
             print(f'"{query}"\n', flush=True)
 
-            print("📜 HISTORIAN NARRATES PRIMORDIAL LAND:", flush=True)
+            print("HISTORIAN NARRATES PRIMORDIAL LAND:", flush=True)
             narrative = historian.generate_primordial_world(query)
             print(narrative, flush=True)
             print("\n" + "-" * 80 + "\n", flush=True)
 
-            print("🗺️ CARTOGRAPHER GENERATES BASELINE MAP VIA CODE EXECUTION...", flush=True)
+            print("CARTOGRAPHER GENERATES BASELINE MAP VIA CODE EXECUTION...", flush=True)
             snapshot, log, _ = cartographer.generate_primordial_map(narrative)
             last_log = log
         else:
-            print("📜 HISTORIAN INSPECTS DUAL-GRID WORLD STATE & NARRATES...", flush=True)
+            print("HISTORIAN INSPECTS DUAL-GRID WORLD STATE & NARRATES...", flush=True)
             snapshot_injection = format_snapshot_injection(current_state)
             narrative = historian.chronicle_epoch(
                 snapshot_injection=snapshot_injection,
@@ -89,9 +89,9 @@ def run_simulation(
             current_state = copy.deepcopy(current_state)
             current_state["epoch"] = turn
             epoch_snapshot_path = save_snapshot_file(current_state, artifacts_dir, epoch=turn)
-            print(f"📁 Initialized Epoch {turn} snapshot: {epoch_snapshot_path.name}", flush=True)
+            print(f"Initialized Epoch {turn} snapshot: {epoch_snapshot_path.name}", flush=True)
 
-            print("🗺️ CARTOGRAPHER EVOLVES WORLD MAP VIA MUTATION TOOLS...", flush=True)
+            print("CARTOGRAPHER EVOLVES WORLD MAP VIA MUTATION TOOLS...", flush=True)
             snapshot, log, _ = cartographer.evolve_map(
                 historian_narrative=narrative,
                 previous_state=current_state,
@@ -104,25 +104,25 @@ def run_simulation(
             current_state = snapshot
             current_state["epoch"] = turn
             saved_path = save_snapshot_file(current_state, artifacts_dir, epoch=turn)
-            print(f"💾 World state snapshot saved to: {saved_path}", flush=True)
+            print(f"World state snapshot saved to: {saved_path}", flush=True)
 
-            print("\n🗺️ RENDERED ASCII COMPOSITE MAP (EPOCH {0}):".format(turn), flush=True)
+            print("\nRENDERED ASCII COMPOSITE MAP (EPOCH {0}):".format(turn), flush=True)
             rendered_map = render_composite_map(current_state)
             print(rendered_map, flush=True)
         else:
             print(
-                "\n⚠️ Warning: Could not parse structured world state snapshot from Cartographer output.",
+                "\n[WARNING] Could not parse structured world state snapshot from Cartographer output.",
                 flush=True,
             )
 
         if last_log:
-            print(f"\n📋 CARTOGRAPHIC LOG (EPOCH {turn}):", flush=True)
+            print(f"\nCARTOGRAPHIC LOG (EPOCH {turn}):", flush=True)
             print(last_log, flush=True)
 
         query = "What happened next in the chronicle of this land?"
 
     print("\n" + "=" * 80, flush=True)
-    print(" 📊 SIMULATION TOKEN USAGE SUMMARY", flush=True)
+    print(" SIMULATION TOKEN USAGE SUMMARY", flush=True)
     print("=" * 80, flush=True)
 
     h_usage = historian.token_usage
@@ -132,21 +132,21 @@ def run_simulation(
     tot_thoughts = h_usage["thoughts_tokens"] + c_usage["thoughts_tokens"]
     grand_total = h_usage["total_tokens"] + c_usage["total_tokens"]
 
-    print(f"📜 Historian Agent:", flush=True)
+    print("Historian Agent:", flush=True)
     print(f"   - Prompt Tokens:     {h_usage['prompt_tokens']:,}", flush=True)
     print(f"   - Completion Tokens: {h_usage['candidates_tokens']:,}", flush=True)
     if h_usage['thoughts_tokens']:
         print(f"   - Thoughts Tokens:   {h_usage['thoughts_tokens']:,}", flush=True)
     print(f"   - Total Tokens:      {h_usage['total_tokens']:,}\n", flush=True)
 
-    print(f"🗺️ Cartographer Agent (Stateless):", flush=True)
+    print("Cartographer Agent (Stateless):", flush=True)
     print(f"   - Prompt Tokens:     {c_usage['prompt_tokens']:,}", flush=True)
     print(f"   - Completion Tokens: {c_usage['candidates_tokens']:,}", flush=True)
     if c_usage['thoughts_tokens']:
         print(f"   - Thoughts Tokens:   {c_usage['thoughts_tokens']:,}", flush=True)
     print(f"   - Total Tokens:      {c_usage['total_tokens']:,}\n", flush=True)
 
-    print(f"🌟 Grand Total Usage across {num_turns} Epochs:", flush=True)
+    print(f"Grand Total Usage across {num_turns} Epochs:", flush=True)
     print(f"   - Prompt Tokens:     {tot_prompt:,}", flush=True)
     print(f"   - Completion Tokens: {tot_candidates:,}", flush=True)
     if tot_thoughts:
@@ -154,8 +154,8 @@ def run_simulation(
     print(f"   - Combined Total:    {grand_total:,}", flush=True)
 
     print("\n" + "=" * 80, flush=True)
-    print(" ✅ WORLD BUILDING CHRONICLE SIMULATION COMPLETE", flush=True)
-    print(f" Snapshots saved to: {artifacts_dir.resolve()}", flush=True)
+    print(" WORLD BUILDING CHRONICLE SIMULATION COMPLETE", flush=True)
+    print(f"Snapshots saved to: {artifacts_dir.resolve()}", flush=True)
     print("=" * 80, flush=True)
 
 
@@ -198,7 +198,7 @@ def main() -> None:
             artifacts_dir=Path(args.artifacts),
         )
     except Exception as e:
-        print(f"\n❌ Error running simulation: {e}", file=sys.stderr)
+        print(f"\n[ERROR] Error running simulation: {e}", file=sys.stderr)
         sys.exit(1)
 
 
