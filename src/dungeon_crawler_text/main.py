@@ -1,6 +1,7 @@
 """Main entry point for running the Cartographer & Historian world-building simulation."""
 
 import argparse
+import copy
 from pathlib import Path
 import sys
 from dotenv import load_dotenv
@@ -27,8 +28,10 @@ def run_simulation(
 
     Follows the optimized process:
     - Historian maintains chat memory across epochs.
-    - Cartographer executes statelessly per turn with code execution to save tokens.
-    - Snapshots are parsed via delimiters and saved to artifacts/.
+    - Cartographer:
+        * Turn 1: Generates primordial canvas via procedural code execution.
+        * Turn 2+: Evolves world state statelessly via fine-grained mutation tools (AFC).
+    - Snapshots are versioned and managed per epoch by the Python runner.
     - Composite maps are rendered from snapshots and displayed with stacked coordinates.
     """
     load_dotenv()
@@ -81,11 +84,19 @@ def run_simulation(
             print(narrative, flush=True)
             print("\n" + "-" * 80 + "\n", flush=True)
 
-            print("🗺️ CARTOGRAPHER EVOLVES WORLD MAP VIA CODE EXECUTION...", flush=True)
+            # Python runner handles snapshot management:
+            # Clone previous epoch state and create new snapshot file
+            current_state = copy.deepcopy(current_state)
+            current_state["epoch"] = turn
+            epoch_snapshot_path = save_snapshot_file(current_state, artifacts_dir, epoch=turn)
+            print(f"📁 Initialized Epoch {turn} snapshot: {epoch_snapshot_path.name}", flush=True)
+
+            print("🗺️ CARTOGRAPHER EVOLVES WORLD MAP VIA MUTATION TOOLS...", flush=True)
             snapshot, log, _ = cartographer.evolve_map(
                 historian_narrative=narrative,
                 previous_state=current_state,
                 epoch=turn,
+                snapshot_path=epoch_snapshot_path,
             )
             last_log = log
 

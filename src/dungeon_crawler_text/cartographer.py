@@ -4,8 +4,7 @@ Translates ongoing historical chronicles into ASCII world maps using Gemini LLM.
 Optimized to run statelessly using generate_content to save tokens.
 """
 
-from __future__ import annotations
-
+import copy
 import json
 from pathlib import Path
 from typing import Any, Optional
@@ -15,6 +14,7 @@ from google.genai import types
 
 from dungeon_crawler_text.retry import retry_with_backoff
 from dungeon_crawler_text.world_state import (
+    WorldStateMutator,
     extract_cartographic_log,
     extract_snapshot_from_text,
     format_snapshot_injection,
@@ -157,53 +157,62 @@ class Cartographer:
         historian_narrative: str,
         previous_state: dict[str, Any],
         epoch: int,
+        snapshot_path: Optional[Path] = None,
     ) -> tuple[Optional[dict[str, Any]], str, str]:
-        """Turn 2+: Mutates map state according to the historical chronicle.
+        """Turn 2+: Mutates map state according to the historical chronicle using mutation tools.
 
         Runs statelessly without prior chat memory to save tokens.
         Returns (snapshot_dict, cartographic_log, raw_response_text).
         """
-        snapshot_injection = format_snapshot_injection(previous_state)
-        state_json_str = json.dumps(previous_state, indent=2)
+        # Work on a deepcopy for retry safety
+        working_state = copy.deepcopy(previous_state)
+        working_state["epoch"] = epoch
+
+        mutator = WorldStateMutator(state=working_state, snapshot_path=snapshot_path)
+        mutation_tools = mutator.get_tools()
+
+        snapshot_injection = format_snapshot_injection(working_state)
 
         user_prompt = (
-            f"## Previous World State (Epoch {epoch - 1}):\n"
+            f"## Current World State (Epoch {epoch - 1}):\n"
             f"{snapshot_injection}\n\n"
-            f"## Previous State JSON (Initialize `state` in your Python script with this data):\n"
-            f"```json\n{state_json_str}\n```\n\n"
-            f"## Chronicle of Historical Events:\n"
+            f"## Chronicle of Historical Events (Epoch {epoch}):\n"
             f"{historian_narrative}\n\n"
             "## Instructions:\n"
-            "Execute Python code to apply the chronicle updates to the world state:\n"
-            "1. Initialize `state` in Python using the JSON above.\n"
-            f"2. Set state['epoch'] = {epoch}.\n"
-            "3. Parse bracketed coordinates (e.g., [X: 14, Y: 22]) and add/update landmarks, roads, and terraformed tiles.\n"
-            "4. Ensure dual-grid synchronization if biomes or terrain change.\n"
-            "5. Print the updated JSON snapshot wrapped in the designated delimiters:\n"
-            "   print('___WORLD_STATE_SNAPSHOT_START___')\n"
-            "   print(json.dumps(state))\n"
-            "   print('___WORLD_STATE_SNAPSHOT_END___')\n"
-            "6. Output your Cartographic Log (2–3 bullet points) and end with: 'What happened next in the chronicle of this land?'"
+            f"You MUST call your mutation tools to apply the chronicle updates for Epoch {epoch} directly to the world state:\n"
+            "1. Parse bracketed coordinates (e.g., [X: 14, Y: 22]) from the chronicle.\n"
+            "2. Call `upsert_landmark` for every founded, upgraded, or ruined site mentioned in the chronicle.\n"
+            "3. Call `upsert_road` to register routes, paths, and river bridges between settlements.\n"
+            "4. Call `set_tiles` or `fill_area` for dual-grid synchronized updates when terrain or biomes change (e.g., clearing forest, tilling farmland, digging canals, blight).\n"
+            "5. Call `decay_road` if connecting settlements fell to ruin.\n"
+            "6. Call `upsert_region` if newly named biomes or cursed zones emerge.\n"
+            "7. Only AFTER calling your mutation tools, provide your Cartographic Log (2–3 concise bullet points) and end with: 'What happened next in the chronicle of this land?'"
         )
 
         config = types.GenerateContentConfig(
             system_instruction=self.system_prompt,
             temperature=0.7,
             thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level),
-            tools=self.tools,
+            tools=mutation_tools,
         )
 
-        response = self.client.models.generate_content(
+        chat = self.client.chats.create(
             model=self.model_name,
-            contents=user_prompt,
             config=config,
         )
+
+        response = chat.send_message(user_prompt)
         self._track_usage(response)
 
-        text_content, code_output = self._extract_all_parts(response)
-        combined_output = f"{code_output}\n\n{text_content}"
-
-        snapshot = extract_snapshot_from_text(combined_output)
+        text_content = getattr(response, "text", "") or ""
         cartographic_log = extract_cartographic_log(text_content)
 
-        return snapshot, cartographic_log, combined_output
+        # Fall back to mutator logs if LLM provided minimal text log
+        if not cartographic_log.strip() and mutator.mutation_log:
+            cartographic_log = "\n".join(f"- {entry}" for entry in mutator.mutation_log)
+
+        # Update previous_state in-place
+        previous_state.clear()
+        previous_state.update(working_state)
+
+        return previous_state, cartographic_log, text_content

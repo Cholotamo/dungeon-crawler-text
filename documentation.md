@@ -1,3 +1,18 @@
+# 04/09/2026
+Transitioned Turn 2+ world state evolution from code-execution regeneration to fine-grained tool calling:
+- **Snapshot Management:** The Python runner (`main.py`) handles versioning and initializes each epoch snapshot file (`world_state_epoch_{epoch}.json`) from the previous epoch.
+- **Turn 1 (Primordial Canvas):** Retained procedural Python code execution for generating the initial 32x32 terrain and region grids.
+- **Turn 2+ (Chronicle Evolution):** Cartographer now uses `WorldStateMutator` tool functions via Gemini Automatic Function Calling (AFC):
+  - `set_tiles(coords, terrain_char, region_id)`: Applies dual-grid synchronized changes to natural ground and biomes.
+  - `fill_area(x1, y1, x2, y2, terrain_char, region_id)`: Bounding box bulk updates for regional events.
+  - `upsert_landmark(landmark_id, name, char, type, pos)`: Founds, upgrades ('o' -> 'O'), ruins ('!'), or relocates sites.
+  - `remove_landmark(landmark_id)`: Deletes destroyed sites.
+  - `upsert_road(road_name, road_type, tiles, extend)`: Paves routes and bridges.
+  - `decay_road(road_name, decay_percentage)`: Erodes road coordinates when connected settlements fall to ruin.
+  - `remove_road(road_name)`: Clears routes entirely.
+  - `upsert_region(region_id, name, region_type)`: Registers new regional biomes.
+This eliminates the redundant rewriting of the entire JSON state in LLM code execution, saving thousands of tokens and ensuring deterministic boundary and dual-grid consistency.
+
 # 03/09/2026
 I've edited the prompts to try and follow the new "wanted optimized process" from yesterday.
 
