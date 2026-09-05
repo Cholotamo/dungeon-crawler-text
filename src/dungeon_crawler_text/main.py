@@ -11,6 +11,11 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from dungeon_crawler_text.cartographer import Cartographer
 from dungeon_crawler_text.historian import Historian
+from dungeon_crawler_text.scribe import (
+    Scribe,
+    detect_active_locations,
+    run_scribes_parallel,
+)
 from dungeon_crawler_text.world_state import (
     format_snapshot_injection,
     render_composite_map,
@@ -53,12 +58,21 @@ def run_simulation(
     )
     historian = Historian(model_name=model_name, thinking_level=thinking_level)
 
+    print(
+        f"Initializing Scribe agent ({model_name}, thinking={thinking_level}, parallel=True)...",
+        flush=True,
+    )
+    scribe = Scribe(model_name=model_name, thinking_level=thinking_level)
+
     current_state: dict = {}
     last_log: str = ""
+    last_dispatches: str = ""
     query = cartographer.start_chronicle()
 
     for turn in range(1, num_turns + 1):
         print(f"\n{'='*35} TURN {turn} (EPOCH {turn}) {'='*35}\n", flush=True)
+
+        state_before_turn = copy.deepcopy(current_state)
 
         if turn == 1:
             print("CARTOGRAPHER PROMPTS HISTORIAN (PRIMORDIAL CREATION):", flush=True)
@@ -80,6 +94,7 @@ def run_simulation(
                 cartographer_log=last_log,
                 epoch=turn,
                 query=query,
+                rumors_and_dispatches=last_dispatches,
             )
             print(narrative, flush=True)
             print("\n" + "-" * 80 + "\n", flush=True)
@@ -119,6 +134,41 @@ def run_simulation(
             print(f"\nCARTOGRAPHIC LOG (EPOCH {turn}):", flush=True)
             print(last_log, flush=True)
 
+        # Dispatch Scribe agents for active/mutated landmarks
+        active_locations = detect_active_locations(
+            previous_state=state_before_turn,
+            current_state=current_state,
+            historian_narrative=narrative,
+        )
+
+        if active_locations:
+            year = current_state.get("Year", current_state.get("year", turn * 50))
+            print(
+                f"\nDISPATCHING SCRIBE AGENTS FOR ACTIVE LOCATIONS ({len(active_locations)}): "
+                f"{', '.join(active_locations)}...",
+                flush=True,
+            )
+            dispatches = run_scribes_parallel(
+                scribe=scribe,
+                active_landmarks=active_locations,
+                world_state=current_state,
+                historian_narrative=narrative,
+                cartographer_log=last_log,
+                epoch=turn,
+                year=year,
+                artifacts_dir=artifacts_dir,
+            )
+            if dispatches:
+                last_dispatches = "\n".join(dispatches)
+                print(f"\nFRONTIER DISPATCHES CONSOLIDATED (FOR EPOCH {turn + 1}):", flush=True)
+                print(last_dispatches, flush=True)
+            else:
+                last_dispatches = ""
+        else:
+            if turn > 1:
+                print("\nNo location state mutations or mentions detected for Scribe this epoch.", flush=True)
+            last_dispatches = ""
+
         query = "What happened next in the chronicle of this land?"
 
     print("\n" + "=" * 80, flush=True)
@@ -127,10 +177,11 @@ def run_simulation(
 
     h_usage = historian.token_usage
     c_usage = cartographer.token_usage
-    tot_prompt = h_usage["prompt_tokens"] + c_usage["prompt_tokens"]
-    tot_candidates = h_usage["candidates_tokens"] + c_usage["candidates_tokens"]
-    tot_thoughts = h_usage["thoughts_tokens"] + c_usage["thoughts_tokens"]
-    grand_total = h_usage["total_tokens"] + c_usage["total_tokens"]
+    s_usage = scribe.token_usage
+    tot_prompt = h_usage["prompt_tokens"] + c_usage["prompt_tokens"] + s_usage["prompt_tokens"]
+    tot_candidates = h_usage["candidates_tokens"] + c_usage["candidates_tokens"] + s_usage["candidates_tokens"]
+    tot_thoughts = h_usage["thoughts_tokens"] + c_usage["thoughts_tokens"] + s_usage["thoughts_tokens"]
+    grand_total = h_usage["total_tokens"] + c_usage["total_tokens"] + s_usage["total_tokens"]
 
     print("Historian Agent:", flush=True)
     print(f"   - Prompt Tokens:     {h_usage['prompt_tokens']:,}", flush=True)
@@ -145,6 +196,13 @@ def run_simulation(
     if c_usage['thoughts_tokens']:
         print(f"   - Thoughts Tokens:   {c_usage['thoughts_tokens']:,}", flush=True)
     print(f"   - Total Tokens:      {c_usage['total_tokens']:,}\n", flush=True)
+
+    print("Scribe Agent (Parallel Chronicler):", flush=True)
+    print(f"   - Prompt Tokens:     {s_usage['prompt_tokens']:,}", flush=True)
+    print(f"   - Completion Tokens: {s_usage['candidates_tokens']:,}", flush=True)
+    if s_usage['thoughts_tokens']:
+        print(f"   - Thoughts Tokens:   {s_usage['thoughts_tokens']:,}", flush=True)
+    print(f"   - Total Tokens:      {s_usage['total_tokens']:,}\n", flush=True)
 
     print(f"Grand Total Usage across {num_turns} Epochs:", flush=True)
     print(f"   - Prompt Tokens:     {tot_prompt:,}", flush=True)

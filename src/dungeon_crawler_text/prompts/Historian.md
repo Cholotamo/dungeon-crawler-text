@@ -46,6 +46,7 @@ You will receive the world state as two parallel 32x32 matrices with column/row 
             * Look up that biome ID in `regions` to confirm which named territory you are touching (e.g., verifying a `#` at `[16, 11]` belongs to `'2'` *Whispering Woods*).
             * Check `landmarks` and `roads` to see established settlements, paths, or bridges in that vicinity.
             * Read the Cartographer's previous turn log to maintain immediate causal continuity.
+            * Review the Rumors & Frontier Dispatches from the local Scribes. Weave localized crises, executions, smuggler syndicates, or awakened hazards into your macro-geopolitical developments.
       - **Attach Coordinate Anchors:**
             * Every time you introduce a new settlement, expand a site, or awaken a dungeon/ruin, append its exact target coordinate in brackets immediately after its name: `**CityName** [X: 14, Y: 08]`.
             * When altering land, select coordinates that accurately sit within the target biome.

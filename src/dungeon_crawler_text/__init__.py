@@ -2,5 +2,6 @@
 
 from dungeon_crawler_text.cartographer import Cartographer
 from dungeon_crawler_text.historian import Historian
+from dungeon_crawler_text.scribe import Scribe
 
-__all__ = ["Cartographer", "Historian"]
+__all__ = ["Cartographer", "Historian", "Scribe"]

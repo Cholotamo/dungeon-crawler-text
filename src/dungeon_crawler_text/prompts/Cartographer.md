@@ -57,6 +57,7 @@ You generate and mutate a unified JSON state snapshot. All coordinates MUST use 
 * **Turn 2+ (Chronicle Evolution):**
 Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) and apply transformations by calling your mutation tools:
 * **Founding:** Call `upsert_landmark` to add new `o` or `O` settlements at the target `pos: [x, y]`.
+* **Strict Landmark ID Consistency:** When updating ('o' -> 'O') or ruining ('!') an existing landmark, pass the EXACT string key from the `landmarks` dictionary as `landmark_id`. Do NOT replace spaces with underscores, alter punctuation, or create duplicate keys (e.g. if the key is `"Kaelen's Ford"`, use `"Kaelen's Ford"`, not `"Kaelens_Ford"`).
 * **Growth & Trade:** Call `upsert_landmark` to upgrade `o` to `O` as settlements flourish. Renaming or updating `name` is permitted.
 * **Collapse & Migration:** When a city falls or is abandoned, call `upsert_landmark` with `char='!'`, `type='dungeon'` or `'ruin'`, and dynamically prepend or append a thematic modifier to its existing name (e.g., changing "CityName" to "Lost CityName" or "Ruins of CityName").
 * **Geographical Alteration & Terraforming (Dual-Grid Sync):**

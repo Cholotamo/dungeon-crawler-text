@@ -224,6 +224,11 @@ def save_snapshot_file(state: dict[str, Any], output_dir: Path, epoch: int) -> P
     return filepath
 
 
+def _slugify_key(text: str) -> str:
+    """Converts text into an alphanumeric lowercase key for collision checks."""
+    return re.sub(r"[^\w]", "", str(text)).lower()
+
+
 class WorldStateMutator:
     """Manages programmatic state mutations and provides tool functions for the Cartographer agent."""
 
@@ -243,6 +248,48 @@ class WorldStateMutator:
             self.state["landmarks"] = {}
         if "roads" not in self.state or not isinstance(self.state["roads"], dict):
             self.state["roads"] = {}
+
+        # Deduplicate landmarks on initialization
+        self._deduplicate_landmarks()
+
+    def _deduplicate_landmarks(self) -> None:
+        """Removes co-located or identically named duplicate landmarks, keeping the most evolved."""
+        cleaned: dict[str, dict[str, Any]] = {}
+        seen_positions: dict[tuple[int, int], str] = {}
+        seen_slugs: dict[str, str] = {}
+
+        for key, data in list(self.state.get("landmarks", {}).items()):
+            if not isinstance(data, dict):
+                continue
+            pos = tuple(data.get("pos", [])) if isinstance(data.get("pos"), list) else ()
+            slug = _slugify_key(key) or _slugify_key(data.get("name", ""))
+
+            conflict_key = None
+            if pos and pos in seen_positions:
+                conflict_key = seen_positions[pos]
+            elif slug and slug in seen_slugs:
+                conflict_key = seen_slugs[slug]
+
+            if conflict_key and conflict_key in cleaned:
+                prev_data = cleaned[conflict_key]
+                p_char = prev_data.get("char", "o")
+                c_char = data.get("char", "o")
+                # Keep the more evolved marker ('O' or '!' over 'o'), or preferred clean name over underscore
+                if (c_char in ("O", "!") and p_char == "o") or ("_" in conflict_key and "_" not in key):
+                    del cleaned[conflict_key]
+                    cleaned[key] = data
+                    if pos:
+                        seen_positions[pos] = key
+                    if slug:
+                        seen_slugs[slug] = key
+            else:
+                cleaned[key] = data
+                if pos:
+                    seen_positions[pos] = key
+                if slug:
+                    seen_slugs[slug] = key
+
+        self.state["landmarks"] = cleaned
 
     def _sync_to_disk(self) -> None:
         """Flushes the current state to the snapshot file if snapshot_path is configured."""
@@ -367,6 +414,20 @@ class WorldStateMutator:
 
         clean_id = str(landmark_id).strip()
         marker = str(char).strip()[:1] or "o"
+        target_slug = _slugify_key(clean_id) or _slugify_key(name)
+
+        # Check for existing landmark at the same pos or with matching slug
+        replaced_key = None
+        for existing_k, existing_data in list(self.state["landmarks"].items()):
+            if not isinstance(existing_data, dict):
+                continue
+            e_pos = existing_data.get("pos", [])
+            e_slug = _slugify_key(existing_k) or _slugify_key(existing_data.get("name", ""))
+            if e_pos == [x, y] or (target_slug and e_slug == target_slug):
+                if existing_k != clean_id:
+                    replaced_key = existing_k
+                    del self.state["landmarks"][existing_k]
+                break
 
         self.state["landmarks"][clean_id] = {
             "name": str(name).strip(),
@@ -375,7 +436,8 @@ class WorldStateMutator:
             "pos": [x, y],
         }
         self._sync_to_disk()
-        msg = f"Landmark '{clean_id}' set to '{name}' ['{marker}'] at [X: {x}, Y: {y}] ({type})."
+        replaced_msg = f" (Replaced duplicate/renamed key '{replaced_key}')" if replaced_key else ""
+        msg = f"Landmark '{clean_id}' set to '{name}' ['{marker}'] at [X: {x}, Y: {y}] ({type}){replaced_msg}."
         self.mutation_log.append(msg)
         return msg
 

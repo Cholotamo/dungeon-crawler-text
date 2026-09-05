@@ -80,16 +80,25 @@ class Historian:
         cartographer_log: str,
         epoch: int,
         query: str = "What happened next in the chronicle of this land?",
+        rumors_and_dispatches: str = "",
     ) -> str:
-        """Turn 2+: Ingests world state snapshot injection and previous log,
+        """Turn 2+: Ingests world state snapshot injection, previous log, and frontier dispatches,
 
         then generates next chronicle events. Retains conversation memory.
         """
+        dispatches_section = ""
+        if rumors_and_dispatches.strip():
+            dispatches_section = (
+                f"## Rumors & Frontier Dispatches (Epoch {epoch - 1} Aftermath):\n"
+                f"{rumors_and_dispatches.strip()}\n\n"
+            )
+
         user_prompt = (
             f"## Current World State (Epoch {epoch - 1}):\n"
             f"{snapshot_injection}\n\n"
             f"## Cartographer's Previous Turn Log:\n"
             f"{cartographer_log}\n\n"
+            f"{dispatches_section}"
             f"{query}"
         )
         response = self.chat.send_message(user_prompt)
