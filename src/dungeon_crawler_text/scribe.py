@@ -448,6 +448,93 @@ class Scribe:
         return dispatch, chronicle, metadata_update
 
 
+def generate_scribe_drafts(
+    scribe: Scribe,
+    active_landmarks: list[str],
+    world_state: dict[str, Any],
+    historian_narrative: str,
+    cartographer_log: str,
+    epoch: int,
+    artifacts_dir: Path,
+    max_workers: int = 3,
+) -> dict[str, dict[str, Any]]:
+    """Runs Scribe agents concurrently to generate uncommitted drafts for active landmarks."""
+    drafts: dict[str, dict[str, Any]] = {}
+    if not active_landmarks:
+        return drafts
+
+    landmarks = world_state.get("landmarks", {})
+
+    def _draft_landmark(l_key: str) -> Optional[tuple[str, dict[str, Any]]]:
+        l_data = landmarks.get(l_key, {})
+        l_pos = l_data.get("pos", [])
+        existing_hist = read_location_history(artifacts_dir, l_key, pos=l_pos)
+        try:
+            disp, chron, meta = scribe.chronicle_location(
+                landmark_key=l_key,
+                landmark_data=l_data,
+                world_state=world_state,
+                historian_narrative=historian_narrative,
+                cartographer_log=cartographer_log,
+                epoch=epoch,
+                existing_history=existing_hist,
+            )
+            draft_item = {
+                "landmark_data": l_data,
+                "dispatch": disp,
+                "chronicle": chron,
+                "metadata": meta,
+                "existing_history": existing_hist,
+            }
+            return l_key, draft_item
+        except Exception as e:
+            print(f"  [WARNING] Scribe failed for '{l_key}': {e}", flush=True)
+            return None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_draft_landmark, key): key for key in active_landmarks}
+        for future in as_completed(futures):
+            key = futures[future]
+            try:
+                res = future.result()
+                if res:
+                    l_key, d_info = res
+                    drafts[l_key] = d_info
+            except Exception as e:
+                print(f"  [ERROR] Scribe execution error for '{key}': {e}", flush=True)
+
+    return drafts
+
+
+def commit_location_chronicles(
+    drafts: dict[str, dict[str, Any]],
+    artifacts_dir: Path,
+    world_state: dict[str, Any],
+    epoch: int,
+) -> list[str]:
+    """Persists finalized/reconciled drafts to disk and returns consolidated dispatches."""
+    dispatches: list[str] = []
+    for l_key, d_info in drafts.items():
+        disp = d_info.get("dispatch", "")
+        chron = d_info.get("chronicle", "")
+        meta = d_info.get("metadata", {})
+        l_data = d_info.get("landmark_data", {})
+
+        save_location_chronicle(
+            artifacts_dir=artifacts_dir,
+            landmark_key=l_key,
+            landmark_data=l_data,
+            world_state=world_state,
+            metadata_update=meta,
+            chronicle_chunk=chron,
+            epoch=epoch,
+        )
+        if disp:
+            dispatches.append(disp)
+
+    return dispatches
+
+
 def run_scribes_parallel(
     scribe: Scribe,
     active_landmarks: list[str],
@@ -462,49 +549,19 @@ def run_scribes_parallel(
 
     Saves each location's chronicle and returns a list of frontier dispatches.
     """
-    dispatches: list[str] = []
-    if not active_landmarks:
-        return dispatches
-
-    landmarks = world_state.get("landmarks", {})
-
-    def _process_landmark(l_key: str) -> Optional[str]:
-        l_data = landmarks.get(l_key, {})
-        l_pos = l_data.get("pos", [])
-        existing_hist = read_location_history(artifacts_dir, l_key, pos=l_pos)
-        try:
-            disp, chron, meta = scribe.chronicle_location(
-                landmark_key=l_key,
-                landmark_data=l_data,
-                world_state=world_state,
-                historian_narrative=historian_narrative,
-                cartographer_log=cartographer_log,
-                epoch=epoch,
-                existing_history=existing_hist,
-            )
-            save_location_chronicle(
-                artifacts_dir=artifacts_dir,
-                landmark_key=l_key,
-                landmark_data=l_data,
-                world_state=world_state,
-                metadata_update=meta,
-                chronicle_chunk=chron,
-                epoch=epoch,
-            )
-            return disp
-        except Exception as e:
-            print(f"  [WARNING] Scribe failed for '{l_key}': {e}", flush=True)
-            return None
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(_process_landmark, key): key for key in active_landmarks}
-        for future in as_completed(futures):
-            key = futures[future]
-            try:
-                res = future.result()
-                if res:
-                    dispatches.append(res)
-            except Exception as e:
-                print(f"  [ERROR] Scribe execution error for '{key}': {e}", flush=True)
-
-    return dispatches
+    drafts = generate_scribe_drafts(
+        scribe=scribe,
+        active_landmarks=active_landmarks,
+        world_state=world_state,
+        historian_narrative=historian_narrative,
+        cartographer_log=cartographer_log,
+        epoch=epoch,
+        artifacts_dir=artifacts_dir,
+        max_workers=max_workers,
+    )
+    return commit_location_chronicles(
+        drafts=drafts,
+        artifacts_dir=artifacts_dir,
+        world_state=world_state,
+        epoch=epoch,
+    )

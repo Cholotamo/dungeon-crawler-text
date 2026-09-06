@@ -11,10 +11,12 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from dungeon_crawler_text.cartographer import Cartographer
 from dungeon_crawler_text.historian import Historian
+from dungeon_crawler_text.reconciler import Reconciler
 from dungeon_crawler_text.scribe import (
     Scribe,
+    commit_location_chronicles,
     detect_active_locations,
-    run_scribes_parallel,
+    generate_scribe_drafts,
 )
 from dungeon_crawler_text.world_state import (
     format_snapshot_injection,
@@ -63,6 +65,12 @@ def run_simulation(
         flush=True,
     )
     scribe = Scribe(model_name=model_name, thinking_level=thinking_level)
+
+    print(
+        f"Initializing Lore Reconciler agent ({model_name}, thinking={thinking_level})...",
+        flush=True,
+    )
+    reconciler = Reconciler(model_name=model_name, thinking_level=thinking_level)
 
     current_state: dict = {}
     last_log: str = ""
@@ -147,7 +155,7 @@ def run_simulation(
                 f"{', '.join(active_locations)}...",
                 flush=True,
             )
-            dispatches = run_scribes_parallel(
+            drafts = generate_scribe_drafts(
                 scribe=scribe,
                 active_landmarks=active_locations,
                 world_state=current_state,
@@ -155,6 +163,35 @@ def run_simulation(
                 cartographer_log=last_log,
                 epoch=turn,
                 artifacts_dir=artifacts_dir,
+            )
+
+            # Reconcile cross-location lore if multiple locations active
+            if len(drafts) >= 2:
+                print(
+                    f"\nRECONCILING LORE ACROSS {len(drafts)} ACTIVE LOCATIONS...",
+                    flush=True,
+                )
+                reconciled_drafts, recon_logs = reconciler.reconcile_epoch_drafts(
+                    drafts=drafts,
+                    historian_narrative=narrative,
+                    cartographer_log=last_log,
+                    epoch=turn,
+                )
+                if recon_logs:
+                    print("\nLORE RECONCILIATION LOG:", flush=True)
+                    for r_log in recon_logs:
+                        print(f"  * {r_log}", flush=True)
+                else:
+                    print("Lore reconciliation complete: No cross-location conflicts detected.", flush=True)
+                final_drafts = reconciled_drafts
+            else:
+                final_drafts = drafts
+
+            dispatches = commit_location_chronicles(
+                drafts=final_drafts,
+                artifacts_dir=artifacts_dir,
+                world_state=current_state,
+                epoch=turn,
             )
             if dispatches:
                 last_dispatches = "\n".join(dispatches)
@@ -176,10 +213,11 @@ def run_simulation(
     h_usage = historian.token_usage
     c_usage = cartographer.token_usage
     s_usage = scribe.token_usage
-    tot_prompt = h_usage["prompt_tokens"] + c_usage["prompt_tokens"] + s_usage["prompt_tokens"]
-    tot_candidates = h_usage["candidates_tokens"] + c_usage["candidates_tokens"] + s_usage["candidates_tokens"]
-    tot_thoughts = h_usage["thoughts_tokens"] + c_usage["thoughts_tokens"] + s_usage["thoughts_tokens"]
-    grand_total = h_usage["total_tokens"] + c_usage["total_tokens"] + s_usage["total_tokens"]
+    r_usage = reconciler.token_usage
+    tot_prompt = h_usage["prompt_tokens"] + c_usage["prompt_tokens"] + s_usage["prompt_tokens"] + r_usage["prompt_tokens"]
+    tot_candidates = h_usage["candidates_tokens"] + c_usage["candidates_tokens"] + s_usage["candidates_tokens"] + r_usage["candidates_tokens"]
+    tot_thoughts = h_usage["thoughts_tokens"] + c_usage["thoughts_tokens"] + s_usage["thoughts_tokens"] + r_usage["thoughts_tokens"]
+    grand_total = h_usage["total_tokens"] + c_usage["total_tokens"] + s_usage["total_tokens"] + r_usage["total_tokens"]
 
     print("Historian Agent:", flush=True)
     print(f"   - Prompt Tokens:     {h_usage['prompt_tokens']:,}", flush=True)
@@ -201,6 +239,13 @@ def run_simulation(
     if s_usage['thoughts_tokens']:
         print(f"   - Thoughts Tokens:   {s_usage['thoughts_tokens']:,}", flush=True)
     print(f"   - Total Tokens:      {s_usage['total_tokens']:,}\n", flush=True)
+
+    print("Lore Reconciler Agent:", flush=True)
+    print(f"   - Prompt Tokens:     {r_usage['prompt_tokens']:,}", flush=True)
+    print(f"   - Completion Tokens: {r_usage['candidates_tokens']:,}", flush=True)
+    if r_usage['thoughts_tokens']:
+        print(f"   - Thoughts Tokens:   {r_usage['thoughts_tokens']:,}", flush=True)
+    print(f"   - Total Tokens:      {r_usage['total_tokens']:,}\n", flush=True)
 
     print(f"Grand Total Usage across {num_turns} Epochs:", flush=True)
     print(f"   - Prompt Tokens:     {tot_prompt:,}", flush=True)
