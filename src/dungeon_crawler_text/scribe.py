@@ -225,7 +225,6 @@ def save_location_chronicle(
     metadata_update: dict[str, str],
     chronicle_chunk: str,
     epoch: int,
-    year: int,
 ) -> Path:
     """Writes or appends to artifacts/locations/<slug>/history.md with updated header."""
     pos = landmark_data.get("pos", [0, 0])
@@ -257,7 +256,7 @@ def save_location_chronicle(
             f"# Location: {name}\n"
             f"- **Coordinates:** [X: {pos[0]:02d}, Y: {pos[1]:02d}]\n"
             f"- **Current Status:** {status_val}\n"
-            f"- **Founding Era:** Epoch {epoch} (Year {year})\n"
+            f"- **Founding Era:** Epoch {epoch}\n"
             f"- **Biome & Geography:** {b_name} (Region ID: '{rid}')\n"
             f"- **Active Factions:** {factions_val}\n\n"
             f"---\n\n"
@@ -401,7 +400,6 @@ class Scribe:
         historian_narrative: str,
         cartographer_log: str,
         epoch: int,
-        year: int,
         existing_history: Optional[str] = None,
     ) -> tuple[str, str, dict[str, str]]:
         """Generates the local chronicle and dispatch for a single location.
@@ -416,8 +414,7 @@ class Scribe:
             f"## Location Dossier:\n"
             f"{dossier}\n\n"
             f"## Current Simulation Context:\n"
-            f"- Current Epoch: {epoch}\n"
-            f"- Current Year: {year}\n\n"
+            f"- Current Epoch: {epoch}\n\n"
             f"## Grand Historian's Chronicle for Epoch {epoch}:\n"
             f"{historian_narrative}\n\n"
             f"## Cartographer's Physical Alteration Log:\n"
@@ -458,7 +455,6 @@ def run_scribes_parallel(
     historian_narrative: str,
     cartographer_log: str,
     epoch: int,
-    year: int,
     artifacts_dir: Path,
     max_workers: int = 3,
 ) -> list[str]:
@@ -484,7 +480,6 @@ def run_scribes_parallel(
                 historian_narrative=historian_narrative,
                 cartographer_log=cartographer_log,
                 epoch=epoch,
-                year=year,
                 existing_history=existing_hist,
             )
             save_location_chronicle(
@@ -495,7 +490,6 @@ def run_scribes_parallel(
                 metadata_update=meta,
                 chronicle_chunk=chron,
                 epoch=epoch,
-                year=year,
             )
             return disp
         except Exception as e:

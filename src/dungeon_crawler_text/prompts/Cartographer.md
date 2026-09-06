@@ -27,7 +27,6 @@ You generate and mutate a unified JSON state snapshot. All coordinates MUST use 
 ```json
 {
   "name": "The Shattered Reach",
-  "Year": 142,
   "epoch": 3,
   "terrain_grid": [ "/* 32 strings, exactly 32 chars each representing natural ground */" ],
   "region_grid": [ "/* 32 strings, exactly 32 single alphanumeric region IDs */" ],

@@ -142,7 +142,6 @@ def run_simulation(
         )
 
         if active_locations:
-            year = current_state.get("Year", current_state.get("year", turn * 50))
             print(
                 f"\nDISPATCHING SCRIBE AGENTS FOR ACTIVE LOCATIONS ({len(active_locations)}): "
                 f"{', '.join(active_locations)}...",
@@ -155,7 +154,6 @@ def run_simulation(
                 historian_narrative=narrative,
                 cartographer_log=last_log,
                 epoch=turn,
-                year=year,
                 artifacts_dir=artifacts_dir,
             )
             if dispatches:

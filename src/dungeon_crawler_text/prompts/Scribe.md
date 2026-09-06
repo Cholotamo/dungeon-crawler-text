@@ -50,7 +50,7 @@ ___DISPATCH_END___
 The full markdown section to append to the location's chronicle.
 ```text
 ___CHRONICLE_START___
-## Epoch <Epoch> (Year <Year>) — <Evocative Epoch Title>
+## Epoch <Epoch> — <Evocative Epoch Title>
 
 ### Notable Figures:
 - **<Person Name>:** <Role / Title> (<Status: Active / Deceased / Missing / Imprisoned / Exiled>) — <1-2 sentences on their deed, influence, or downfall>.
