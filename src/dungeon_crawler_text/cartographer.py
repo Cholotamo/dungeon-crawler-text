@@ -184,7 +184,7 @@ class Cartographer:
             "2. Call `upsert_landmark` for every founded, upgraded, or ruined site mentioned in the chronicle.\n"
             "3. Call `upsert_road` to register routes on land ('paved' or 'dirt'), and barrier crossings separately ('bridge' over rivers '~' or chasms '/'). Do not pave roads across water or chasms directly.\n"
             "4. Call `set_tiles` or `fill_area` for dual-grid synchronized updates when terrain or biomes change. When a location expands its influence (agricultural farmlands ':' or dungeon wastelands '*'), ALWAYS register a new region via `upsert_region` first, then pass BOTH `terrain_char` and `region_id` to `set_tiles`.\n"
-            "5. Call `decay_road` if connecting settlements fell to ruin. When a civilization falls, follow the chronicle's Mode of Fall: either convert the region to a wasteland via `upsert_region` and `set_tiles('*')`, or dissolve the domain back into the surrounding wild biome.\n"
+            "5. Call `decay_road` if connecting settlements fell to ruin, or `remove_road` if a route was permanently severed, swallowed, or obliterated by cataclysm. When a civilization falls, follow the chronicle's Mode of Fall: either convert the region to a wasteland via `upsert_region` and `set_tiles('*')`, or dissolve the domain back into the surrounding wild biome.\n"
             "6. Call `upsert_region` whenever newly named biomes, agricultural domains, or cursed wasteland zones emerge.\n"
             "7. Only AFTER calling your mutation tools, provide your Cartographic Log (2–3 concise bullet points) and end with: 'What happened next in the chronicle of this land?'"
         )

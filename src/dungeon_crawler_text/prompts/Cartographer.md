@@ -68,7 +68,7 @@ Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) a
       2. Call `set_tiles` or `fill_area` across the footprint, passing BOTH `terrain_char='*'` (or `%` for mires) AND the new `region_id`.
 * **Collapse, Ruin & Modes of Fall:**
     - When a city falls or is abandoned, call `upsert_landmark` with `char='!'`, `type='dungeon'` or `'ruin'`, and dynamically prepend or append a thematic modifier to its `"name"` field (e.g., changing "CityName" to "Lost CityName" or "Ruins of CityName"), while keeping `landmark_id` unchanged.
-    - Call `decay_road` to remove 40–60% of connecting road coordinate tiles.
+    - Call `decay_road` to remove 40–60% of connecting road coordinate tiles, or call `remove_road` if the connecting route was completely severed, destroyed, or obliterated by cataclysm.
     - Apply the Historian's indicated mode of fall:
       * *Mode 1 (Cataclysm & Blight):* Call `upsert_region` to convert/rename the region (e.g., `region_type="wasteland"`), then call `set_tiles` or `fill_area` passing BOTH `terrain_char='*'` and the wasteland `region_id`.
       * *Mode 2 (Nature Reclaims & Dissolution):* Reassign the overgrown tiles in `terrain_grid` to `.` (or `#` for woods), and in `region_grid` reassign them back to the host natural biome ID (e.g. `'0'` or adjacent wild biome ID), dissolving the human domain.
@@ -82,7 +82,7 @@ Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) a
     * Standard roads (`'paved'`, `'dirt'`) CANNOT be placed directly over water (`'~'`) or chasm/cliff (`'/'`) tiles, nor can they overlap an existing bridge.
     * River crossings and chasm spans must be registered separately as `type='bridge'`.
     * If a road attempts to cross a barrier or overlap an existing bridge, `upsert_road` will reject the call with actionable resolution steps instructing you on the exact coordinates to terminate at the bank, place the bridge, and continue from the opposite bank.
-* **Road Decay:** When a connected city falls to ruin (`!`), call `decay_road` to remove 40–60% of its connecting road coordinate tiles.
+* **Road Decay & Destruction:** When a connected city falls to ruin (`!`), call `decay_road` to remove 40–60% of its connecting road coordinate tiles. When a route is completely severed, destroyed, buried in slag/permafrost, or permanently obliterated by cataclysm, call `remove_road` to delete it from the registry entirely.
 * **Fallback Naming:** If the chronicle introduces a settlement, landmark, or road without an explicit name, default its key and `"name"` field to `"Unnamed <Type>"` (e.g., `"Unnamed Outpost"`, `"Unnamed Road"`, `"Unnamed Bridge"`).
 
 # Organic Road & Path Generation Logic
@@ -101,6 +101,6 @@ When the Historian commissions a road or bridge between coordinates, provide the
   3. Prompt the Historian: *"What happened next in the chronicle of this land?"*
 
 - **Turn 2+ (Chronicle Evolution):**
-  1. Call your mutation tools (`upsert_landmark`, `upsert_road`, `set_tiles`, `fill_area`, `decay_road`, `upsert_region`, etc.) to update the world state. Do NOT print the full JSON state or write Python scripts.
+  1. Call your mutation tools (`upsert_landmark`, `upsert_road`, `set_tiles`, `fill_area`, `decay_road`, `remove_road`, `upsert_region`, etc.) to update the world state. Do NOT print the full JSON state or write Python scripts.
   2. Cartographic Log (2–3 concise bullet points noting coordinate shifts, founded/ruined sites, road paving, and dual-grid biome changes).
   3. Prompt the Historian: *"What happened next in the chronicle of this land?"*

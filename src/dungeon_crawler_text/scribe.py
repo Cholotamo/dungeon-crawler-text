@@ -388,6 +388,16 @@ def detect_active_locations(
             if curr_tiles != prev_tiles:
                 new_or_altered_road_tiles.update(curr_tiles)
 
+    # If roads were removed, activate landmarks along the lost route
+    for r_name, p_data in prev_roads.items():
+        if r_name not in curr_roads and isinstance(p_data, dict):
+            prev_tiles = [
+                tuple(pt)
+                for pt in p_data.get("tiles", [])
+                if isinstance(pt, (list, tuple)) and len(pt) >= 2
+            ]
+            new_or_altered_road_tiles.update(prev_tiles)
+
     if new_or_altered_road_tiles:
         for key, data in curr_landmarks.items():
             pos = data.get("pos")
