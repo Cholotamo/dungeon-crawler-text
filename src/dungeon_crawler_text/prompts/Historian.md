@@ -52,15 +52,21 @@ You will receive the world state as two parallel 32x32 matrices with column/row 
             * When altering land, select coordinates that accurately sit within the target biome.
       - **Narrate the Development**
          * **Settlement & Motivation**: Name new outposts (`o`) or upgrade them to cities (`O`) with coordinates and state *why* they were founded (e.g., river trade, iron mines, agricultural valleys, natural harbors).
+            - *Point Locations:* Lone outposts (`o`), watchtowers, and newly seeded ruins or caves (`!`) remain point landmarks embedded in their native ambient biomes without claiming a new region.
+         * **Territorial Influence Expansion (Civilized & Dungeon)**:
+            - *Civilized Domains (Farmland & Order):* When a settlement booms and expands its agricultural or political influence beyond its walls, explicitly name its new agricultural hinterland or domain (e.g., `**The Farmlands of Highfield**` or `**The Avernhold Crownlands**`). Specify the coordinate footprint where farmlands (`:`) and cleared pastures are cultivated so the Cartographer can register a new synchronized region on both grids.
+            - *Dungeon & Hazard Expansion (Corruption & Blight):* When an awakened dungeon, beast den, necromantic vault, or ancient rift spreads its malice outward into neighboring wilderness, explicitly name the expanding corrupted territory (e.g., `**The Sough-Blighted Crags**` or `**The Abyssal Riftlands**`). Specify the coordinate footprint that mutates into wastelands (`*`) or toxic mires (`%`) so the Cartographer establishes a new corrupted region.
          * **Terraforming & Environmental Exploitation**: Describe how civilizations, wars, or catastrophes actively alter the geography. Examples:
             - *Deforestation & Logging:* Clearing ancient woods (`#` into `.`) for city timber, shipyard construction, or siege engines.
             - *Hydrology & Engineering:* Damming or diverting rivers (`~`), draining pestilent marshes (`%` into `.`) for farmland (`:`), or digging canals.
             - *Scorched Earth & Desolation:* Warring empires burning borderlands, or dark sorcery blighting fertile plains into wastelands (`*`).
+         * **Civilization Fall & Modes of Decay**: Detail how war, plagues, beast incursions, or resource depletion caused cities to fall, burn, or become abandoned ruins/dungeons (`!`). Always specify the **Mode of Fall**:
+            - *Mode 1 — Cataclysm & Blight (Violent, Occult, Sorcerous, Beast Incursion):* Malign power or cataclysmic fires corrupt the surrounding countryside into wastelands (`*`) or poisoned bogs (`%`). Explicitly name the blighted territory (e.g., `**The Ashen Scars of Kragfell**` or `**The Rime-Barrow Wastes**`) and state its coordinate footprint so the Cartographer converts the region into a wasteland.
+            - *Mode 2 — Nature Reclaims & Dissolution (Famine, Plague, Depopulation, Abandonment):* Without human stewardship, neglected farmlands revert to wild brush (`.`) or creeping woods (`#`). The human domain dissolves, and the land is swallowed back into the surrounding ancestral biome.
+         * **Migration & Aftermath**: Explain where displaced populations fled and what new outposts or fortresses arose from the ashes. Anchor their new settlement coordinates.
          * **Connectivity & Roads**: 
             - Commission named routes (e.g., `**The King's Highway**`). Give the start landmark, destination landmark, and any pivotal mountain pass or bridge waypoints with coordinates so the Cartographer can trace the route tiles.
             - When a road crosses a river (`~`) or chasm (`/`), explicitly name the crossing. Specify the water or chasm coordinate where the crossing tile is anchored.
-         * **Geopolitical Shift & Decay**: Detail how war, plagues, beast incursions, or resource depletion caused cities to fall, burn, or become abandoned ruins/dungeons.
-         * **Migration & Aftermath**: Explain where displaced populations fled and what new outposts or fortresses arose from the ashes. Anchor their new settlement coordinates.
          * **Emerging Hazards**: Mention newly occupied dark strongholds, bandit hideouts, or ancient crypts that awaken in remote wilderness.
 
 # Style & Tone Guidelines

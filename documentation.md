@@ -1,4 +1,23 @@
 # 07/09/2026
+Introduced **Event-Driven Influence Expansion & Dual-Grid Civilization Fall Protocol**.
+
+### The Problem
+During multi-epoch simulation, dual-grid desynchronization occurred when the Cartographer painted farmland (`:`) around cities or blighted ground (`*`) around ruins without assigning a matching region ID on `region_grid`. As a result, agricultural and corrupted tiles remained attributed to their ancestral natural biomes (e.g. ancient forest or mountain foothills).
+
+### The Solution: Narrative Influence Expansion & Modes of Fall
+1. **Point Locations vs. Territorial Influence:**
+   - Isolated outposts (`o`), watchtowers, and freshly seeded caves/dungeons (`!`) remain point features within their ambient natural biomes without consuming region IDs.
+   - When the Historian explicitly narrates that a location **expands its influence** (e.g., establishing an agricultural breadbasket, or an awakened dungeon radiating corruptive miasma), a new region is registered:
+     * *Civilized Expansion:* Registers domain region (e.g. `'h'`: `"The Highfield Grange"`, `type: "farmland"`) and paints both `terrain_grid` (`:`) and `region_grid` (`'h'`) simultaneously.
+     * *Dungeon / Hazard Expansion:* Registers corrupted wasteland region (e.g. `'w'`: `"The Ashen Scars"`, `type: "wasteland"`) and paints both `terrain_grid` (`*`) and `region_grid` (`'w'`) simultaneously.
+2. **Civilization Fall & Modes of Decay:**
+   When an established settlement collapses into ruin (`o`/`O` $\rightarrow$ `!`), the Historian designates its mode of fall:
+   - *Mode 1 — Cataclysm & Blight:* Malign powers or infernos blight the surrounding countryside into wastelands (`*`); the Cartographer mutates the region into a wasteland domain.
+   - *Mode 2 — Nature Reclaims & Dissolution:* Without human stewardship, neglected farmlands overgrow back to wild brush (`.`) or woods (`#`), and the domain dissolves back into the ambient wild biome.
+
+---
+
+# 07/09/2026
 Introduced **Persisting Historian World Chronicle to `world_state.md`**.
 
 ### The Problem

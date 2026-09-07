@@ -505,15 +505,17 @@ class WorldStateMutator:
         """Updates terrain character and/or regional biome ID at one or more [x, y] coordinates.
 
         Use this tool whenever natural ground is altered (e.g. deforestation, canals, blight,
-        draining wetlands, or terraforming).
+        draining wetlands, or terraforming). When a location expands its influence (agricultural
+        farmland ':' or dungeon wastelands '*'), pass BOTH terrain_char and region_id to ensure
+        dual-grid synchronization.
 
         Args:
             coords: List of coordinate pairs [x, y] to update (0 <= x < 32, 0 <= y < 32).
                     Can be a single pair like [[14, 22]] or a list of pairs like [[14, 22], [14, 23]].
             terrain_char: Optional single character representing natural ground
-                          (e.g., '.' for plains, '#' for forest, '~' for water, '*' for wasteland, etc.).
+                          (e.g., '.' for plains, '#' for forest, '~' for water, '*' for wasteland, ':' for farmland).
             region_id: Optional single alphanumeric character ID corresponding to the region
-                       in the regions dictionary (e.g., '0', '1', '2').
+                       in the regions dictionary (e.g., '0', '1', 'a').
         """
         # Defensive check for single coordinate pair passed directly as [x, y]
         if isinstance(coords, list) and len(coords) == 2 and isinstance(coords[0], int) and isinstance(coords[1], int):
@@ -568,13 +570,16 @@ class WorldStateMutator:
     ) -> str:
         """Fills a rectangular bounding box with terrain_char and/or region_id for large geographical changes.
 
+        When a location expands its influence (e.g. agricultural basin ':' or dungeon wasteland '*'),
+        pass BOTH terrain_char and region_id to ensure dual-grid synchronization.
+
         Args:
             x1: First corner column X (0-31).
             y1: First corner row Y (0-31).
             x2: Opposite corner column X (0-31).
             y2: Opposite corner row Y (0-31).
-            terrain_char: Optional single character terrain symbol (e.g., '*', '.', '#').
-            region_id: Optional single character region ID (e.g., '0', '5').
+            terrain_char: Optional single character terrain symbol (e.g., '*', '.', '#', ':').
+            region_id: Optional single character region ID (e.g., '0', '5', 'a').
         """
         min_x = max(0, min(int(x1), int(x2)))
         max_x = min(31, max(int(x1), int(x2)))
