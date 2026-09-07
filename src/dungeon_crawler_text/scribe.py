@@ -291,17 +291,63 @@ def save_location_chronicle(
     return file_path
 
 
+COMMON_DESCRIPTOR_TOKENS = {
+    "outpost", "camp", "ruin", "ruins", "fort", "keep", "tower",
+    "dungeon", "metropolis", "city", "settlement", "site", "den",
+    "the", "of", "and", "hold", "gate", "port", "crossing", "basin",
+    "road", "bridge", "river", "peaks", "mountains", "woods", "forest",
+    "swamp", "marsh", "plain", "plains", "hollow", "haven", "deep",
+    "domain", "reach", "pass", "spire", "vale", "hall", "halls",
+}
+
+
+def is_landmark_mentioned(text: str, landmark_key: str, landmark_data: dict[str, Any]) -> bool:
+    """Checks if a landmark is referenced in text using exact, slug, and distinctive token matching."""
+    if not text:
+        return False
+
+    text_lower = text.lower()
+
+    # 1. Exact key match (with underscores replaced by spaces)
+    k_clean = landmark_key.lower().replace("_", " ").strip()
+    if k_clean and re.search(rf"\b{re.escape(k_clean)}\b", text_lower):
+        return True
+
+    # 2. Display name match
+    name = str(landmark_data.get("name", "")).lower().replace("_", " ").strip()
+    if name and re.search(rf"\b{re.escape(name)}\b", text_lower):
+        return True
+
+    # 3. Normalized slug match
+    slug = slugify(landmark_key)
+    if slug and len(slug) >= 5 and re.search(rf"\b{re.escape(slug)}\b", text_lower):
+        return True
+
+    # 4. Distinctive tokens from key and display name (>= 4 letters, excluding common descriptors)
+    combined_name = f"{landmark_key} {landmark_data.get('name', '')}".lower()
+    combined_name = re.sub(r"['’]s\b", "", combined_name)
+    tokens = re.findall(r"[a-z0-9]{4,}", combined_name)
+    for token in tokens:
+        if token not in COMMON_DESCRIPTOR_TOKENS:
+            if re.search(rf"\b{re.escape(token)}\b", text_lower):
+                return True
+
+    return False
+
+
 def detect_active_locations(
     previous_state: dict[str, Any],
     current_state: dict[str, Any],
     historian_narrative: str,
+    cartographer_log: Optional[str] = None,
+    rumors_and_dispatches: Optional[str] = None,
 ) -> list[str]:
-    """Identifies landmarks that experienced state mutations or were mentioned in the narrative."""
+    """Identifies landmarks that experienced state mutations, road connections, or were mentioned in text."""
     active: set[str] = set()
     prev_landmarks = previous_state.get("landmarks", {})
     curr_landmarks = current_state.get("landmarks", {})
 
-    # 1. Any newly founded landmark in current_state
+    # 1. Any newly founded or mutated landmark in current_state
     for key in curr_landmarks:
         if key not in prev_landmarks:
             active.add(key)
@@ -316,17 +362,52 @@ def detect_active_locations(
             ):
                 active.add(key)
 
-    # 2. Check if any existing landmark was mentioned in Historian's prose
-    narrative_lower = historian_narrative.lower()
-    for key, data in curr_landmarks.items():
-        if key.lower() in narrative_lower:
-            active.add(key)
+    # 2. Check road infrastructure mutations:
+    # If roads were newly created or altered, activate landmarks on or adjacent to them
+    prev_roads = previous_state.get("roads", {})
+    curr_roads = current_state.get("roads", {})
+    new_or_altered_road_tiles: set[tuple[int, int]] = set()
+
+    for r_name, r_data in curr_roads.items():
+        if not isinstance(r_data, dict):
             continue
-        name = data.get("name", "")
-        if name and name.lower() in narrative_lower:
+        p_data = prev_roads.get(r_name)
+        curr_tiles = [
+            tuple(pt)
+            for pt in r_data.get("tiles", [])
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2
+        ]
+        if not p_data:
+            new_or_altered_road_tiles.update(curr_tiles)
+        else:
+            prev_tiles = [
+                tuple(pt)
+                for pt in p_data.get("tiles", [])
+                if isinstance(pt, (list, tuple)) and len(pt) >= 2
+            ]
+            if curr_tiles != prev_tiles:
+                new_or_altered_road_tiles.update(curr_tiles)
+
+    if new_or_altered_road_tiles:
+        for key, data in curr_landmarks.items():
+            pos = data.get("pos")
+            if isinstance(pos, (list, tuple)) and len(pos) >= 2:
+                px, py = int(pos[0]), int(pos[1])
+                if (px, py) in new_or_altered_road_tiles:
+                    active.add(key)
+                else:
+                    for rx, ry in new_or_altered_road_tiles:
+                        if abs(px - rx) + abs(py - ry) <= 1:
+                            active.add(key)
+                            break
+
+    # 3. Check text mentions across Historian prose, Cartographer log, and Rumors/Dispatches
+    combined_text = f"{historian_narrative}\n{cartographer_log or ''}\n{rumors_and_dispatches or ''}"
+    for key, data in curr_landmarks.items():
+        if is_landmark_mentioned(combined_text, key, data):
             active.add(key)
 
-    # 3. Deduplicate active locations by slug and coordinate position
+    # 4. Deduplicate active locations by slug and coordinate position
     # (prevents dispatching multiple Scribes for duplicate keys like "Kaelens_Ford" and "Kaelen's Ford")
     deduped_active: list[str] = []
     seen_slugs: set[str] = set()
@@ -402,6 +483,7 @@ class Scribe:
         epoch: int,
         existing_history: Optional[str] = None,
         chronology: Optional[dict[str, str]] = None,
+        referencing_context: Optional[str] = None,
     ) -> tuple[str, str, dict[str, str]]:
         """Generates the local chronicle and dispatch for a single location.
 
@@ -420,6 +502,10 @@ class Scribe:
             if passed:
                 chrono_lines += f"- Time Elapsed Since Prior Epoch: {passed}\n"
 
+        ref_lines = ""
+        if referencing_context:
+            ref_lines = f"## Cross-Location Reports & Mentions Involving This Site:\n{referencing_context}\n\n"
+
         user_prompt = (
             f"## Location Dossier:\n"
             f"{dossier}\n\n"
@@ -430,6 +516,7 @@ class Scribe:
             f"{historian_narrative}\n\n"
             f"## Cartographer's Physical Alteration Log:\n"
             f"{cartographer_log}\n\n"
+            f"{ref_lines}"
             f"## Existing Location History:\n"
             f"{history_context}\n\n"
             "Now, provide the three required delimited blocks:\n"
@@ -469,15 +556,19 @@ def generate_scribe_drafts(
     artifacts_dir: Path,
     chronology: Optional[dict[str, str]] = None,
     max_workers: int = 3,
+    cascade_transitive: bool = True,
 ) -> dict[str, dict[str, Any]]:
-    """Runs Scribe agents concurrently to generate uncommitted drafts for active landmarks."""
+    """Runs Scribe agents concurrently to generate uncommitted drafts for active landmarks,
+    with an automatic secondary pass for transitively referenced landmarks."""
     drafts: dict[str, dict[str, Any]] = {}
     if not active_landmarks:
         return drafts
 
     landmarks = world_state.get("landmarks", {})
 
-    def _draft_landmark(l_key: str) -> Optional[tuple[str, dict[str, Any]]]:
+    def _draft_landmark(
+        l_key: str, referencing_context: Optional[str] = None
+    ) -> Optional[tuple[str, dict[str, Any]]]:
         l_data = landmarks.get(l_key, {})
         l_pos = l_data.get("pos", [])
         existing_hist = read_location_history(artifacts_dir, l_key, pos=l_pos)
@@ -491,6 +582,7 @@ def generate_scribe_drafts(
                 epoch=epoch,
                 existing_history=existing_hist,
                 chronology=chronology,
+                referencing_context=referencing_context,
             )
             draft_item = {
                 "landmark_data": l_data,
@@ -504,6 +596,7 @@ def generate_scribe_drafts(
             print(f"  [WARNING] Scribe failed for '{l_key}': {e}", flush=True)
             return None
 
+    # --- Round 1: Primary active landmarks ---
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_draft_landmark, key): key for key in active_landmarks}
         for future in as_completed(futures):
@@ -515,6 +608,86 @@ def generate_scribe_drafts(
                     drafts[l_key] = d_info
             except Exception as e:
                 print(f"  [ERROR] Scribe execution error for '{key}': {e}", flush=True)
+
+    # --- Round 2: Transitive references in Round 1 drafts ---
+    if cascade_transitive and drafts:
+        already_drafted_slugs = {slugify(k) for k in drafts}
+        already_drafted_positions = {
+            tuple(d["landmark_data"]["pos"])
+            for d in drafts.values()
+            if isinstance(d.get("landmark_data", {}).get("pos"), list)
+        }
+
+        transitive_mentions: dict[str, list[str]] = {}
+        for d_key, d_info in drafts.items():
+            disp = d_info.get("dispatch", "")
+            chron = d_info.get("chronicle", "")
+            combined_draft_text = f"{disp}\n{chron}"
+
+            for l_key, l_data in landmarks.items():
+                slug = slugify(l_key)
+                l_pos = (
+                    tuple(l_data.get("pos", []))
+                    if isinstance(l_data.get("pos"), list)
+                    else None
+                )
+
+                if slug in already_drafted_slugs:
+                    continue
+                if l_pos and l_pos in already_drafted_positions:
+                    continue
+
+                if is_landmark_mentioned(combined_draft_text, l_key, l_data):
+                    if l_key not in transitive_mentions:
+                        transitive_mentions[l_key] = []
+                    ref_snippet = disp if disp else f"Referenced by {d_key} in Epoch {epoch} chronicle."
+                    transitive_mentions[l_key].append(f"- From {d_key}: {ref_snippet}")
+
+        # Deduplicate transitive targets
+        deduped_transitive: list[str] = []
+        seen_trans_slugs = set(already_drafted_slugs)
+        seen_trans_positions = set(already_drafted_positions)
+
+        for l_key in sorted(transitive_mentions.keys(), key=lambda k: ("_" in k, k)):
+            slug = slugify(l_key)
+            l_pos = (
+                tuple(landmarks[l_key].get("pos", []))
+                if isinstance(landmarks[l_key].get("pos"), list)
+                else None
+            )
+            if slug in seen_trans_slugs:
+                continue
+            if l_pos and l_pos in seen_trans_positions:
+                continue
+            seen_trans_slugs.add(slug)
+            if l_pos:
+                seen_trans_positions.add(l_pos)
+            deduped_transitive.append(l_key)
+
+        if deduped_transitive:
+            print(
+                f"\n  [TRANSITIVE ACTIVATION] Dispatching secondary Scribes for {len(deduped_transitive)} referenced location(s): "
+                f"{', '.join(deduped_transitive)}...",
+                flush=True,
+            )
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                t_futures = {
+                    executor.submit(
+                        _draft_landmark,
+                        t_key,
+                        "\n".join(transitive_mentions.get(t_key, [])),
+                    ): t_key
+                    for t_key in deduped_transitive
+                }
+                for future in as_completed(t_futures):
+                    t_key = t_futures[future]
+                    try:
+                        res = future.result()
+                        if res:
+                            l_key, d_info = res
+                            drafts[l_key] = d_info
+                    except Exception as e:
+                        print(f"  [ERROR] Transitive Scribe execution error for '{t_key}': {e}", flush=True)
 
     return drafts
 
@@ -558,6 +731,7 @@ def run_scribes_parallel(
     artifacts_dir: Path,
     chronology: Optional[dict[str, str]] = None,
     max_workers: int = 3,
+    cascade_transitive: bool = True,
 ) -> list[str]:
     """Runs Scribe agents concurrently across active landmarks.
 
@@ -573,6 +747,7 @@ def run_scribes_parallel(
         artifacts_dir=artifacts_dir,
         chronology=chronology,
         max_workers=max_workers,
+        cascade_transitive=cascade_transitive,
     )
     return commit_location_chronicles(
         drafts=drafts,

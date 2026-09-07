@@ -1,4 +1,27 @@
 # 07/09/2026
+Introduced **Multi-Source & Transitive Cascading Scribe Activation Protocol**.
+
+### The Problem
+Some locations were not activated despite other locations explicitly referencing them as active participants (e.g. trading, warring, sending relief forces, or forming alliances):
+1. **Single-Pass Pre-Evaluation:** Landmark activation was strictly evaluated prior to any Scribe executions based solely on the Grand Historian's macro narrative and direct `landmarks` dictionary mutations (`pos`, `char`, `type`).
+2. **Invisible Secondary Mentions:** When Scribe A wrote about events involving Location B, Location B had already missed the activation window. Location B was never scheduled, producing a chronological gap in its `history.md`.
+3. **Infrastructure Blind Spots:** Roads constructed or altered by the Cartographer directly connected settlements, but because landmark attributes remained identical, connected settlements were considered inactive.
+4. **Sub-optimal String Matching:** Exact substring matching failed on underscore keys (`Kaelens_Ford` vs `Kaelen's Ford`), possessives (`Kaelen's` vs `Kaelen`), or distinct city name tokens.
+
+### The Solution: Multi-Source Primary Detection + Transitive Scribe Cascading
+1. **Multi-Source Primary Activation (`detect_active_locations`):**
+   - Scans `historian_narrative`, `cartographer_log`, and incoming `rumors_and_dispatches` simultaneously.
+   - Detects road network mutations: landmarks located on or adjacent to newly paved or altered roads are automatically activated.
+   - Implements robust token matching (`is_landmark_mentioned`): handles underscores, possessive `'s` stripping, slug matching, and distinctive token filtering (skipping common descriptors like `outpost`, `fort`, `tower`, `ruins`).
+2. **Two-Pass Transitive Scribe Cascading (`generate_scribe_drafts`):**
+   - Round 1 generates drafts for primary active landmarks.
+   - The uncommitted Round 1 drafts (chronicles and dispatches) are scanned for references to any other registered landmarks in `world_state["landmarks"]`.
+   - Secondary Round 2 Scribes are automatically dispatched for transitively referenced locations, injected with the specific referencing report (`## Cross-Location Reports & Mentions Involving This Site:`).
+   - Round 1 and Round 2 drafts are unified into a single draft bundle before reaching the Reconciler, ensuring multi-perspective events are harmonized into authoritative canon and persisted to disk.
+
+---
+
+# 07/09/2026
 Introduced **Dynamic Calendar Reckoning & Temporal Lore Harmonization Across Epochs**.
 
 ### The Problem

@@ -178,6 +178,8 @@ def run_simulation(
             previous_state=state_before_turn,
             current_state=current_state,
             historian_narrative=clean_narrative,
+            cartographer_log=last_log,
+            rumors_and_dispatches=last_dispatches,
         )
 
         if active_locations:
