@@ -65,7 +65,10 @@ Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) a
     * **Hydrology (Canals, Dams, Draining):** Modify water `~` to dry land `.` (or vice versa) in `terrain_grid`. Synchronize `region_grid` to either expand the waterway region ID or absorb the dried tiles into the surrounding biome.
     * **Blight & Desolation:** When land is scorched into wastelands (`*`), update `terrain_grid` to `*`. If this expands an existing wasteland or creates a new cursed zone, update `region_grid` to match that wasteland ID (and call `upsert_region` if it is a newly named phenomenon).
 * **Regions Integrity:** Every `regions` key MUST be a single alphanumeric character (`0-9`, `a-z`) matching `region_grid`. Call `upsert_region` to define new biomes.
-* **Roads & Crossings:** Call `upsert_road` to add or extend routes between settlements (use type `'bridge'` for river crossings).
+* **Roads & Crossings:** Call `upsert_road` to add or extend routes between settlements:
+    * Standard roads (`'paved'`, `'dirt'`) CANNOT be placed directly over water (`'~'`) or chasm/cliff (`'/'`) tiles, nor can they overlap an existing bridge.
+    * River crossings and chasm spans must be registered separately as `type='bridge'`.
+    * If a road attempts to cross a barrier or overlap an existing bridge, `upsert_road` will reject the call with actionable resolution steps instructing you on the exact coordinates to terminate at the bank, place the bridge, and continue from the opposite bank.
 * **Road Decay:** When a connected city falls to ruin (`!`), call `decay_road` to remove 40–60% of its connecting road coordinate tiles.
 * **Fallback Naming:** If the chronicle introduces a settlement, landmark, or road without an explicit name, default its key and `"name"` field to `"Unnamed <Type>"` (e.g., `"Unnamed Outpost"`, `"Unnamed Road"`, `"Unnamed Bridge"`).
 

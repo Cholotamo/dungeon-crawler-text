@@ -473,6 +473,7 @@ class WorldStateMutator:
             extend: If True, appends new unique coordinates to existing tiles instead of replacing.
         """
         clean_name = str(road_name).strip()
+        clean_type = str(road_type).strip().lower()
         valid_tiles: list[list[int]] = []
 
         if isinstance(tiles, list):
@@ -481,6 +482,110 @@ class WorldStateMutator:
                     x, y = int(pt[0]), int(pt[1])
                     if 0 <= x < 32 and 0 <= y < 32:
                         valid_tiles.append([x, y])
+
+        if not valid_tiles:
+            msg = f"Error: No valid within-bounds coordinates provided for road '{clean_name}'."
+            self.mutation_log.append(msg)
+            return msg
+
+        # Barrier & Bridge Overlap Validation for non-bridge roads
+        if clean_type != "bridge":
+            terrain_grid = self.state.get("terrain_grid", [])
+
+            # 1. Check for overlap with existing bridges
+            existing_bridges: dict[tuple[int, int], str] = {}
+            for r_name, r_data in self.state.get("roads", {}).items():
+                if (
+                    r_name != clean_name
+                    and str(r_data.get("type", "")).strip().lower() == "bridge"
+                ):
+                    for b_pt in r_data.get("tiles", []):
+                        if isinstance(b_pt, (list, tuple)) and len(b_pt) >= 2:
+                            existing_bridges[(int(b_pt[0]), int(b_pt[1]))] = r_name
+
+            bridge_overlaps = [
+                (i, pt, existing_bridges[tuple(pt)])
+                for i, pt in enumerate(valid_tiles)
+                if tuple(pt) in existing_bridges
+            ]
+            if bridge_overlaps:
+                idx, overlap_tile, bridge_name = bridge_overlaps[0]
+                tiles_before = valid_tiles[:idx]
+                tiles_after = valid_tiles[idx + 1 :]
+                bx, by = tiles_before[-1] if tiles_before else (None, None)
+                ax, ay = tiles_after[0] if tiles_after else (None, None)
+
+                res_lines = [
+                    f"REJECTED: Road '{clean_name}' (type: '{road_type}') overlaps with existing bridge '{bridge_name}' at coordinate(s) {[pt for _, pt, _ in bridge_overlaps]}.",
+                    "",
+                    "ACTIONABLE RESOLUTION:",
+                    f"Do not include bridge coordinates in '{clean_name}', as this crossing is already served by '{bridge_name}'.",
+                ]
+                step_num = 1
+                if tiles_before:
+                    res_lines.append(f"{step_num}. Register '{clean_name}' up to the bridgehead [{bx}, {by}]:")
+                    res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_before})")
+                    step_num += 1
+                if tiles_after:
+                    res_lines.append(f"{step_num}. Continue '{clean_name}' from the opposite bank [{ax}, {ay}] (using extend=True):")
+                    res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_after}, extend=True)")
+                msg = "\n".join(res_lines)
+                self.mutation_log.append(f"[REJECTED] {clean_name}: Overlaps existing bridge '{bridge_name}'")
+                return msg
+
+            # 2. Check for natural barriers ('~' water, '/' chasm)
+            barrier_indices = []
+            for i, (x, y) in enumerate(valid_tiles):
+                if 0 <= y < len(terrain_grid) and 0 <= x < len(terrain_grid[y]):
+                    t_char = terrain_grid[y][x]
+                    if t_char in ("~", "/"):
+                        barrier_indices.append((i, [x, y], t_char))
+
+            if barrier_indices:
+                first_idx = barrier_indices[0][0]
+                contiguous_span = [barrier_indices[0][1]]
+                barrier_char = barrier_indices[0][2]
+                curr_i = first_idx
+                for bi, bpt, bch in barrier_indices[1:]:
+                    if bi == curr_i + 1:
+                        contiguous_span.append(bpt)
+                        curr_i = bi
+                    else:
+                        break
+
+                tiles_before = valid_tiles[:first_idx]
+                tiles_after = valid_tiles[first_idx + len(contiguous_span) :]
+
+                is_water = barrier_char == "~"
+                barrier_type = "water / river" if is_water else "chasm / cliff"
+                bank_label = "river bank" if is_water else "cliff edge"
+
+                bx, by = tiles_before[-1] if tiles_before else (None, None)
+                ax, ay = tiles_after[0] if tiles_after else (None, None)
+
+                res_lines = [
+                    f"REJECTED: Road '{clean_name}' (type: '{road_type}') failed barrier validation.",
+                    f"- Untamed {barrier_type} barrier detected at coordinate(s): {contiguous_span} (Terrain: '{barrier_char}'). Standard roads cannot directly cross {barrier_type} without a bridge.",
+                    "",
+                    "ACTIONABLE RESOLUTION:",
+                ]
+                step_num = 1
+                if tiles_before:
+                    res_lines.append(f"{step_num}. Terminate '{clean_name}' at the {bank_label} [{bx}, {by}]:")
+                    res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_before})")
+                    step_num += 1
+
+                res_lines.append(f"{step_num}. Upsert a bridge across the {barrier_type} at {contiguous_span} using the chronicle's named bridge (or a thematic name):")
+                res_lines.append(f"   upsert_road(road_name='<Bridge Name>', road_type='bridge', tiles={contiguous_span})")
+                step_num += 1
+
+                if tiles_after:
+                    res_lines.append(f"{step_num}. Continue the road from the opposite {bank_label} [{ax}, {ay}] (using extend=True):")
+                    res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_after}, extend=True)")
+
+                msg = "\n".join(res_lines)
+                self.mutation_log.append(f"[REJECTED] {clean_name}: Barrier '{barrier_char}' at {contiguous_span}")
+                return msg
 
         if extend and clean_name in self.state["roads"]:
             existing = self.state["roads"][clean_name].get("tiles", [])

@@ -182,7 +182,7 @@ class Cartographer:
             f"You MUST call your mutation tools to apply the chronicle updates for Epoch {epoch} directly to the world state:\n"
             "1. Parse bracketed coordinates (e.g., [X: 14, Y: 22]) from the chronicle.\n"
             "2. Call `upsert_landmark` for every founded, upgraded, or ruined site mentioned in the chronicle.\n"
-            "3. Call `upsert_road` to register routes, paths, and river bridges between settlements.\n"
+            "3. Call `upsert_road` to register routes on land ('paved' or 'dirt'), and barrier crossings separately ('bridge' over rivers '~' or chasms '/'). Do not pave roads across water or chasms directly.\n"
             "4. Call `set_tiles` or `fill_area` for dual-grid synchronized updates when terrain or biomes change (e.g., clearing forest, tilling farmland, digging canals, blight).\n"
             "5. Call `decay_road` if connecting settlements fell to ruin.\n"
             "6. Call `upsert_region` if newly named biomes or cursed zones emerge.\n"
