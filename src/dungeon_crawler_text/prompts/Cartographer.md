@@ -80,6 +80,7 @@ Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) a
     * **Blight & Desolation:** When land is scorched into wastelands (`*`), update `terrain_grid` to `*`. If this expands an existing wasteland or creates a new cursed zone, update `region_grid` to match that wasteland ID (and call `upsert_region` if it is a newly named phenomenon).
 * **Regions Integrity:** Every `regions` key MUST be a single alphanumeric character (`0-9`, `a-z`, `A-Z`) matching `region_grid`. Call `upsert_region` to define new biomes or domains.
 * **Roads & Crossings:** Call `upsert_road` to add or extend routes between settlements:
+    * Provide a complete, unbroken tile-by-tile coordinate list in `tiles` (`max(|dx|, |dy|) <= 1` for every step). Do not pass truncated coordinates or sparse waypoints that produce hole-y roads.
     * Standard roads (`'paved'`, `'dirt'`) CANNOT be placed directly over water (`'~'`) or chasm/cliff (`'/'`) tiles, nor can they overlap an existing bridge, nor can they slip through diagonal river or chasm seams (where two barrier tiles meet at a diagonal corner). (Exception: When a road terminates directly at a coastal or cliffside settlement's coordinates, the terminal landmark tile is permitted).
     * River crossings and chasm spans must be registered separately as `type='bridge'`.
     * If a road attempts to cross a barrier, cross a diagonal barrier seam, or overlap an existing bridge, `upsert_road` will reject the call with actionable resolution steps instructing you on the exact coordinates to terminate at the bank, place the bridge, and continue from the opposite bank.
@@ -93,6 +94,7 @@ When the Historian commissions a road or bridge between coordinates, provide the
 * **Terrain Cost Weighting:** Roads prefer plains (`.`) and coasts (`;`), incur higher resistance through forests (`#`) and hills (`,`), heavily avoid overgrowth (`&`) or cliffs (`/`), and cannot cross mountain peaks (`^`).
 * **River Crossings & Bridges:** Roads should only cross water (`~`) or chasms (`/`) when necessary. If a crossing occurs (whether orthogonal or diagonal), register that crossing segment with `type='bridge'` anchored on the barrier coordinate. Standard roads cannot bypass bridges by cutting through river diagonals.
 * **Organic Meander:** Introduce slight contour following so paths curve organically.
+* **Unbroken Route Continuity (No Truncated Coordinates):** The `tiles` argument passed to `upsert_road` MUST be a complete, step-by-step sequence of coordinates from start to end without skipping tiles or providing truncated/sparse waypoints. Every consecutive tile step must be strictly adjacent (`max(|dx|, |dy|) <= 1`). Never supply truncated coordinates with gaps (e.g., providing `[[10, 4], [10, 8]]` or sampling every 2–3 tiles) as this creates hole-y roads.
 
 # Output Sequence
 

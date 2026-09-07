@@ -1,4 +1,30 @@
 # 07/09/2026
+Introduced **Automatic Road Continuity Interpolation & Gap Elimination Protocol**.
+
+### The Problem
+During multi-epoch simulation runs, the Cartographer occasionally called the road creation tool (`upsert_road`) with truncated, sampled, or waypoint coordinates (e.g. `[[10, 4], [10, 8], [15, 8]]` or skipping intermediate tiles):
+1. **Hole-y Road Artifacts:** Because `WorldStateMutator.upsert_road` accepted the supplied coordinate array as literal tiles without continuity validation, only the explicit sparse coordinates received `+` (or `=`), while intermediate tiles remained base terrain (`.`, `#`, etc.), resulting in broken, dotted, "hole-y" roads.
+2. **Barrier Validation Blindspots:** When truncated coordinates leaped across rivers or chasms (e.g., from bank `[10, 4]` to opposite bank `[10, 8]` across a water tile at `[10, 6]`), barrier inspection was bypassed because neither endpoint was water.
+3. **Extension Junction Gaps:** When extending an existing route (`extend=True`), gaps between the end of the existing route and the start of the extension created severed junctions.
+
+### The Solution: Multi-Layered Bresenham Continuity & Bridge-Aware Interpolation
+1. **Deterministic Line Interpolation (`bresenham_line` & `WorldStateMutator.upsert_road`):**
+   - Automatically detects non-adjacent coordinate gaps (`max(|dx|, |dy|) > 1`) between any consecutive coordinate pairs in `tiles`.
+   - Uses Bresenham's line algorithm to interpolate all intermediate tiles, ensuring every consecutive step along the route is strictly adjacent (`max(|dx|, |dy|) <= 1`).
+2. **Bridge-Aware Exclusion:**
+   - Intermediate coordinates generated during interpolation that are already occupied by an existing bridge (`type='bridge'`) are omitted from standard roads, preventing false-positive bridge overlap errors and preserving canonical bridge overlays.
+3. **Seamless Extension Junctions (`extend=True`):**
+   - When extending an existing road, gaps between the last existing tile and the first extension tile are automatically bridged, unless the gap is already spanned by an existing bridge.
+4. **Barrier Validation Synergy:**
+   - Because all intermediate tiles are interpolated before barrier and bridge checks run, roads can no longer skip over untamed waterways or chasms. Unbridged water crossings are reliably caught and trigger the prescriptive AFC 3-step rejection (terminate at bank, upsert bridge, continue opposite bank).
+5. **Prompt & Docstring Mandates:**
+   - `Cartographer.md`: Explicitly instructs the Cartographer to provide complete, unbroken tile-by-tile coordinate sequences without skipping intermediate tiles or providing truncated waypoints.
+   - `cartographer.py`: Reinforces unbroken tile sequences (`max(|dx|, |dy|) <= 1`) in the turn instructions.
+   - `upsert_road`: Documents automatic interpolation and includes single-coordinate pair defensive conversion (`[x, y]` -> `[[x, y]]`).
+
+---
+
+# 07/09/2026
 Introduced **Diagonal Barrier Breach Validation & Cardinal River Hydrology Protocol**.
 
 ### The Problem

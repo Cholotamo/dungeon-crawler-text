@@ -526,6 +526,34 @@ def _slugify_key(text: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]", "", str(text)).lower()
 
 
+def bresenham_line(x0: int, y0: int, x1: int, y1: int) -> list[list[int]]:
+    """Generates an unbroken sequence of [x, y] coordinates connecting (x0, y0) to (x1, y1).
+
+    Uses Bresenham's line algorithm to ensure that every consecutive step
+    is strictly adjacent (max(abs(dx), abs(dy)) <= 1), leaving zero coordinate gaps.
+    """
+    points: list[list[int]] = []
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+
+    curr_x, curr_y = x0, y0
+    while True:
+        points.append([curr_x, curr_y])
+        if curr_x == x1 and curr_y == y1:
+            break
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            curr_x += sx
+        if e2 < dx:
+            err += dx
+            curr_y += sy
+    return points
+
+
 class WorldStateMutator:
     """Manages programmatic state mutations and provides tool functions for the Cartographer agent."""
 
@@ -804,40 +832,102 @@ class WorldStateMutator:
         Args:
             road_name: Name of the route (e.g., "King's Highway", "Silver Bridge").
             road_type: Type of road ('paved', 'dirt', 'bridge').
-            tiles: List of [x, y] coordinate pairs making up the route.
+            tiles: List of [x, y] coordinate pairs making up the route. Must be an
+                   unbroken, step-by-step sequence of adjacent coordinates without gaps.
+                   Any non-adjacent coordinate gaps will be automatically interpolated
+                   to prevent hole-y roads.
             extend: If True, appends new unique coordinates to existing tiles instead of replacing.
         """
         clean_name = str(road_name).strip()
         clean_type = str(road_type).strip().lower()
-        valid_tiles: list[list[int]] = []
 
+        # Defensive check for single coordinate pair passed directly as [x, y]
+        if isinstance(tiles, list) and len(tiles) == 2 and isinstance(tiles[0], int) and isinstance(tiles[1], int):
+            tiles = [tiles]
+
+        raw_tiles: list[list[int]] = []
         if isinstance(tiles, list):
             for pt in tiles:
                 if isinstance(pt, (list, tuple)) and len(pt) >= 2:
                     x, y = int(pt[0]), int(pt[1])
                     if 0 <= x < 32 and 0 <= y < 32:
-                        valid_tiles.append([x, y])
+                        raw_tiles.append([x, y])
+
+        if not raw_tiles:
+            msg = f"Error: No valid within-bounds coordinates provided for road '{clean_name}'."
+            self.mutation_log.append(msg)
+            return msg
+
+        # Collect existing bridges for bridge-aware gap interpolation & overlap checks
+        existing_bridges: dict[tuple[int, int], str] = {}
+        for r_name, r_data in self.state.get("roads", {}).items():
+            if (
+                r_name != clean_name
+                and str(r_data.get("type", "")).strip().lower() == "bridge"
+            ):
+                for b_pt in r_data.get("tiles", []):
+                    if isinstance(b_pt, (list, tuple)) and len(b_pt) >= 2:
+                        existing_bridges[(int(b_pt[0]), int(b_pt[1]))] = r_name
+
+        # Interpolate missing coordinates between non-adjacent coordinates to prevent hole-y roads
+        interpolated_tiles: list[list[int]] = []
+        if len(raw_tiles) <= 1:
+            interpolated_tiles = list(raw_tiles)
+        else:
+            interpolated_tiles = [raw_tiles[0]]
+            for i in range(len(raw_tiles) - 1):
+                p1 = raw_tiles[i]
+                p2 = raw_tiles[i + 1]
+                dx = p2[0] - p1[0]
+                dy = p2[1] - p1[1]
+                dist = max(abs(dx), abs(dy))
+                if dist == 0:
+                    continue
+                elif dist == 1:
+                    interpolated_tiles.append(p2)
+                else:
+                    line_pts = bresenham_line(p1[0], p1[1], p2[0], p2[1])
+                    for pt in line_pts[1:]:
+                        # For non-bridge roads, do not insert intermediate tiles that already have an existing bridge
+                        if clean_type != "bridge" and tuple(pt) in existing_bridges and pt != p2:
+                            continue
+                        interpolated_tiles.append(pt)
+
+        # If extending an existing road, handle any gap at the junction
+        if extend and clean_name in self.state.get("roads", {}):
+            existing_tiles = self.state["roads"][clean_name].get("tiles", [])
+            if existing_tiles and interpolated_tiles:
+                p_last = existing_tiles[-1]
+                p_first = interpolated_tiles[0]
+                dist_junc = max(abs(p_first[0] - p_last[0]), abs(p_first[1] - p_last[1]))
+                if dist_junc == 0:
+                    interpolated_tiles = interpolated_tiles[1:]
+                elif dist_junc > 1:
+                    junc_pts = bresenham_line(p_last[0], p_last[1], p_first[0], p_first[1])
+                    junc_intermediate = [
+                        pt for pt in junc_pts[1:-1]
+                        if clean_type == "bridge" or tuple(pt) not in existing_bridges
+                    ]
+                    interpolated_tiles = junc_intermediate + interpolated_tiles
+
+        # Deduplicate consecutive tiles
+        valid_tiles: list[list[int]] = []
+        for pt in interpolated_tiles:
+            if not valid_tiles or valid_tiles[-1] != pt:
+                valid_tiles.append(pt)
 
         if not valid_tiles:
             msg = f"Error: No valid within-bounds coordinates provided for road '{clean_name}'."
             self.mutation_log.append(msg)
             return msg
 
+        interpolated_count = len(valid_tiles) - len(raw_tiles)
+
         # Barrier & Bridge Overlap Validation for non-bridge roads
         if clean_type != "bridge":
             terrain_grid = self.state.get("terrain_grid", [])
 
             # 1. Check for overlap with existing bridges
-            existing_bridges: dict[tuple[int, int], str] = {}
-            for r_name, r_data in self.state.get("roads", {}).items():
-                if (
-                    r_name != clean_name
-                    and str(r_data.get("type", "")).strip().lower() == "bridge"
-                ):
-                    for b_pt in r_data.get("tiles", []):
-                        if isinstance(b_pt, (list, tuple)) and len(b_pt) >= 2:
-                            existing_bridges[(int(b_pt[0]), int(b_pt[1]))] = r_name
-
             bridge_overlaps = [
                 (i, pt, existing_bridges[tuple(pt)])
                 for i, pt in enumerate(valid_tiles)
@@ -1037,6 +1127,11 @@ class WorldStateMutator:
                 return msg
 
 
+        inter_msg = (
+            f" (interpolated {interpolated_count} intermediate coordinate(s) to maintain unbroken route)"
+            if interpolated_count > 0
+            else ""
+        )
         if extend and clean_name in self.state["roads"]:
             existing = self.state["roads"][clean_name].get("tiles", [])
             seen = {tuple(t) for t in existing}
@@ -1046,13 +1141,13 @@ class WorldStateMutator:
                     seen.add(tuple(t))
             self.state["roads"][clean_name]["tiles"] = existing
             self.state["roads"][clean_name]["type"] = str(road_type)
-            msg = f"Extended road '{clean_name}' to {len(existing)} tiles."
+            msg = f"Extended road '{clean_name}' to {len(existing)} tiles{inter_msg}."
         else:
             self.state["roads"][clean_name] = {
                 "type": str(road_type),
                 "tiles": valid_tiles,
             }
-            msg = f"Road '{clean_name}' set with {len(valid_tiles)} tiles ({road_type})."
+            msg = f"Road '{clean_name}' set with {len(valid_tiles)} tiles ({road_type}){inter_msg}."
 
         self._sync_to_disk()
         self.mutation_log.append(msg)
