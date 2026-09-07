@@ -10,7 +10,11 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from dungeon_crawler_text.cartographer import Cartographer
-from dungeon_crawler_text.historian import Historian
+from dungeon_crawler_text.historian import (
+    Historian,
+    extract_chronology,
+    extract_historian_prose,
+)
 from dungeon_crawler_text.reconciler import Reconciler
 from dungeon_crawler_text.scribe import (
     Scribe,
@@ -92,8 +96,15 @@ def run_simulation(
             print(narrative, flush=True)
             print("\n" + "-" * 80 + "\n", flush=True)
 
+            chrono = extract_chronology(narrative, epoch=turn)
+            clean_narrative = extract_historian_prose(narrative)
+            print(
+                f"CANONICAL CHRONOLOGY (EPOCH {turn}): Reckoning: '{chrono.get('reckoning')}', Elapsed: '{chrono.get('years_passed')}'\n",
+                flush=True,
+            )
+
             print("CARTOGRAPHER GENERATES BASELINE MAP VIA CODE EXECUTION...", flush=True)
-            snapshot, log, _ = cartographer.generate_primordial_map(narrative)
+            snapshot, log, _ = cartographer.generate_primordial_map(clean_narrative)
             last_log = log
         else:
             print("HISTORIAN INSPECTS DUAL-GRID WORLD STATE & NARRATES...", flush=True)
@@ -108,16 +119,24 @@ def run_simulation(
             print(narrative, flush=True)
             print("\n" + "-" * 80 + "\n", flush=True)
 
+            chrono = extract_chronology(narrative, epoch=turn)
+            clean_narrative = extract_historian_prose(narrative)
+            print(
+                f"CANONICAL CHRONOLOGY (EPOCH {turn}): Reckoning: '{chrono.get('reckoning')}', Elapsed: '{chrono.get('years_passed')}'\n",
+                flush=True,
+            )
+
             # Python runner handles snapshot management:
             # Clone previous epoch state and create new snapshot file
             current_state = copy.deepcopy(current_state)
             current_state["epoch"] = turn
+            current_state["chronology"] = chrono
             epoch_snapshot_path = save_snapshot_file(current_state, artifacts_dir, epoch=turn)
             print(f"Initialized Epoch {turn} snapshot: {epoch_snapshot_path.name}", flush=True)
 
             print("CARTOGRAPHER EVOLVES WORLD MAP VIA MUTATION TOOLS...", flush=True)
             snapshot, log, _ = cartographer.evolve_map(
-                historian_narrative=narrative,
+                historian_narrative=clean_narrative,
                 previous_state=current_state,
                 epoch=turn,
                 snapshot_path=epoch_snapshot_path,
@@ -127,6 +146,7 @@ def run_simulation(
         if snapshot:
             current_state = snapshot
             current_state["epoch"] = turn
+            current_state["chronology"] = chrono
             saved_path = save_snapshot_file(current_state, artifacts_dir, epoch=turn)
             print(f"World state snapshot saved to: {saved_path}", flush=True)
 
@@ -134,6 +154,7 @@ def run_simulation(
             rendered_map = render_composite_map(current_state)
             print(rendered_map, flush=True)
         else:
+            current_state["chronology"] = chrono
             print(
                 "\n[WARNING] Could not parse structured world state snapshot from Cartographer output.",
                 flush=True,
@@ -143,7 +164,7 @@ def run_simulation(
         world_md_path = save_world_chronicle(
             artifacts_dir=artifacts_dir,
             world_state=current_state,
-            narrative=narrative,
+            narrative=clean_narrative,
             epoch=turn,
         )
         print(f"World chronicle saved to: {world_md_path}", flush=True)
@@ -156,7 +177,7 @@ def run_simulation(
         active_locations = detect_active_locations(
             previous_state=state_before_turn,
             current_state=current_state,
-            historian_narrative=narrative,
+            historian_narrative=clean_narrative,
         )
 
         if active_locations:
@@ -169,23 +190,25 @@ def run_simulation(
                 scribe=scribe,
                 active_landmarks=active_locations,
                 world_state=current_state,
-                historian_narrative=narrative,
+                historian_narrative=clean_narrative,
                 cartographer_log=last_log,
                 epoch=turn,
                 artifacts_dir=artifacts_dir,
+                chronology=chrono,
             )
 
-            # Reconcile cross-location lore if multiple locations active
-            if len(drafts) >= 2:
+            # Reconcile cross-location lore and temporal reckoning
+            if len(drafts) >= 1:
                 print(
                     f"\nRECONCILING LORE ACROSS {len(drafts)} ACTIVE LOCATIONS...",
                     flush=True,
                 )
                 reconciled_drafts, recon_logs = reconciler.reconcile_epoch_drafts(
                     drafts=drafts,
-                    historian_narrative=narrative,
+                    historian_narrative=clean_narrative,
                     cartographer_log=last_log,
                     epoch=turn,
+                    chronology=chrono,
                 )
                 if recon_logs:
                     print("\nLORE RECONCILIATION LOG:", flush=True)

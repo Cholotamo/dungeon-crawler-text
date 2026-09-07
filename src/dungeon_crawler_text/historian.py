@@ -4,6 +4,7 @@ Narrates world history, geopolitical changes, and fantasy world lore using Gemin
 Maintains persistent conversation memory across epochs.
 """
 
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -16,6 +17,55 @@ from dungeon_crawler_text.world_state import (
     read_world_chronicle,
     save_world_chronicle,
 )
+
+CHRONOLOGY_START = "___CHRONOLOGY_START___"
+CHRONOLOGY_END = "___CHRONOLOGY_END___"
+
+
+def extract_chronology(text: str, epoch: int = 1) -> dict[str, str]:
+    """Extracts calendar reckoning and elapsed years from Historian output."""
+    if not text:
+        default_reck = "Dawn Era (Year 0)" if epoch == 1 else f"Epoch {epoch}"
+        return {"reckoning": default_reck, "years_passed": "0" if epoch == 1 else "Unspecified"}
+
+    if CHRONOLOGY_START in text and CHRONOLOGY_END in text:
+        start_idx = text.index(CHRONOLOGY_START) + len(CHRONOLOGY_START)
+        end_idx = text.index(CHRONOLOGY_END, start_idx)
+        block = text[start_idx:end_idx].strip()
+        data = {"reckoning": f"Epoch {epoch}", "years_passed": "Unspecified"}
+        for line in block.splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                k_clean = k.strip().lower()
+                v_clean = v.strip()
+                if "pass" in k_clean or "elapse" in k_clean or "since" in k_clean:
+                    data["years_passed"] = v_clean
+                elif "reckon" in k_clean or "current" in k_clean or "calendar" in k_clean or "year" in k_clean or "date" in k_clean:
+                    data["reckoning"] = v_clean
+        return data
+
+    # Fallback: regex search for calendar reckoning patterns (e.g. "340 IR", "Year 142")
+    match = re.search(r"\b(\d{1,4}\s*(?:IR|AR|CE|BCE|A\.D\.|OE|Reckoning))\b", text, re.IGNORECASE)
+    if match:
+        return {"reckoning": match.group(1).strip(), "years_passed": "Unspecified"}
+
+    match_year = re.search(r"\b(?:in\s+the\s+year|year)\s+(\d{1,4})\b", text, re.IGNORECASE)
+    if match_year:
+        return {"reckoning": f"Year {match_year.group(1)}", "years_passed": "Unspecified"}
+
+    default_reckoning = "Dawn Era (Year 0)" if epoch == 1 else f"Epoch {epoch}"
+    return {"reckoning": default_reckoning, "years_passed": "0" if epoch == 1 else "Unspecified"}
+
+
+def extract_historian_prose(text: str) -> str:
+    """Removes chronology delimiters from historian narrative prose."""
+    if not text:
+        return ""
+    if CHRONOLOGY_START in text and CHRONOLOGY_END in text:
+        pattern = re.escape(CHRONOLOGY_START) + r"[\s\S]*?" + re.escape(CHRONOLOGY_END)
+        cleaned = re.sub(pattern, "", text)
+        return cleaned.strip()
+    return text.strip()
 
 
 def _load_prompt(filename: str) -> str:

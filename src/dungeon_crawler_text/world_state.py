@@ -298,9 +298,14 @@ def build_world_header(world_state: dict[str, Any], epoch: int) -> str:
     name = world_state.get("name", "The Known World")
     meta = _format_world_metadata_fields(world_state, epoch)
 
+    epoch_str = f"Epoch {epoch}"
+    chronology = world_state.get("chronology")
+    if isinstance(chronology, dict) and chronology.get("reckoning"):
+        epoch_str = f"Epoch {epoch} ({chronology['reckoning']})"
+
     return (
         f"# World: {name}\n"
-        f"- **Current Epoch:** Epoch {epoch}\n"
+        f"- **Current Epoch:** {epoch_str}\n"
         f"- **Dominant Biomes & Regions:** {meta['regions']}\n"
         f"- **Active Settlements & Landmarks:** {meta['landmarks']}\n"
         f"- **Active Roads & Crossings:** {meta['roads']}\n\n"
@@ -376,10 +381,15 @@ def save_world_chronicle(
                 count=1,
             )
         # Update Current Epoch line if present
+        epoch_str = f"Epoch {epoch}"
+        chronology = world_state.get("chronology")
+        if isinstance(chronology, dict) and chronology.get("reckoning"):
+            epoch_str = f"Epoch {epoch} ({chronology['reckoning']})"
+
         if "- **Current Epoch:**" in existing_text:
             existing_text = re.sub(
                 r"- \*\*Current Epoch:\*\*.*",
-                lambda _: f"- **Current Epoch:** Epoch {epoch}",
+                lambda _: f"- **Current Epoch:** {epoch_str}",
                 existing_text,
                 count=1,
             )

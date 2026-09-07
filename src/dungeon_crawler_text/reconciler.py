@@ -72,6 +72,56 @@ def parse_reconciled_locations(text: str) -> dict[str, dict[str, Any]]:
     return reconciled
 
 
+def extract_recent_history_context(history_text: Optional[str], max_chars: int = 3000) -> str:
+    """Extracts the header and the most recent 1-2 epochs from a location's history.
+
+    Prevents context starvation while ensuring recent events, figure statuses,
+    and metadata are visible during reconciliation.
+    """
+    if not history_text or not history_text.strip():
+        return "None"
+
+    clean_text = history_text.strip()
+    if len(clean_text) <= max_chars:
+        return clean_text
+
+    # Locate epoch sections demarcated by '## Epoch '
+    epoch_split = re.split(r"(?m)(?=^## Epoch \d+)", clean_text)
+    if len(epoch_split) <= 1:
+        # Fallback to tail truncation if no epoch headers found
+        return clean_text[-max_chars:]
+
+    header = epoch_split[0].strip()
+    epoch_entries = epoch_split[1:]
+
+    # Take recent epochs from the end that fit within max_chars
+    selected_epochs: list[str] = []
+    current_len = len(header) + 80
+    for entry in reversed(epoch_entries):
+        entry_len = len(entry)
+        if current_len + entry_len <= max_chars or not selected_epochs:
+            selected_epochs.insert(0, entry.strip())
+            current_len += entry_len
+        else:
+            break
+
+    header_clean = header.rstrip(" -\n")
+    if len(selected_epochs) < len(epoch_entries):
+        omitted_notice = "\n\n...\n[Earlier epochs omitted for brevity]\n...\n\n---\n\n"
+    else:
+        omitted_notice = "\n\n---\n\n"
+
+    result = f"{header_clean}{omitted_notice}" + "\n\n---\n\n".join(selected_epochs)
+    if len(result) > max_chars:
+        excess = len(result) - max_chars
+        if len(selected_epochs) > 0 and len(selected_epochs[-1]) > excess + 200:
+            trimmed_entry = selected_epochs[-1][excess + 50 :]
+            return f"{header_clean}\n\n...\n[Earlier history omitted for brevity]\n...\n\n{trimmed_entry}"
+        return result[-max_chars:]
+
+    return result
+
+
 class Reconciler:
     """Agent that reconciles and harmonizes Scribe drafts across active locations."""
 
@@ -116,6 +166,7 @@ class Reconciler:
         historian_narrative: str,
         cartographer_log: str,
         epoch: int,
+        chronology: Optional[dict[str, str]] = None,
     ) -> tuple[dict[str, dict[str, Any]], list[str]]:
         """Harmonizes active location drafts for the current epoch.
 
@@ -129,12 +180,26 @@ class Reconciler:
             historian_narrative: Grand Historian narrative for this epoch
             cartographer_log: Cartographer alteration log for this epoch
             epoch: Current simulation epoch
+            chronology: Canonical calendar reckoning and elapsed years
 
         Returns:
             (reconciled_drafts, reconciliation_log_items)
         """
-        if len(drafts) < 2:
+        if not drafts:
             return drafts, []
+
+        chrono_lines = ""
+        reck_label = "current epoch"
+        passed_label = "elapsed years"
+        if chronology:
+            reck = chronology.get("reckoning", "")
+            passed = chronology.get("years_passed", "")
+            if reck:
+                chrono_lines += f"- Canonical Calendar Reckoning: {reck}\n"
+                reck_label = reck
+            if passed:
+                chrono_lines += f"- Time Elapsed Since Prior Epoch: {passed}\n"
+                passed_label = passed
 
         # Build prompt listing all active drafts
         draft_sections: list[str] = []
@@ -149,11 +214,12 @@ class Reconciler:
             disp = d_info.get("dispatch", "")
             chron = d_info.get("chronicle", "")
             existing = d_info.get("existing_history", "None")
+            history_excerpt = extract_recent_history_context(existing)
 
             draft_text = (
                 f"### LOCATION DRAFT: {l_key} (Name: '{name}', Symbol: '{char}', Type: '{l_type}', Coords: {pos})\n"
-                f"**Prior Location History Context (excerpt/summary):**\n"
-                f"{existing[:1200] if existing else 'None'}\n\n"
+                f"**Prior Location History Context (recent excerpt):**\n"
+                f"{history_excerpt}\n\n"
                 f"**Draft Living Metadata:**\n"
                 f"- Current Status: {meta.get('current status', '')}\n"
                 f"- Active Factions: {meta.get('active factions', '')}\n\n"
@@ -169,16 +235,19 @@ class Reconciler:
 
         user_prompt = (
             f"## Current Simulation Context:\n"
-            f"- Current Epoch: {epoch}\n\n"
+            f"- Current Epoch: {epoch}\n"
+            f"{chrono_lines}\n"
             f"## Grand Historian's Macro Narrative for Epoch {epoch}:\n"
             f"{historian_narrative}\n\n"
             f"## Cartographer's Physical Alteration Log:\n"
             f"{cartographer_log}\n\n"
             f"## Uncommitted Scribe Drafts for Active Locations ({len(drafts)}):\n"
             f"{all_drafts_str}\n\n"
-            f"Carefully evaluate these drafts for cross-location naming collisions, contradictory figures, "
-            f"divergent battle or mutiny accounts, or inconsistent timeline references.\n"
-            f"If discrepancies are found, reconcile them into an authoritative canon. "
+            f"Carefully evaluate these drafts for:\n"
+            f"1. Temporal & Calendar Reckoning consistency: Ensure all location chronicles adhere strictly to the Grand Historian's canonical calendar reckoning ({reck_label}).\n"
+            f"2. Mortal Lifespan & Generational Succession: Based on the time elapsed ({passed_label}), ensure mortal beings have aged, died, or passed their mantle to descendants rather than living centuries without explanation.\n"
+            f"3. Cross-location naming collisions, contradictory figures, divergent battle accounts, or lore conflicts.\n\n"
+            f"If discrepancies or timeline violations are found, reconcile them into an authoritative canon. "
             f"Provide the Reconciliation Log, and output the reconciled version of each modified location."
         )
 

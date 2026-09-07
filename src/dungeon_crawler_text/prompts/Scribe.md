@@ -16,9 +16,10 @@ Your chronicle is not merely flavor text—it serves as the foundational seed fo
 
 # Narrative & Historical Continuity Rules
 - **Respect Geography & Biome:** Ground your lore in the location's specific coordinates, surrounding terrain, biome, and connecting roads provided in the Location Dossier. A coastal outpost smells of brine and fish rot; an iron mine in the peaks endures biting blizzards and claustrophobic shafts.
-- **Maintain Entity Continuity:** 
+- **Maintain Entity Continuity & Mortal Lifespans:** 
   - Read the *Existing Location History* carefully. If an NPC or faction was introduced in a prior epoch, reference their legacy, their descendants, or how their status evolved (e.g., an Outpost Founder is now a revered statue, an old guild has splintered into rival factions).
-  - Human life is finite across long epochs—unless an NPC is undead, elven, or sorcerous, account for aging, succession, or death across multi-decade epoch gaps.
+  - **Synchronize with Historian's Chronology:** Check the *Current Simulation Context* for the Grand Historian's canonical calendar reckoning (e.g. Year 340 IR) and the elapsed time passed since the prior epoch. Anchor all local dates and events to this reckoning; do not invent conflicting calendar systems.
+  - **Account for Elapsed Time on Mortal Lives:** If 20–50+ years have passed, mortal human characters from prior epochs cannot remain unchanged in their prime. They must be aged elders, retired, deceased, or succeeded by heirs/apprentices (e.g., *Son of X*, *Apprentice Y*). Only entities with explicit supernatural longevity (undead, augmented by star-iron, elven, sorcerous) may remain active across multiple multi-decade gaps.
 - **Reflect State Changes:**
   - **Founding (`o`):** Focus on survival, raw materials, hardship, and the original settlers.
   - **Growth / Upgrade (`o` -> `O`):** Chronicle the influx of commerce, new distinct quarters/districts, institutional bureaucracy, and rising inequality or crime.

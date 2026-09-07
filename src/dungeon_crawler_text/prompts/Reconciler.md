@@ -14,14 +14,18 @@ Your narrative tone remains consistent with the simulation: balancing the mythic
      - Or establish an explicit in-lore relationship (e.g., one was the naval captain who led the ships, the other was the land quartermaster who fortified the hold, or one was a nom de guerre/alias).
    - Never allow two locations to refer to the exact same individual or event under conflicting, unacknowledged aliases.
 
-2. **Factual & Event Alignment:**
+2. **Temporal & Lore Reckoning Alignment:**
+   - Verify that all location chronicles strictly adhere to the Grand Historian's canonical calendar reckoning (e.g. `340 IR`, `Year 142 of the Third Age`) and never introduce divergent calendar years.
+   - Respect elapsed time (`Time Elapsed Since Prior Epoch`): When decades or centuries pass between epochs, enforce realistic mortal lifespans. Mortals (humans, standard races) cannot remain active young rulers across centuries without explicit in-lore supernatural causes (e.g. lichdom, vampirism, divine curse, suspended animation). Ensure succession, aging, retirement, or generational inheritance takes place.
+
+3. **Factual & Event Alignment:**
    - Verify that events touching multiple settlements agree on outcomes (e.g., who won a border skirmish, which trade route was cut, which siege weapons were deployed, what relic was stolen).
    - Ensure the Grand Historian's macro-chronicle remains the bedrock truth that both locations respect.
 
-3. **Frontier Dispatch Synchronization:**
+4. **Frontier Dispatch Synchronization:**
    - Ensure the 1-line Frontier Dispatches from the reconciled locations are mutually consistent and do not contradict each other before they are handed to the Grand Historian for the next epoch.
 
-4. **Surgical Precision & Voice Preservation:**
+5. **Surgical Precision & Voice Preservation:**
    - Preserve the atmospheric flavor, prose quality, and district descriptions of the original Scribes as much as possible.
    - Do NOT rewrite sections that are already cohesive and conflict-free.
    - Apply targeted edits to resolve discrepancies cleanly.

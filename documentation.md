@@ -1,4 +1,36 @@
 # 07/09/2026
+Introduced **Dynamic Calendar Reckoning & Temporal Lore Harmonization Across Epochs**.
+
+### The Problem
+During multi-epoch simulation runs, timeline and character discrepancies emerged despite the presence of the Reconciler agent:
+1. **Temporal Drift & Conflicting Calendars:** Scribes and Historians hallucinated disparate calendar systems (e.g. Scribe inventing "Year 150" when the Historian established "340 IR").
+2. **Mortal Lifespan Violations:** Without an authoritative clock tracking elapsed time between epochs, mortal human leaders remained young and active across centuries without supernatural explanation or generational succession.
+3. **Reconciler Context Starvation (`existing[:1200]`):** The Reconciler only inspected the first 1,200 characters of a location's history, which contained only the Epoch 1 header. Events, character deaths, and leadership changes from Epochs 2, 3, etc., were invisible during reconciliation.
+4. **Single-Draft Reconciler Bypass:** Epochs with only one active location skipped reconciliation entirely (`if len(drafts) < 2:`), allowing temporal drifts to slip into canon unchecked.
+
+### The Solution: Zero-Hardcoded Chronology & Context Harmonization
+1. **Dynamic Historian Chronology Block:**
+   - Rather than hardcoding fixed epoch lengths (e.g. 50 years), the Grand Historian dynamically establishes its calendar reckoning and elapsed years via lightweight delimiters:
+     ```text
+     ___CHRONOLOGY_START___
+     Current Reckoning: 340 IR
+     Years Passed: 75 years
+     ___CHRONOLOGY_END___
+     ```
+   - Python extracts this metadata (`extract_chronology`) with regex fallbacks (matching calendar patterns like `340 IR` or `Year 142`), and strips delimiters from persisted prose (`extract_historian_prose`) before saving to `world_state.md`.
+2. **Authoritative Temporal Injection:**
+   - The canonical reckoning and elapsed time are passed down to all active Scribes and the Reconciler under `## Current Simulation Context:`.
+   - Scribes and Reconciler enforce realistic mortal aging, retirement, death, or generational succession (heirs/successors) based on `Years Passed`.
+3. **Intelligent Recent History Context (`extract_recent_history_context`):**
+   - Replaced `existing[:1200]` with a specialized history extractor that preserves the location's metadata header while dynamically retrieving the most recent 1–2 epoch chronicle entries (up to 3,000 characters). Earlier intermediate epochs are neatly demarcated with an omission notice.
+4. **Omnipresent Reconciliation (`len(drafts) >= 1`):**
+   - The Reconciler evaluates active drafts even when only one location is modified, guaranteeing timeline adherence, calendar consistency, and lifespan validity across the entire simulation.
+5. **Living World Header Synchronized:**
+   - `build_world_header` and `save_world_chronicle` format the current epoch line with the canonical calendar reckoning (e.g. `- **Current Epoch:** Epoch 2 (340 IR)`).
+
+---
+
+# 07/09/2026
 Introduced **Event-Driven Influence Expansion & Dual-Grid Civilization Fall Protocol**.
 
 ### The Problem

@@ -401,6 +401,7 @@ class Scribe:
         cartographer_log: str,
         epoch: int,
         existing_history: Optional[str] = None,
+        chronology: Optional[dict[str, str]] = None,
     ) -> tuple[str, str, dict[str, str]]:
         """Generates the local chronicle and dispatch for a single location.
 
@@ -410,11 +411,21 @@ class Scribe:
         dossier = build_location_dossier(landmark_key, landmark_data, world_state)
         history_context = existing_history or "None (This location was just founded this epoch)."
 
+        chrono_lines = ""
+        if chronology:
+            reck = chronology.get("reckoning", "")
+            passed = chronology.get("years_passed", "")
+            if reck:
+                chrono_lines += f"- Canonical Calendar Reckoning: {reck}\n"
+            if passed:
+                chrono_lines += f"- Time Elapsed Since Prior Epoch: {passed}\n"
+
         user_prompt = (
             f"## Location Dossier:\n"
             f"{dossier}\n\n"
             f"## Current Simulation Context:\n"
-            f"- Current Epoch: {epoch}\n\n"
+            f"- Current Epoch: {epoch}\n"
+            f"{chrono_lines}\n"
             f"## Grand Historian's Chronicle for Epoch {epoch}:\n"
             f"{historian_narrative}\n\n"
             f"## Cartographer's Physical Alteration Log:\n"
@@ -456,6 +467,7 @@ def generate_scribe_drafts(
     cartographer_log: str,
     epoch: int,
     artifacts_dir: Path,
+    chronology: Optional[dict[str, str]] = None,
     max_workers: int = 3,
 ) -> dict[str, dict[str, Any]]:
     """Runs Scribe agents concurrently to generate uncommitted drafts for active landmarks."""
@@ -478,6 +490,7 @@ def generate_scribe_drafts(
                 cartographer_log=cartographer_log,
                 epoch=epoch,
                 existing_history=existing_hist,
+                chronology=chronology,
             )
             draft_item = {
                 "landmark_data": l_data,
@@ -543,6 +556,7 @@ def run_scribes_parallel(
     cartographer_log: str,
     epoch: int,
     artifacts_dir: Path,
+    chronology: Optional[dict[str, str]] = None,
     max_workers: int = 3,
 ) -> list[str]:
     """Runs Scribe agents concurrently across active landmarks.
@@ -557,6 +571,7 @@ def run_scribes_parallel(
         cartographer_log=cartographer_log,
         epoch=epoch,
         artifacts_dir=artifacts_dir,
+        chronology=chronology,
         max_workers=max_workers,
     )
     return commit_location_chronicles(
