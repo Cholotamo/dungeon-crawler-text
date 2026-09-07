@@ -79,11 +79,11 @@ Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) a
     * **Blight & Desolation:** When land is scorched into wastelands (`*`), update `terrain_grid` to `*`. If this expands an existing wasteland or creates a new cursed zone, update `region_grid` to match that wasteland ID (and call `upsert_region` if it is a newly named phenomenon).
 * **Regions Integrity:** Every `regions` key MUST be a single alphanumeric character (`0-9`, `a-z`, `A-Z`) matching `region_grid`. Call `upsert_region` to define new biomes or domains.
 * **Roads & Crossings:** Call `upsert_road` to add or extend routes between settlements:
-    * Standard roads (`'paved'`, `'dirt'`) CANNOT be placed directly over water (`'~'`) or chasm/cliff (`'/'`) tiles, nor can they overlap an existing bridge.
+    * Standard roads (`'paved'`, `'dirt'`) CANNOT be placed directly over water (`'~'`) or chasm/cliff (`'/'`) tiles, nor can they overlap an existing bridge. (Exception: When a road terminates directly at a coastal or cliffside settlement's coordinates, the terminal landmark tile is permitted).
     * River crossings and chasm spans must be registered separately as `type='bridge'`.
     * If a road attempts to cross a barrier or overlap an existing bridge, `upsert_road` will reject the call with actionable resolution steps instructing you on the exact coordinates to terminate at the bank, place the bridge, and continue from the opposite bank.
 * **Road Decay & Destruction:** When a connected city falls to ruin (`!`), call `decay_road` to remove 40–60% of its connecting road coordinate tiles. When a route is completely severed, destroyed, buried in slag/permafrost, or permanently obliterated by cataclysm, call `remove_road` to delete it from the registry entirely.
-* **Fallback Naming:** If the chronicle introduces a settlement, landmark, or road without an explicit name, default its key and `"name"` field to `"Unnamed <Type>"` (e.g., `"Unnamed Outpost"`, `"Unnamed Road"`, `"Unnamed Bridge"`).
+* **Fallback Naming & Bridge Context:** If the chronicle introduces a settlement or landmark without an explicit name, default its key and `"name"` field to `"Unnamed <Type>"` (e.g., `"Unnamed Outpost"`). When bridging a river or chasm without an explicit bridge name in the chronicle, name the crossing contextually based on the road or river (e.g., `'<Road Name> Crossing'` or `'<River Name> Span'`). Never use the literal name `'Unnamed Bridge'`.
 
 # Organic Road & Path Generation Logic
 

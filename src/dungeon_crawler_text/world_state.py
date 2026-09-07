@@ -783,11 +783,23 @@ class WorldStateMutator:
                 return msg
 
             # 2. Check for natural barriers ('~' water, '/' chasm)
+            # Landmark tiles (e.g. cliffside ports or island forts) are exempt if they are terminal points
+            landmark_positions = {
+                tuple(lm["pos"])
+                for lm in self.state.get("landmarks", {}).values()
+                if isinstance(lm, dict) and "pos" in lm and isinstance(lm["pos"], (list, tuple)) and len(lm["pos"]) >= 2
+            }
+
             barrier_indices = []
             for i, (x, y) in enumerate(valid_tiles):
                 if 0 <= y < len(terrain_grid) and 0 <= x < len(terrain_grid[y]):
                     t_char = terrain_grid[y][x]
                     if t_char in ("~", "/"):
+                        # If this is the road's start or end point and a landmark is located here,
+                        # exempt it — the road is terminating at the settlement's harbor/gates.
+                        is_terminal = (i == 0 or i == len(valid_tiles) - 1)
+                        if is_terminal and (x, y) in landmark_positions:
+                            continue
                         barrier_indices.append((i, [x, y], t_char))
 
             if barrier_indices:
@@ -812,6 +824,12 @@ class WorldStateMutator:
                 bx, by = tiles_before[-1] if tiles_before else (None, None)
                 ax, ay = tiles_after[0] if tiles_after else (None, None)
 
+                suggested_bridge = (
+                    f"{clean_name} Crossing"
+                    if "bridge" not in clean_name.lower() and "span" not in clean_name.lower() and "crossing" not in clean_name.lower()
+                    else clean_name
+                )
+
                 res_lines = [
                     f"REJECTED: Road '{clean_name}' (type: '{road_type}') failed barrier validation.",
                     f"- Untamed {barrier_type} barrier detected at coordinate(s): {contiguous_span} (Terrain: '{barrier_char}'). Standard roads cannot directly cross {barrier_type} without a bridge.",
@@ -824,8 +842,8 @@ class WorldStateMutator:
                     res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_before})")
                     step_num += 1
 
-                res_lines.append(f"{step_num}. Upsert a bridge across the {barrier_type} at {contiguous_span} using the chronicle's named bridge (or a thematic name):")
-                res_lines.append(f"   upsert_road(road_name='<Bridge Name>', road_type='bridge', tiles={contiguous_span})")
+                res_lines.append(f"{step_num}. Upsert a bridge across the {barrier_type} at {contiguous_span} using the chronicle's named bridge or a contextual name (e.g., '{suggested_bridge}'):")
+                res_lines.append(f"   upsert_road(road_name='{suggested_bridge}', road_type='bridge', tiles={contiguous_span})")
                 step_num += 1
 
                 if tiles_after:
