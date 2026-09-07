@@ -1,4 +1,4 @@
-"""WorldBuilder Agent module.
+"""Loremaster Agent module.
 
 Describes the primordial landscape and geography of a fantasy realm using Gemini LLM.
 """
@@ -17,7 +17,7 @@ DEFAULT_PRIMORDIAL_QUERY = (
 )
 
 
-def _load_prompt(filename: str = "WorldBuilder.md") -> str:
+def _load_prompt(filename: str = "loremaster_worldprose.md") -> str:
     """Loads a prompt file from the prompts directory."""
     prompt_path = Path(__file__).parent / "prompts" / filename
     if prompt_path.exists():
@@ -25,8 +25,8 @@ def _load_prompt(filename: str = "WorldBuilder.md") -> str:
     raise FileNotFoundError(f"Prompt file not found at: {prompt_path}")
 
 
-class WorldBuilder:
-    """WorldBuilder agent that describes the primordial fantasy realm."""
+class Loremaster:
+    """Loremaster agent that describes the primordial fantasy realm."""
 
     def __init__(
         self,
@@ -37,7 +37,7 @@ class WorldBuilder:
         self.model_name = model_name
         self.thinking_level = thinking_level
         self.client = client or genai.Client()
-        self.system_prompt = _load_prompt("WorldBuilder.md")
+        self.system_prompt = _load_prompt("loremaster_worldprose.md")
         self.token_usage: dict[str, int] = {
             "prompt_tokens": 0,
             "candidates_tokens": 0,
@@ -80,7 +80,7 @@ class WorldBuilder:
 
 
 __all__ = [
-    "WorldBuilder",
+    "Loremaster",
     "DEFAULT_PRIMORDIAL_QUERY",
 ]
 

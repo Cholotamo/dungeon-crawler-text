@@ -1,11 +1,11 @@
 """dungeon_crawler_text package."""
 
-from dungeon_crawler_text.worldbuilder import (
+from dungeon_crawler_text.loremaster import (
     DEFAULT_PRIMORDIAL_QUERY,
-    WorldBuilder,
+    Loremaster,
 )
 
 __all__ = [
-    "WorldBuilder",
+    "Loremaster",
     "DEFAULT_PRIMORDIAL_QUERY",
 ]

@@ -1,6 +1,6 @@
-# Dungeon Crawler Text: WorldBuilder Primordial World-Building
+# Dungeon Crawler Text: Loremaster Primordial World-Building
 
-A generative fantasy world-building tool powered by Gemini. The **WorldBuilder** agent describes the untouched, primordial landscape and raw geography of a fantasy realm at the dawn of time, balancing Tolkien-esque mythic depth with gritty, atmospheric weight.
+A generative fantasy world-building tool powered by Gemini. The **Loremaster** agent describes the untouched, primordial landscape and raw geography of a fantasy realm at the dawn of time, balancing Tolkien-esque mythic depth with gritty, atmospheric weight.
 
 ---
 
@@ -49,19 +49,19 @@ Customize the generation using command-line arguments:
 | :--- | :--- | :--- | :--- |
 | `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
 | `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
-| `--query` | `str` | *Default Primordial Query* | Custom prompt query to ask the WorldBuilder |
-| `--output`, `-o` | `str` | `None` | Optional file or directory path to save the output Markdown file |
+| `--query` | `str` | *Default Primordial Query* | Custom prompt query to ask the Loremaster |
+| `--output`, `-o` | `str` | `artifacts/worldprose.md` | File or directory path to save the output artifact file |
 
 ### Examples
 
-- **Default run:**
+- **Default run (saves to `artifacts/worldprose.md`):**
   ```bash
   uv run dungeon-crawler-text
   ```
 
-- **Save landscape description to a file:**
+- **Save landscape description to a custom path:**
   ```bash
-  uv run dungeon-crawler-text --output primordial_realm.md
+  uv run dungeon-crawler-text --output custom_world.md
   ```
 
 - **Use a custom query:**
@@ -73,11 +73,11 @@ Customize the generation using command-line arguments:
 
 ## Architecture & How It Works
 
-1. **System Prompt (`WorldBuilder.md`):**
+1. **System Prompt (`loremaster_worldprose.md`):**
    - Anchors the model in high-fantasy mythic world-building (Tolkien + Kentaro Miura).
    - Constrains the narrative to primordial physical geography: natural boundaries, mountain ridges, waterways, coastlines, and untamed biomes before mortal civilizations or settlements.
 
-2. **Single-Question Generation (`WorldBuilder` & `main.py`):**
+2. **Single-Question Generation (`Loremaster` & `main.py`):**
    - Dispatches a single focused query via `client.models.generate_content`.
    - Displays the narrative prose and tracks token usage.
    - Saves clean Markdown if an output path is provided.
