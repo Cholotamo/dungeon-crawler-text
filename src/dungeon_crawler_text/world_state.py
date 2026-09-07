@@ -224,6 +224,207 @@ def save_snapshot_file(state: dict[str, Any], output_dir: Path, epoch: int) -> P
     return filepath
 
 
+def get_world_chronicle_path(artifacts_dir: Path) -> Path:
+    """Returns the path to artifacts/world_state.md."""
+    return artifacts_dir / "world_state.md"
+
+
+def read_world_chronicle(artifacts_dir: Path) -> Optional[str]:
+    """Reads existing world history markdown (world_state.md) if it exists."""
+    path = get_world_chronicle_path(artifacts_dir)
+    if path.exists():
+        try:
+            return path.read_text(encoding="utf-8")
+        except Exception:
+            return None
+    return None
+
+
+def _format_world_metadata_fields(world_state: dict[str, Any], epoch: int) -> dict[str, str]:
+    """Extracts summary strings for regions, landmarks, and roads from world_state."""
+    # Regions
+    regions = world_state.get("regions", {})
+    if isinstance(regions, dict) and regions:
+        reg_items = []
+        for reg_id, rdata in sorted(regions.items()):
+            if isinstance(rdata, dict):
+                r_name = rdata.get("name", f"Region {reg_id}")
+                r_type = rdata.get("type", "")
+                reg_items.append(f"{r_name} ({r_type.title()})" if r_type else r_name)
+            elif isinstance(rdata, str):
+                reg_items.append(rdata)
+        regions_str = ", ".join(reg_items)
+    else:
+        regions_str = "Wilderness"
+
+    # Landmarks
+    landmarks = world_state.get("landmarks", {})
+    if isinstance(landmarks, dict) and landmarks:
+        lm_items = []
+        for lm_key, lm_data in sorted(landmarks.items()):
+            if isinstance(lm_data, dict):
+                l_name = lm_data.get("name", lm_key)
+                l_char = lm_data.get("char", "o")
+                lm_items.append(f"{l_name} (`{l_char}`)")
+            else:
+                lm_items.append(str(lm_key))
+        landmarks_str = ", ".join(lm_items)
+    else:
+        landmarks_str = "None (Primordial wilderness)" if epoch == 1 else "None recorded"
+
+    # Roads
+    roads = world_state.get("roads", {})
+    if isinstance(roads, dict) and roads:
+        road_items = []
+        for r_name, r_data in sorted(roads.items()):
+            if isinstance(r_data, dict):
+                r_type = r_data.get("type", "paved").capitalize()
+                road_items.append(f"{r_name} ({r_type})")
+            else:
+                road_items.append(str(r_name))
+        roads_str = ", ".join(road_items)
+    else:
+        roads_str = "None recorded"
+
+    return {
+        "regions": regions_str,
+        "landmarks": landmarks_str,
+        "roads": roads_str,
+    }
+
+
+def build_world_header(world_state: dict[str, Any], epoch: int) -> str:
+    """Constructs the markdown header for world_state.md."""
+    name = world_state.get("name", "The Known World")
+    meta = _format_world_metadata_fields(world_state, epoch)
+
+    return (
+        f"# World: {name}\n"
+        f"- **Current Epoch:** Epoch {epoch}\n"
+        f"- **Dominant Biomes & Regions:** {meta['regions']}\n"
+        f"- **Active Settlements & Landmarks:** {meta['landmarks']}\n"
+        f"- **Active Roads & Crossings:** {meta['roads']}\n\n"
+        f"---\n\n"
+    )
+
+
+def format_world_chronicle_chunk(narrative: str, epoch: int) -> str:
+    """Formats the historian's narrative into an epoch chronicle block.
+
+    Ensures a standardized '## Epoch {epoch}' markdown header is present at the start.
+    """
+    text = (narrative or "").strip()
+    if not text:
+        return f"## Epoch {epoch}\n\n*(No chronicle recorded for this epoch.)*"
+
+    first_line = text.splitlines()[0].strip()
+    rest_lines = text.splitlines()[1:]
+    rest_text = "\n".join(rest_lines).strip()
+
+    # Case 1: Already starts with '## Epoch X' or '# Epoch X'
+    epoch_header_match = re.match(r"^#+\s*(Epoch\s*" + str(epoch) + r"\b.*)", first_line, re.IGNORECASE)
+    if epoch_header_match:
+        title_part = epoch_header_match.group(1).strip()
+        if rest_text:
+            return f"## {title_part}\n\n{rest_text}"
+        return f"## {title_part}"
+
+    # Case 2: Starts with a markdown header like '# Title' or '## Title'
+    header_match = re.match(r"^#+\s*(.+)$", first_line)
+    if header_match:
+        title = header_match.group(1).strip()
+        # Strip redundant leading 'Epoch X: ' or 'Epoch X - '
+        title = re.sub(r"^Epoch\s*\d+\s*[:—–-]?\s*", "", title, flags=re.IGNORECASE).strip()
+        header_line = f"## Epoch {epoch} — {title}" if title else f"## Epoch {epoch}"
+        if rest_text:
+            return f"{header_line}\n\n{rest_text}"
+        return header_line
+
+    # Case 3: Raw narrative without leading markdown heading
+    default_title = "Primordial Geography" if epoch == 1 else ""
+    header_line = f"## Epoch {epoch} — {default_title}" if default_title else f"## Epoch {epoch}"
+    return f"{header_line}\n\n{text}"
+
+
+def save_world_chronicle(
+    artifacts_dir: Path,
+    world_state: dict[str, Any],
+    narrative: str,
+    epoch: int,
+) -> Path:
+    """Writes or appends to artifacts/world_state.md with updated world-level header."""
+    file_path = get_world_chronicle_path(artifacts_dir)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    name = world_state.get("name", "The Known World")
+    chronicle_chunk = format_world_chronicle_chunk(narrative, epoch)
+    meta = _format_world_metadata_fields(world_state, epoch)
+
+    if not file_path.exists() or epoch == 1:
+        header = build_world_header(world_state, epoch)
+        full_content = header + chronicle_chunk.strip() + "\n"
+        file_path.write_text(full_content, encoding="utf-8")
+    else:
+        existing_text = file_path.read_text(encoding="utf-8")
+
+        # Update World Title line if present
+        if "# World:" in existing_text:
+            existing_text = re.sub(
+                r"# World:.*",
+                lambda _: f"# World: {name}",
+                existing_text,
+                count=1,
+            )
+        # Update Current Epoch line if present
+        if "- **Current Epoch:**" in existing_text:
+            existing_text = re.sub(
+                r"- \*\*Current Epoch:\*\*.*",
+                lambda _: f"- **Current Epoch:** Epoch {epoch}",
+                existing_text,
+                count=1,
+            )
+        # Update Dominant Biomes & Regions line if present
+        if "- **Dominant Biomes & Regions:**" in existing_text:
+            existing_text = re.sub(
+                r"- \*\*Dominant Biomes & Regions:\*\*.*",
+                lambda _: f"- **Dominant Biomes & Regions:** {meta['regions']}",
+                existing_text,
+                count=1,
+            )
+        # Update Active Settlements & Landmarks line if present
+        if "- **Active Settlements & Landmarks:**" in existing_text:
+            existing_text = re.sub(
+                r"- \*\*Active Settlements & Landmarks:\*\*.*",
+                lambda _: f"- **Active Settlements & Landmarks:** {meta['landmarks']}",
+                existing_text,
+                count=1,
+            )
+        # Update Active Roads & Crossings line if present
+        if "- **Active Roads & Crossings:**" in existing_text:
+            existing_text = re.sub(
+                r"- \*\*Active Roads & Crossings:\*\*.*",
+                lambda _: f"- **Active Roads & Crossings:** {meta['roads']}",
+                existing_text,
+                count=1,
+            )
+
+        # Check if this epoch is already recorded (idempotency check)
+        epoch_pattern = re.compile(
+            r"(## Epoch\s*" + str(epoch) + r"\b[\s\S]*?)(?=\n---\n\s*## Epoch|\Z)",
+            re.IGNORECASE,
+        )
+        if epoch_pattern.search(existing_text):
+            existing_text = epoch_pattern.sub(lambda _: chronicle_chunk.strip(), existing_text)
+            full_content = existing_text.rstrip() + "\n"
+        else:
+            append_content = f"\n\n---\n\n{chronicle_chunk.strip()}\n"
+            full_content = existing_text.rstrip() + append_content
+
+        file_path.write_text(full_content, encoding="utf-8")
+
+    return file_path
+
+
 def _slugify_key(text: str) -> str:
     """Converts text into an alphanumeric lowercase key for collision checks."""
     return re.sub(r"[^a-zA-Z0-9]", "", str(text)).lower()

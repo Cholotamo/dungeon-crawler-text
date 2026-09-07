@@ -11,6 +11,11 @@ from google import genai
 from google.genai import types
 
 from dungeon_crawler_text.retry import retry_with_backoff
+from dungeon_crawler_text.world_state import (
+    get_world_chronicle_path,
+    read_world_chronicle,
+    save_world_chronicle,
+)
 
 
 def _load_prompt(filename: str) -> str:

@@ -1,4 +1,26 @@
 # 07/09/2026
+Introduced **Persisting Historian World Chronicle to `world_state.md`**.
+
+### The Problem
+While Scribes persisted localized district architecture, notable NPCs, and local chronicles to individual location files (`artifacts/locations/<slug>/history.md`), the Grand Historian's macro narrative was only printed to standard output and injected into prompt memory. It was never persisted to disk alongside the world state JSON snapshots.
+
+### The Solution: Living World Markdown Chronicle (`world_state.md`)
+1. **Living World Header:** Modeled directly after the Scribes' location header style, `world_state.md` maintains a dynamic header with world-level metadata:
+   - `# World: <World Name>`
+   - `- **Current Epoch:** Epoch <N>`
+   - `- **Dominant Biomes & Regions:** <Comma-separated list of registered biomes>`
+   - `- **Active Settlements & Landmarks:** <Comma-separated list of active landmarks with symbols>`
+   - `- **Active Roads & Crossings:** <Comma-separated list of routes and bridges>`
+2. **Chronological Epoch Sections:**
+   - Appends each epoch's prose beneath a standardized `## Epoch <N> — <Title>` heading, separated by `---` dividers.
+   - For Turn 1 (primordial creation), defaults to `## Epoch 1 — Primordial Geography` if no explicit header is provided.
+   - Idempotent: Re-saving an epoch replaces the existing epoch entry in-place rather than creating duplicate sections.
+3. **Automated Pipeline Integration:**
+   - `save_world_chronicle` is executed immediately following snapshot persistence in `main.py`, guaranteeing that macro prose and JSON state remain synchronized across all simulation epochs.
+
+---
+
+# 07/09/2026
 Introduced **Road & Bridge Barrier Validation with Actionable AFC Rejection** in `WorldStateMutator.upsert_road`.
 
 ### The Problem

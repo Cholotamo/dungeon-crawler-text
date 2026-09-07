@@ -22,6 +22,7 @@ from dungeon_crawler_text.world_state import (
     format_snapshot_injection,
     render_composite_map,
     save_snapshot_file,
+    save_world_chronicle,
 )
 
 
@@ -137,6 +138,15 @@ def run_simulation(
                 "\n[WARNING] Could not parse structured world state snapshot from Cartographer output.",
                 flush=True,
             )
+
+        # Save Historian's prose to world_state.md
+        world_md_path = save_world_chronicle(
+            artifacts_dir=artifacts_dir,
+            world_state=current_state,
+            narrative=narrative,
+            epoch=turn,
+        )
+        print(f"World chronicle saved to: {world_md_path}", flush=True)
 
         if last_log:
             print(f"\nCARTOGRAPHIC LOG (EPOCH {turn}):", flush=True)
