@@ -226,7 +226,7 @@ def save_snapshot_file(state: dict[str, Any], output_dir: Path, epoch: int) -> P
 
 def _slugify_key(text: str) -> str:
     """Converts text into an alphanumeric lowercase key for collision checks."""
-    return re.sub(r"[^\w]", "", str(text)).lower()
+    return re.sub(r"[^a-zA-Z0-9]", "", str(text)).lower()
 
 
 class WorldStateMutator:
@@ -274,14 +274,12 @@ class WorldStateMutator:
                 prev_data = cleaned[conflict_key]
                 p_char = prev_data.get("char", "o")
                 c_char = data.get("char", "o")
-                # Keep the more evolved marker ('O' or '!' over 'o'), or preferred clean name over underscore
-                if (c_char in ("O", "!") and p_char == "o") or ("_" in conflict_key and "_" not in key):
-                    del cleaned[conflict_key]
-                    cleaned[key] = data
-                    if pos:
-                        seen_positions[pos] = key
-                    if slug:
-                        seen_slugs[slug] = key
+                # Keep the canonical key (conflict_key), but update attributes if new data is more evolved
+                if c_char in ("O", "!") and p_char == "o":
+                    cleaned[conflict_key]["char"] = c_char
+                    cleaned[conflict_key]["type"] = data.get("type", prev_data.get("type", "settlement"))
+                    if data.get("name"):
+                        cleaned[conflict_key]["name"] = data["name"]
             else:
                 cleaned[key] = data
                 if pos:
@@ -416,28 +414,45 @@ class WorldStateMutator:
         marker = str(char).strip()[:1] or "o"
         target_slug = _slugify_key(clean_id) or _slugify_key(name)
 
-        # Check for existing landmark at the same pos or with matching slug
-        replaced_key = None
-        for existing_k, existing_data in list(self.state["landmarks"].items()):
-            if not isinstance(existing_data, dict):
-                continue
-            e_pos = existing_data.get("pos", [])
-            e_slug = _slugify_key(existing_k) or _slugify_key(existing_data.get("name", ""))
-            if e_pos == [x, y] or (target_slug and e_slug == target_slug):
-                if existing_k != clean_id:
-                    replaced_key = existing_k
-                    del self.state["landmarks"][existing_k]
-                break
+        # Enforce key immutability: check if a landmark already exists at this coordinate or with matching slug/key
+        canonical_key = clean_id
+        is_update = False
+        key_mutation_attempted = False
 
-        self.state["landmarks"][clean_id] = {
+        if clean_id in self.state["landmarks"]:
+            canonical_key = clean_id
+            is_update = True
+        else:
+            for existing_k, existing_data in self.state["landmarks"].items():
+                if not isinstance(existing_data, dict):
+                    continue
+                e_pos = existing_data.get("pos", [])
+                e_slug = _slugify_key(existing_k) or _slugify_key(existing_data.get("name", ""))
+                if e_pos == [x, y] or (target_slug and e_slug == target_slug):
+                    canonical_key = existing_k
+                    is_update = True
+                    if existing_k != clean_id:
+                        key_mutation_attempted = True
+                    break
+
+        self.state["landmarks"][canonical_key] = {
             "name": str(name).strip(),
             "char": marker,
             "type": str(type).strip(),
             "pos": [x, y],
         }
         self._sync_to_disk()
-        replaced_msg = f" (Replaced duplicate/renamed key '{replaced_key}')" if replaced_key else ""
-        msg = f"Landmark '{clean_id}' set to '{name}' ['{marker}'] at [X: {x}, Y: {y}] ({type}){replaced_msg}."
+
+        if is_update and key_mutation_attempted:
+            msg = (
+                f"Landmark '{canonical_key}' updated to '{name}' ['{marker}'] at [X: {x}, Y: {y}] ({type}) "
+                f"(retained immutable primary key '{canonical_key}', ignored key mutation attempt '{clean_id}')."
+            )
+        elif is_update:
+            msg = f"Landmark '{canonical_key}' updated to '{name}' ['{marker}'] at [X: {x}, Y: {y}] ({type})."
+        else:
+            msg = f"Landmark '{canonical_key}' founded as '{name}' ['{marker}'] at [X: {x}, Y: {y}] ({type})."
+
         self.mutation_log.append(msg)
         return msg
 
@@ -448,12 +463,30 @@ class WorldStateMutator:
             landmark_id: Key of the landmark to remove.
         """
         clean_id = str(landmark_id).strip()
-        removed = self.state["landmarks"].pop(clean_id, None)
-        self._sync_to_disk()
-        if removed:
+        target_slug = _slugify_key(clean_id)
+
+        # Direct key match
+        if clean_id in self.state["landmarks"]:
+            del self.state["landmarks"][clean_id]
+            self._sync_to_disk()
             msg = f"Landmark '{clean_id}' removed from landmarks registry."
-        else:
-            msg = f"Landmark '{clean_id}' not found in landmarks registry."
+            self.mutation_log.append(msg)
+            return msg
+
+        # Fallback: match by slug or display name
+        for k, data in list(self.state["landmarks"].items()):
+            if not isinstance(data, dict):
+                continue
+            if target_slug and (
+                _slugify_key(k) == target_slug or _slugify_key(data.get("name", "")) == target_slug
+            ):
+                del self.state["landmarks"][k]
+                self._sync_to_disk()
+                msg = f"Landmark '{k}' (matched via '{clean_id}') removed from landmarks registry."
+                self.mutation_log.append(msg)
+                return msg
+
+        msg = f"Landmark '{clean_id}' not found in landmarks registry."
         self.mutation_log.append(msg)
         return msg
 
