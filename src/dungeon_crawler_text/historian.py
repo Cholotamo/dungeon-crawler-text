@@ -12,11 +12,7 @@ from google import genai
 from google.genai import types
 
 from dungeon_crawler_text.retry import retry_with_backoff
-from dungeon_crawler_text.world_state import (
-    get_world_chronicle_path,
-    read_world_chronicle,
-    save_world_chronicle,
-)
+
 
 CHRONOLOGY_START = "___CHRONOLOGY_START___"
 CHRONOLOGY_END = "___CHRONOLOGY_END___"
@@ -131,31 +127,32 @@ class Historian:
     @retry_with_backoff(max_retries=4, initial_delay=2.0)
     def chronicle_epoch(
         self,
-        snapshot_injection: str,
-        cartographer_log: str,
-        epoch: int,
+        snapshot_injection: str = "",
+        cartographer_log: str = "",
+        epoch: int = 2,
         query: str = "What happened next in the chronicle of this land?",
         rumors_and_dispatches: str = "",
     ) -> str:
-        """Turn 2+: Ingests world state snapshot injection, previous log, and frontier dispatches,
+        """Turn 2+: Generates next chronicle events retaining conversation memory.
 
-        then generates next chronicle events. Retains conversation memory.
+        Optionally accepts state snapshots, logs, or dispatches if provided.
         """
-        dispatches_section = ""
-        if rumors_and_dispatches.strip():
-            dispatches_section = (
-                f"## Rumors & Frontier Dispatches (Epoch {epoch - 1} Aftermath):\n"
-                f"{rumors_and_dispatches.strip()}\n\n"
+        prompt_parts: list[str] = []
+        if snapshot_injection.strip():
+            prompt_parts.append(
+                f"## Current World State (Epoch {epoch - 1}):\n{snapshot_injection.strip()}"
             )
-
-        user_prompt = (
-            f"## Current World State (Epoch {epoch - 1}):\n"
-            f"{snapshot_injection}\n\n"
-            f"## Cartographer's Previous Turn Log:\n"
-            f"{cartographer_log}\n\n"
-            f"{dispatches_section}"
-            f"{query}"
-        )
+        if cartographer_log.strip():
+            prompt_parts.append(
+                f"## Cartographer's Previous Turn Log:\n{cartographer_log.strip()}"
+            )
+        if rumors_and_dispatches.strip():
+            prompt_parts.append(
+                f"## Rumors & Frontier Dispatches (Epoch {epoch - 1} Aftermath):\n{rumors_and_dispatches.strip()}"
+            )
+        prompt_parts.append(query)
+        user_prompt = "\n\n".join(prompt_parts)
         response = self.chat.send_message(user_prompt)
         self._track_usage(response)
         return response.text or ""
+
