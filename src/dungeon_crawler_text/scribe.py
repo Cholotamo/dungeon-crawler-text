@@ -242,16 +242,15 @@ def save_location_chronicle(
     )
     factions_val = metadata_update.get("active factions", "None recorded")
 
+    # Extract current biome and region ID from world_state
+    regions = world_state.get("regions", {})
+    rx, ry = int(pos[0]), int(pos[1])
+    r_grid = world_state.get("region_grid", [])
+    rid = r_grid[ry][rx] if 0 <= ry < len(r_grid) and 0 <= rx < len(r_grid[ry]) else "0"
+    b_name = regions.get(rid, {}).get("name", "Wilderness")
+
     if not file_path.exists():
         # Turn of founding: Write complete header
-        dossier_str = build_location_dossier(landmark_key, landmark_data, world_state)
-        # Extract biome and connected routes for clean header
-        regions = world_state.get("regions", {})
-        rx, ry = pos[0], pos[1]
-        r_grid = world_state.get("region_grid", [])
-        rid = r_grid[ry][rx] if 0 <= ry < len(r_grid) and 0 <= rx < len(r_grid[ry]) else "0"
-        b_name = regions.get(rid, {}).get("name", "Wilderness")
-
         header = (
             f"# Location: {name}\n"
             f"- **Coordinates:** [X: {pos[0]:02d}, Y: {pos[1]:02d}]\n"
@@ -264,7 +263,7 @@ def save_location_chronicle(
         full_content = header + chronicle_chunk.strip() + "\n"
         file_path.write_text(full_content, encoding="utf-8")
     else:
-        # Existing file: Update status & active factions in header, then append chronicle
+        # Existing file: Update status, active factions & biome in header, then append chronicle
         existing_text = file_path.read_text(encoding="utf-8")
 
         # Update Current Status line if present
@@ -272,6 +271,14 @@ def save_location_chronicle(
             existing_text = re.sub(
                 r"- \*\*Current Status:\*\*.*",
                 f"- **Current Status:** {status_val}",
+                existing_text,
+                count=1,
+            )
+        # Update Biome & Geography line to reflect region mutations/wastelands
+        if "- **Biome & Geography:**" in existing_text:
+            existing_text = re.sub(
+                r"- \*\*Biome & Geography:\*\*.*",
+                f"- **Biome & Geography:** {b_name} (Region ID: '{rid}')",
                 existing_text,
                 count=1,
             )
@@ -702,6 +709,44 @@ def generate_scribe_drafts(
     return drafts
 
 
+def sync_all_location_headers(
+    artifacts_dir: Path,
+    world_state: dict[str, Any],
+) -> None:
+    """Synchronizes header metadata (Biome & Geography) across all existing
+    location history files with the current world state.
+    """
+    landmarks = world_state.get("landmarks", {})
+    regions = world_state.get("regions", {})
+    r_grid = world_state.get("region_grid", [])
+
+    for l_key, l_data in landmarks.items():
+        if not isinstance(l_data, dict):
+            continue
+        pos = l_data.get("pos", [0, 0])
+        file_path = get_location_history_path(artifacts_dir, l_key, pos=pos)
+        if not file_path.exists():
+            continue
+
+        rx, ry = int(pos[0]), int(pos[1])
+        rid = r_grid[ry][rx] if 0 <= ry < len(r_grid) and 0 <= rx < len(r_grid[ry]) else "0"
+        b_name = regions.get(rid, {}).get("name", "Wilderness")
+
+        try:
+            existing_text = file_path.read_text(encoding="utf-8")
+            if "- **Biome & Geography:**" in existing_text:
+                new_text = re.sub(
+                    r"- \*\*Biome & Geography:\*\*.*",
+                    f"- **Biome & Geography:** {b_name} (Region ID: '{rid}')",
+                    existing_text,
+                    count=1,
+                )
+                if new_text != existing_text:
+                    file_path.write_text(new_text, encoding="utf-8")
+        except Exception as e:
+            print(f"  [WARN] Failed to sync header for '{l_key}': {e}", flush=True)
+
+
 def commit_location_chronicles(
     drafts: dict[str, dict[str, Any]],
     artifacts_dir: Path,
@@ -727,6 +772,9 @@ def commit_location_chronicles(
         )
         if disp:
             dispatches.append(disp)
+
+    # Keep all existing location history headers in sync with current world state biomes
+    sync_all_location_headers(artifacts_dir=artifacts_dir, world_state=world_state)
 
     return dispatches
 

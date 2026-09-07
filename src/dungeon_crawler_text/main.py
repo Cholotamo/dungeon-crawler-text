@@ -21,6 +21,7 @@ from dungeon_crawler_text.scribe import (
     commit_location_chronicles,
     detect_active_locations,
     generate_scribe_drafts,
+    sync_all_location_headers,
 )
 from dungeon_crawler_text.world_state import (
     format_snapshot_injection,
@@ -237,6 +238,7 @@ def run_simulation(
         else:
             if turn > 1:
                 print("\nNo location state mutations or mentions detected for Scribe this epoch.", flush=True)
+            sync_all_location_headers(artifacts_dir=artifacts_dir, world_state=current_state)
             last_dispatches = ""
 
         query = "What happened next in the chronicle of this land?"
