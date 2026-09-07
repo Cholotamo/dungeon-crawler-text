@@ -170,12 +170,40 @@ def format_snapshot_injection(state: dict[str, Any]) -> str:
         "### Regions Registry (Biome IDs in region_grid):",
     ]
 
+    region_grid = state.get("region_grid", [])
+    active_reg_ids = set()
+    if isinstance(region_grid, list) and region_grid:
+        for row in region_grid:
+            if isinstance(row, str):
+                active_reg_ids.update(row)
+            elif isinstance(row, (list, tuple)):
+                active_reg_ids.update(str(cell) for cell in row)
+
     regions = state.get("regions", {})
     if isinstance(regions, dict) and regions:
+        has_regions = False
         for reg_id, reg_data in sorted(regions.items()):
+            if active_reg_ids and reg_id not in active_reg_ids:
+                continue
+            has_regions = True
             name = reg_data.get("name", "Unnamed") if isinstance(reg_data, dict) else str(reg_data)
             reg_type = reg_data.get("type", "unknown") if isinstance(reg_data, dict) else ""
             lines.append(f"- ID '{reg_id}': **{name}** ({reg_type})")
+        if not has_regions:
+            lines.append("(No regional biomes registered yet)")
+
+        extinct_regions = [
+            (reg_id, reg_data)
+            for reg_id, reg_data in sorted(regions.items())
+            if active_reg_ids and reg_id not in active_reg_ids
+        ]
+        if extinct_regions:
+            lines.append("")
+            lines.append("### Extinct / Overpainted Regions (0 tiles on grid):")
+            for reg_id, reg_data in extinct_regions:
+                name = reg_data.get("name", "Unnamed") if isinstance(reg_data, dict) else str(reg_data)
+                reg_type = reg_data.get("type", "unknown") if isinstance(reg_data, dict) else ""
+                lines.append(f"- ID '{reg_id}': **{name}** ({reg_type}, 0 tiles)")
     else:
         lines.append("(No regional biomes registered yet)")
 
@@ -250,16 +278,27 @@ def _format_world_metadata_fields(world_state: dict[str, Any], epoch: int) -> di
     """Extracts summary strings for regions, landmarks, and roads from world_state."""
     # Regions
     regions = world_state.get("regions", {})
+    region_grid = world_state.get("region_grid", [])
+    active_reg_ids = set()
+    if isinstance(region_grid, list) and region_grid:
+        for row in region_grid:
+            if isinstance(row, str):
+                active_reg_ids.update(row)
+            elif isinstance(row, (list, tuple)):
+                active_reg_ids.update(str(cell) for cell in row)
+
     if isinstance(regions, dict) and regions:
         reg_items = []
         for reg_id, rdata in sorted(regions.items()):
+            if active_reg_ids and reg_id not in active_reg_ids:
+                continue
             if isinstance(rdata, dict):
                 r_name = rdata.get("name", f"Region {reg_id}")
                 r_type = rdata.get("type", "")
                 reg_items.append(f"{r_name} ({r_type.title()})" if r_type else r_name)
             elif isinstance(rdata, str):
                 reg_items.append(rdata)
-        regions_str = ", ".join(reg_items)
+        regions_str = ", ".join(reg_items) if reg_items else "Wilderness"
     else:
         regions_str = "Wilderness"
 
@@ -360,6 +399,90 @@ def format_world_chronicle_chunk(narrative: str, epoch: int) -> str:
     return f"{header_line}\n\n{text}"
 
 
+def sync_world_chronicle_header(
+    artifacts_dir: Path,
+    world_state: dict[str, Any],
+    epoch: Optional[int] = None,
+) -> Optional[Path]:
+    """Synchronizes header metadata in artifacts/world_state.md with the given world state.
+
+    Updates the World name, Current Epoch, Dominant Biomes & Regions,
+    Active Settlements & Landmarks, and Active Roads & Crossings.
+    """
+    file_path = get_world_chronicle_path(artifacts_dir)
+    if not file_path.exists():
+        return None
+
+    if epoch is None:
+        chronology = world_state.get("chronology")
+        if isinstance(chronology, dict) and "epoch" in chronology:
+            try:
+                epoch = int(chronology["epoch"])
+            except (ValueError, TypeError):
+                epoch = 1
+        elif "epoch" in world_state:
+            try:
+                epoch = int(world_state["epoch"])
+            except (ValueError, TypeError):
+                epoch = 1
+        else:
+            epoch = 1
+
+    name = world_state.get("name", "The Known World")
+    meta = _format_world_metadata_fields(world_state, epoch)
+
+    epoch_str = f"Epoch {epoch}"
+    chronology = world_state.get("chronology")
+    if isinstance(chronology, dict) and chronology.get("reckoning"):
+        epoch_str = f"Epoch {epoch} ({chronology['reckoning']})"
+
+    existing_text = file_path.read_text(encoding="utf-8")
+
+    # Update World Title line if present
+    if "# World:" in existing_text:
+        existing_text = re.sub(
+            r"# World:.*",
+            lambda _: f"# World: {name}",
+            existing_text,
+            count=1,
+        )
+    # Update Current Epoch line if present
+    if "- **Current Epoch:**" in existing_text:
+        existing_text = re.sub(
+            r"- \*\*Current Epoch:\*\*.*",
+            lambda _: f"- **Current Epoch:** {epoch_str}",
+            existing_text,
+            count=1,
+        )
+    # Update Dominant Biomes & Regions line if present
+    if "- **Dominant Biomes & Regions:**" in existing_text:
+        existing_text = re.sub(
+            r"- \*\*Dominant Biomes & Regions:\*\*.*",
+            lambda _: f"- **Dominant Biomes & Regions:** {meta['regions']}",
+            existing_text,
+            count=1,
+        )
+    # Update Active Settlements & Landmarks line if present
+    if "- **Active Settlements & Landmarks:**" in existing_text:
+        existing_text = re.sub(
+            r"- \*\*Active Settlements & Landmarks:\*\*.*",
+            lambda _: f"- **Active Settlements & Landmarks:** {meta['landmarks']}",
+            existing_text,
+            count=1,
+        )
+    # Update Active Roads & Crossings line if present
+    if "- **Active Roads & Crossings:**" in existing_text:
+        existing_text = re.sub(
+            r"- \*\*Active Roads & Crossings:\*\*.*",
+            lambda _: f"- **Active Roads & Crossings:** {meta['roads']}",
+            existing_text,
+            count=1,
+        )
+
+    file_path.write_text(existing_text, encoding="utf-8")
+    return file_path
+
+
 def save_world_chronicle(
     artifacts_dir: Path,
     world_state: dict[str, Any],
@@ -370,9 +493,7 @@ def save_world_chronicle(
     file_path = get_world_chronicle_path(artifacts_dir)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    name = world_state.get("name", "The Known World")
     chronicle_chunk = format_world_chronicle_chunk(narrative, epoch)
-    meta = _format_world_metadata_fields(world_state, epoch)
 
     if not file_path.exists() or epoch == 1:
         header = build_world_header(world_state, epoch)
@@ -380,52 +501,6 @@ def save_world_chronicle(
         file_path.write_text(full_content, encoding="utf-8")
     else:
         existing_text = file_path.read_text(encoding="utf-8")
-
-        # Update World Title line if present
-        if "# World:" in existing_text:
-            existing_text = re.sub(
-                r"# World:.*",
-                lambda _: f"# World: {name}",
-                existing_text,
-                count=1,
-            )
-        # Update Current Epoch line if present
-        epoch_str = f"Epoch {epoch}"
-        chronology = world_state.get("chronology")
-        if isinstance(chronology, dict) and chronology.get("reckoning"):
-            epoch_str = f"Epoch {epoch} ({chronology['reckoning']})"
-
-        if "- **Current Epoch:**" in existing_text:
-            existing_text = re.sub(
-                r"- \*\*Current Epoch:\*\*.*",
-                lambda _: f"- **Current Epoch:** {epoch_str}",
-                existing_text,
-                count=1,
-            )
-        # Update Dominant Biomes & Regions line if present
-        if "- **Dominant Biomes & Regions:**" in existing_text:
-            existing_text = re.sub(
-                r"- \*\*Dominant Biomes & Regions:\*\*.*",
-                lambda _: f"- **Dominant Biomes & Regions:** {meta['regions']}",
-                existing_text,
-                count=1,
-            )
-        # Update Active Settlements & Landmarks line if present
-        if "- **Active Settlements & Landmarks:**" in existing_text:
-            existing_text = re.sub(
-                r"- \*\*Active Settlements & Landmarks:\*\*.*",
-                lambda _: f"- **Active Settlements & Landmarks:** {meta['landmarks']}",
-                existing_text,
-                count=1,
-            )
-        # Update Active Roads & Crossings line if present
-        if "- **Active Roads & Crossings:**" in existing_text:
-            existing_text = re.sub(
-                r"- \*\*Active Roads & Crossings:\*\*.*",
-                lambda _: f"- **Active Roads & Crossings:** {meta['roads']}",
-                existing_text,
-                count=1,
-            )
 
         # Check if this epoch is already recorded (idempotency check)
         epoch_pattern = re.compile(
@@ -440,6 +515,7 @@ def save_world_chronicle(
             full_content = existing_text.rstrip() + append_content
 
         file_path.write_text(full_content, encoding="utf-8")
+        sync_world_chronicle_header(artifacts_dir, world_state, epoch=epoch)
 
     return file_path
 
@@ -970,6 +1046,23 @@ class WorldStateMutator:
         self.mutation_log.append(msg)
         return msg
 
+    def remove_region(self, region_id: str) -> str:
+        """Removes a regional biome from the regions registry.
+
+        Args:
+            region_id: Single alphanumeric character key matching region_grid.
+        """
+        reg_key = str(region_id).strip()[:1]
+        removed = self.state["regions"].pop(reg_key, None)
+        self._sync_to_disk()
+        if removed:
+            r_name = removed.get("name", reg_key) if isinstance(removed, dict) else reg_key
+            msg = f"Region '{reg_key}' ('{r_name}') removed from regions registry."
+        else:
+            msg = f"Region '{reg_key}' not found in regions registry."
+        self.mutation_log.append(msg)
+        return msg
+
     def get_tools(self) -> list[Any]:
         """Returns the list of callable mutation tools for LLM function calling."""
         return [
@@ -981,5 +1074,6 @@ class WorldStateMutator:
             self.decay_road,
             self.remove_road,
             self.upsert_region,
+            self.remove_region,
         ]
 

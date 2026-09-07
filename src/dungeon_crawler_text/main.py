@@ -28,6 +28,7 @@ from dungeon_crawler_text.world_state import (
     render_composite_map,
     save_snapshot_file,
     save_world_chronicle,
+    sync_world_chronicle_header,
 )
 
 
@@ -239,6 +240,7 @@ def run_simulation(
             if turn > 1:
                 print("\nNo location state mutations or mentions detected for Scribe this epoch.", flush=True)
             sync_all_location_headers(artifacts_dir=artifacts_dir, world_state=current_state)
+            sync_world_chronicle_header(artifacts_dir=artifacts_dir, world_state=current_state, epoch=turn)
             last_dispatches = ""
 
         query = "What happened next in the chronicle of this land?"
