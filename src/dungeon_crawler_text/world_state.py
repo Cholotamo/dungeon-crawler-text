@@ -198,12 +198,18 @@ def format_snapshot_injection(state: dict[str, Any]) -> str:
     lines.append("### Established Roads & Crossings:")
     roads = state.get("roads", {})
     if isinstance(roads, dict) and roads:
+        has_roads = False
         for road_name, road_info in roads.items():
             if not isinstance(road_info, dict):
                 continue
-            road_type = road_info.get("type", "paved")
             tiles = road_info.get("tiles", [])
+            if not tiles:
+                continue
+            has_roads = True
+            road_type = road_info.get("type", "paved")
             lines.append(f"- **{road_name}** ({road_type}, {len(tiles)} tiles)")
+        if not has_roads:
+            lines.append("(No roads built yet)")
     else:
         lines.append("(No roads built yet)")
 
@@ -278,11 +284,14 @@ def _format_world_metadata_fields(world_state: dict[str, Any], epoch: int) -> di
         road_items = []
         for r_name, r_data in sorted(roads.items()):
             if isinstance(r_data, dict):
+                tiles = r_data.get("tiles", [])
+                if not tiles:
+                    continue
                 r_type = r_data.get("type", "paved").capitalize()
                 road_items.append(f"{r_name} ({r_type})")
             else:
                 road_items.append(str(r_name))
-        roads_str = ", ".join(road_items)
+        roads_str = ", ".join(road_items) if road_items else "None recorded"
     else:
         roads_str = "None recorded"
 
@@ -892,7 +901,11 @@ class WorldStateMutator:
 
         tiles = self.state["roads"][clean_name].get("tiles", [])
         if not tiles:
-            return f"Road '{clean_name}' has no tiles to decay."
+            self.state["roads"].pop(clean_name, None)
+            self._sync_to_disk()
+            msg = f"Road '{clean_name}' had 0 tiles and was removed from roads registry."
+            self.mutation_log.append(msg)
+            return msg
 
         pct = max(0.1, min(0.9, float(decay_percentage)))
         remove_count = int(len(tiles) * pct)
@@ -901,6 +914,14 @@ class WorldStateMutator:
 
         step = max(2, int(round(1.0 / pct)))
         remaining = [t for i, t in enumerate(tiles) if (i % step) != 0]
+
+        if not remaining:
+            self.state["roads"].pop(clean_name, None)
+            self._sync_to_disk()
+            msg = f"Road '{clean_name}' fully decayed and was removed from roads registry (0 tiles remaining)."
+            self.mutation_log.append(msg)
+            return msg
+
         self.state["roads"][clean_name]["tiles"] = remaining
         self._sync_to_disk()
         msg = f"Road '{clean_name}' decayed by {int(pct * 100)}%: {len(tiles)} -> {len(remaining)} tiles remaining."
