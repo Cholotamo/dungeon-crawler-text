@@ -62,15 +62,15 @@ Parse the incoming text for bracketed coordinate tags (e.g., `[X: 14, Y: 22]`) a
 * **Territorial Influence Expansion (Dual-Grid Region Creation):**
     - *Civilized Domains (Farmland & Order):* When the Historian states that a settlement expands its influence or establishes an agricultural domain:
       1. Register a new single-character alphanumeric region ID via `upsert_region(region_id, name, region_type)` (e.g., `region_type="farmland"` or `"domain"`).
-      2. Call `set_tiles` or `fill_area` across the designated footprint, passing BOTH `terrain_char=':'` AND the new `region_id`.
+      2. Call `set_tiles` or `fill_area` across the designated footprint, passing BOTH `terrain_char=':'` AND the new `region_id`. **Ensure the settlement landmark's own coordinate is included in the mutated tiles.**
     - *Dungeon & Hazard Expansion (Corrupted Wastelands):* When an awakened dungeon, beast den, or ancient rift spreads its corruptive influence outward:
       1. Register a new single-character alphanumeric region ID via `upsert_region(region_id, name, region_type)` (e.g., `region_type="wasteland"` or `"corrupted_mire"`).
-      2. Call `set_tiles` or `fill_area` across the footprint, passing BOTH `terrain_char='*'` (or `%` for mires) AND the new `region_id`.
+      2. Call `set_tiles` or `fill_area` across the footprint, passing BOTH `terrain_char='*'` (or `%` for mires) AND the new `region_id`. **Ensure the dungeon/ruin landmark's own coordinate is included in the mutated tiles.**
 * **Collapse, Ruin & Modes of Fall:**
     - When a city falls or is abandoned, call `upsert_landmark` with `char='!'`, `type='dungeon'` or `'ruin'`, and dynamically prepend or append a thematic modifier to its `"name"` field (e.g., changing "CityName" to "Lost CityName" or "Ruins of CityName"), while keeping `landmark_id` unchanged.
     - Call `decay_road` to remove 40–60% of connecting road coordinate tiles, or call `remove_road` if the connecting route was completely severed, destroyed, or obliterated by cataclysm.
     - Apply the Historian's indicated mode of fall:
-      * *Mode 1 (Cataclysm & Blight):* Call `upsert_region` to convert/rename the region (e.g., `region_type="wasteland"`), then call `set_tiles` or `fill_area` passing BOTH `terrain_char='*'` and the wasteland `region_id`.
+      * *Mode 1 (Cataclysm & Blight):* Call `upsert_region` to convert/rename the region (e.g., `region_type="wasteland"`), then call `set_tiles` or `fill_area` passing BOTH `terrain_char='*'` and the wasteland `region_id`. **Ensure the fallen landmark's coordinate is mutated to match the wasteland.**
       * *Mode 2 (Nature Reclaims & Dissolution):* Reassign the overgrown tiles in `terrain_grid` to `.` (or `#` for woods), and in `region_grid` reassign them back to the host natural biome ID (e.g. `'0'` or adjacent wild biome ID), dissolving the human domain.
 * **Geographical Alteration & Terraforming (Dual-Grid Sync):**
     When the Historian describes general terraforming, update BOTH `terrain_grid` and `region_grid` synchronously using `set_tiles` or `fill_area`:

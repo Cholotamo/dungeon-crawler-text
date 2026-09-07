@@ -1,4 +1,26 @@
 # 07/09/2026
+Introduced **Automatic Landmark-Territory Biome Harmonization Protocol**.
+
+### The Problem
+During multi-epoch simulation runs, settlements expanding into agricultural domains or falling into blighted ruins experienced dual-grid desynchronization where the landmark's center tile was omitted:
+1. **Unpainted Center Tile:** When the Grand Historian commissioned a domain or wasteland footprint (e.g. `The Farmlands of Dun Marrow` or `The Ashen Wastes of Marrow` across `[X: 10..12, Y: 13..15]`), the coordinate footprint often omitted the city's exact position (`[12, 14]`), assuming the marker overlay superseded the ground layer.
+2. **Ambient Wilderness Isolation:** On `terrain_grid` and `region_grid`, the landmark tile remained untouched as primordial wilderness (`.` and Region `'3'`), creating an artificial 1-tile hole in the middle of sprawling farmlands or wastelands.
+3. **Scribe Header Desynchronization:** Downstream Scribes and `sync_all_location_headers` inspect the landmark's coordinate on `region_grid`. Sites like Dun Marrow and Barrow Watch (The Bleeding Redoubt) reported `- **Biome & Geography:** High Meadow & Harrow Lows (Region ID: '3')` despite being the epicenters of devastating wastelands (`The Ashen Wastes of Marrow` Region `'d'`, `The Weeping Scar` Region `'b'`).
+
+### The Solution: Prompt Mandate + Mutator Biome Harmonization
+1. **Prompt Footprint Enforcement (`Historian.md` & `Cartographer.md`):**
+   - Explicitly instructs the Historian and Cartographer to always include the settlement/dungeon landmark's own coordinates in any domain, farmland, or blighted wasteland footprint.
+2. **Defensive Mutation Harmonization (`WorldStateMutator.harmonize_landmark_biomes`):**
+   - Scans all landmarks in `world_state["landmarks"]` following mutation turns.
+   - Evaluates surrounding non-water land neighbors:
+     * *Enclosed Domain/Wasteland:* If $\ge 50\%$ of land neighbors belong to a specialized domain/farmland/wasteland region `R`, the landmark coordinate is automatically harmonized with `R` (and `terrain_grid` updated to `:` or `*`).
+     * *Ruined/Dungeon Seat of Blight:* If a ruined/dungeon site (`!`) borders an expanding wasteland or corrupted mire ($\ge 2$ neighbors), it is harmonized with that blight region.
+3. **Pipeline Integration:**
+   - Automatically executed in `cartographer.evolve_map` before snapshot persistence, and defensively in `sync_all_location_headers` before persisting location metadata headers.
+
+---
+
+# 07/09/2026
 Introduced **Multi-Source & Transitive Cascading Scribe Activation Protocol**.
 
 ### The Problem

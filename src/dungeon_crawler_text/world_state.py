@@ -4,6 +4,7 @@ Handles parsing, saving, rendering, and formatting world state snapshots
 consisting of terrain_grid, region_grid, regions, landmarks, and roads.
 """
 
+from collections import Counter
 import json
 from pathlib import Path
 import re
@@ -1062,6 +1063,117 @@ class WorldStateMutator:
             msg = f"Region '{reg_key}' not found in regions registry."
         self.mutation_log.append(msg)
         return msg
+
+    def harmonize_landmark_biomes(self) -> list[str]:
+        """Harmonizes landmark coordinates with their surrounding territorial domains or wastelands.
+
+        If a landmark is situated within or completely enclosed by a specialized region
+        (e.g., farmland ':', wasteland '*', or a domain region) but its underlying coordinate
+        on region_grid was inadvertently omitted (remaining as ambient wilderness '0' or '3'),
+        this updates the landmark's underlying tile to match the surrounding region.
+        """
+        logs: list[str] = []
+        terrain_grid = self.state.get("terrain_grid", [])
+        region_grid = self.state.get("region_grid", [])
+        regions = self.state.get("regions", {})
+        landmarks = self.state.get("landmarks", {})
+
+        if not terrain_grid or not region_grid or not regions or not landmarks:
+            return logs
+
+        for l_key, l_data in landmarks.items():
+            if not isinstance(l_data, dict):
+                continue
+            pos = l_data.get("pos", [])
+            if not (isinstance(pos, (list, tuple)) and len(pos) >= 2):
+                continue
+            x, y = int(pos[0]), int(pos[1])
+            if not (0 <= y < len(region_grid) and 0 <= x < len(region_grid[y])):
+                continue
+
+            curr_r = region_grid[y][x]
+            curr_t = terrain_grid[y][x] if y < len(terrain_grid) and x < len(terrain_grid[y]) else "."
+            curr_reg_type = regions.get(curr_r, {}).get("type", "")
+
+            # If the landmark already has a specialized domain or wasteland region, skip
+            if curr_reg_type in ["farmland", "wasteland", "domain", "corrupted_mire"]:
+                continue
+
+            # Gather adjacent land neighbors (ignoring water '~' and out of bounds)
+            land_neighbors: list[tuple[int, int, str, str]] = []
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dx == 0 and dy == 0:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if 0 <= ny < len(region_grid) and 0 <= nx < len(region_grid[ny]):
+                        nt = terrain_grid[ny][nx] if ny < len(terrain_grid) and nx < len(terrain_grid[ny]) else "."
+                        nr = region_grid[ny][nx]
+                        if nt != "~":
+                            land_neighbors.append((nx, ny, nr, nt))
+
+            if not land_neighbors:
+                continue
+
+            # Count frequency of region IDs among land neighbors
+            counts = Counter([nr for _, _, nr, _ in land_neighbors])
+            l_char = str(l_data.get("char", "")).strip()
+            l_type = str(l_data.get("type", "")).strip().lower()
+            is_ruin = l_char == "!" or l_type in ["dungeon", "ruin", "beast_den"]
+
+            chosen_r: Optional[str] = None
+
+            # Priority 1: If the site is a ruin/dungeon, harmonize with an adjacent wasteland or corrupted mire
+            if is_ruin:
+                for cand_r, c_cnt in counts.items():
+                    c_type = regions.get(cand_r, {}).get("type", "")
+                    if c_type in ["wasteland", "corrupted_mire"] and c_cnt >= 2:
+                        chosen_r = cand_r
+                        break
+
+            # Priority 2: Check if enclosed/majority (>= 50% of land neighbors and at least 2 neighbors)
+            if not chosen_r:
+                for cand_r, c_cnt in counts.items():
+                    c_type = regions.get(cand_r, {}).get("type", "")
+                    if c_type in ["farmland", "domain", "wasteland", "corrupted_mire"]:
+                        if c_cnt >= 2 and c_cnt / len(land_neighbors) >= 0.5:
+                            chosen_r = cand_r
+                            break
+
+            if chosen_r:
+                cand_reg = regions.get(chosen_r, {})
+                cand_type = cand_reg.get("type", "")
+                cand_name = cand_reg.get("name", chosen_r)
+
+                # Update region_grid
+                row_r = list(region_grid[y])
+                row_r[x] = chosen_r
+                region_grid[y] = "".join(row_r)
+
+                # Update terrain_grid to appropriate ground type
+                target_t = curr_t
+                if cand_type in ["wasteland", "corrupted_mire"]:
+                    target_t = "*" if cand_type == "wasteland" else "%"
+                elif cand_type in ["farmland", "domain"] and curr_t in [".", ","]:
+                    target_t = ":"
+
+                if target_t != curr_t:
+                    row_t = list(terrain_grid[y])
+                    row_t[x] = target_t
+                    terrain_grid[y] = "".join(row_t)
+
+                msg = (
+                    f"Harmonized landmark '{l_key}' at [X: {x}, Y: {y}] with surrounding {cand_type} region "
+                    f"'{chosen_r}' ({cand_name}) (terrain='{target_t}', region_id='{chosen_r}')."
+                )
+                self.mutation_log.append(msg)
+                logs.append(msg)
+
+        if logs:
+            self._sync_to_disk()
+
+        return logs
+
 
     def get_tools(self) -> list[Any]:
         """Returns the list of callable mutation tools for LLM function calling."""

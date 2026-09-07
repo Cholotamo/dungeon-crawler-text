@@ -15,6 +15,7 @@ from google import genai
 from google.genai import types
 
 from dungeon_crawler_text.retry import retry_with_backoff
+from dungeon_crawler_text.world_state import WorldStateMutator
 
 METADATA_UPDATE_START = "___METADATA_UPDATE_START___"
 METADATA_UPDATE_END = "___METADATA_UPDATE_END___"
@@ -716,6 +717,9 @@ def sync_all_location_headers(
     """Synchronizes header metadata (Biome & Geography) across all existing
     location history files with the current world state.
     """
+    # Harmonize landmarks with surrounding domains, farmlands, or wastelands
+    WorldStateMutator(world_state).harmonize_landmark_biomes()
+
     landmarks = world_state.get("landmarks", {})
     regions = world_state.get("regions", {})
     r_grid = world_state.get("region_grid", [])

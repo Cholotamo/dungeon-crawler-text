@@ -211,6 +211,9 @@ class Cartographer:
         if not cartographic_log.strip() and mutator.mutation_log:
             cartographic_log = "\n".join(f"- {entry}" for entry in mutator.mutation_log)
 
+        # Harmonize landmarks with surrounding domains, farmlands, or wastelands
+        mutator.harmonize_landmark_biomes()
+
         # Update previous_state in-place
         previous_state.clear()
         previous_state.update(working_state)
