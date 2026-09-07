@@ -78,13 +78,9 @@ class WorldBuilder:
         return response.text or ""
 
 
-# Convenience aliases
-Worldbuilder = WorldBuilder
-Historian = WorldBuilder
 
 __all__ = [
     "WorldBuilder",
-    "Worldbuilder",
-    "Historian",
     "DEFAULT_PRIMORDIAL_QUERY",
 ]
+
