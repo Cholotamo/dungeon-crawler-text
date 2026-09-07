@@ -1,6 +1,6 @@
-# Dungeon Crawler Text: Historian World-Building Simulation
+# Dungeon Crawler Text: WorldBuilder Primordial World-Building
 
-A generative fantasy world-building simulation powered by Gemini. The **Historian** agent chronicles the rise, evolution, and transformation of a fantasy realm across epochs, maintaining continuous conversation memory and establishing chronological calendar reckonings.
+A generative fantasy world-building tool powered by Gemini. The **WorldBuilder** agent describes the untouched, primordial landscape and raw geography of a fantasy realm at the dawn of time, balancing Tolkien-esque mythic depth with gritty, atmospheric weight.
 
 ---
 
@@ -25,9 +25,9 @@ uv sync
 
 ---
 
-## Running the Simulation
+## Running the Generator
 
-Run the Historian narrative generation via the package entry point:
+Generate the primordial landscape via the package entry point:
 
 ```bash
 uv run dungeon-crawler-text
@@ -47,32 +47,37 @@ Customize the generation using command-line arguments:
 
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--epochs` / `--turns` | `int` | `2` | Number of historical epochs to simulate |
-| `--model` | `str` | `gemini-3.7-flash` | Gemini model to use for the agent |
-| `--thinking` | `str` | `HIGH` | Thinking budget / level (`HIGH`, `LOW`, etc.) |
-| `--output-dir` | `str` | `None` | Optional directory where epoch Markdown files are saved |
+| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
+| `--query` | `str` | *Default Primordial Query* | Custom prompt query to ask the WorldBuilder |
+| `--output`, `-o` | `str` | `None` | Optional file or directory path to save the output Markdown file |
 
 ### Examples
 
-- **Generate 3 epochs:**
+- **Default run:**
   ```bash
-  uv run dungeon-crawler-text --epochs 3
+  uv run dungeon-crawler-text
   ```
 
-- **Save chronicles to a directory:**
+- **Save landscape description to a file:**
   ```bash
-  uv run dungeon-crawler-text --epochs 3 --output-dir chronicles
+  uv run dungeon-crawler-text --output primordial_realm.md
+  ```
+
+- **Use a custom query:**
+  ```bash
+  uv run dungeon-crawler-text --query "Describe a primordial volcanic island chain surrounded by boiling reefs."
   ```
 
 ---
 
 ## Architecture & How It Works
 
-1. **Turn 1 (Primordial Creation):**
-   - The Historian establishes the foundational landscape: natural boundaries, coasts, waterways, mountain ridges, and initial biomes.
-   - Outputs a canonical Chronology block (reckoning system and elapsed time).
+1. **System Prompt (`WorldBuilder.md`):**
+   - Anchors the model in high-fantasy mythic world-building (Tolkien + Kentaro Miura).
+   - Constrains the narrative to primordial physical geography: natural boundaries, mountain ridges, waterways, coastlines, and untamed biomes before mortal civilizations or settlements.
 
-2. **Turn 2+ (Living Chronicle):**
-   - Retaining chat history across epochs, the Historian advances the world's geopolitical and environmental narrative.
-   - Chronicles civilization origins, territorial expansion, terraforming, catastrophes, and emergence of ruins and dungeons.
-   - Extracts structured chronology metadata and clean narrative prose.
+2. **Single-Question Generation (`WorldBuilder` & `main.py`):**
+   - Dispatches a single focused query via `client.models.generate_content`.
+   - Displays the narrative prose and tracks token usage.
+   - Saves clean Markdown if an output path is provided.
