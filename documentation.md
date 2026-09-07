@@ -1,4 +1,32 @@
 # 07/09/2026
+Introduced **Diagonal Barrier Breach Validation & Cardinal River Hydrology Protocol**.
+
+### The Problem
+During multi-epoch simulation runs, roads and trade routes crossed rivers without constructing bridges by slipping through diagonal river seams:
+1. **The 8-Connectivity Paradox:** When rivers ran diagonally across the grid (e.g. `[9, 5]` and `[8, 6]` were water `'~'`, while `[8, 5]` and `[9, 6]` were land `'.'`), roads stepped diagonally from `[8, 5]` directly to `[9, 6]`.
+2. **Barrier Validation Blindspot:** `WorldStateMutator.upsert_road` validated individual coordinates in isolation (`terrain_grid[y][x] in ("~", "/")`). Because neither `[8, 5]` nor `[9, 6]` was water, barrier inspection passed without detecting that the line of travel crossed a river. Routes like `The Timber-Iron Way` crossed the Silvervein River without requiring a bridge.
+3. **Diagonal Water Leaks in Turn 1:** Procedural Python code in Turn 1 generated rivers using diagonal line steps, leaving 1-tile diagonal pinches where the land on either side was never topologically separated.
+
+### The Solution: Multi-Layered Diagonal Barrier Detection & Cardinal Hydrology
+1. **Diagonal Barrier Crossing Validation (`WorldStateMutator.upsert_road`):**
+   - Inspects all consecutive road tile pairs `(p1, p2)` (both within `valid_tiles` and at the junction when extending an existing road).
+   - If `|dx| == 1` and `|dy| == 1` (diagonal step) and BOTH orthogonal corner tiles `c1 = (x1, y2)` and `c2 = (x2, y1)` are natural barriers (`'~'` or `'/'`):
+     * Checks if either corner coordinate has an existing bridge in the roads registry.
+     * If neither corner is bridged, the call is rejected as an unbridged diagonal barrier breach.
+   - Prescriptive AFC Rejection: Returns actionable instructions providing:
+     * *Option A (Cross via Bridge):* Terminate the road at the near bank, anchor a dedicated bridge on the water tile (`c1` or `c2`), and continue the road from the opposite bank (`extend=True`).
+     * *Option B (Reroute Along Same Bank):* Keep coordinates along the bank without crossing the diagonal seam.
+2. **Defensive Cardinal River Hydrology (`WorldStateMutator.enforce_river_cardinal_continuity`):**
+   - Automatically detects 2x2 diagonal pinches in `terrain_grid` where water tiles touch only at corners.
+   - Closes diagonal pinches by converting the most suitable intermediate land corner (preferring softer terrain and strictly protecting settlement and dungeon landmarks) into water (`'~'`) with matching river region ID.
+   - Integrated into `generate_primordial_map` (Turn 1) and `evolve_map` (Turn 2+).
+3. **Agent Prompt Mandates (`Cartographer.md` & `Historian.md`):**
+   - `Cartographer.md`: Mandates strict 4-way cardinal connectivity for rivers in Turn 1, explicitly forbids roads from slipping through diagonal river seams, and requires bridges for all crossings regardless of angle.
+   - `Historian.md`: Mandates explicit bridge coordinates and names whenever roads cross rivers or chasms, including across diagonal river bends.
+
+---
+
+# 07/09/2026
 Introduced **Automatic Landmark-Territory Biome Harmonization Protocol**.
 
 ### The Problem

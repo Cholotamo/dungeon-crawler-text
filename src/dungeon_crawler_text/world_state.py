@@ -940,6 +940,103 @@ class WorldStateMutator:
                 self.mutation_log.append(f"[REJECTED] {clean_name}: Barrier '{barrier_char}' at {contiguous_span}")
                 return msg
 
+            # 3. Check for diagonal barrier crossings (stepping diagonally across untamed barriers)
+            # A road step between (x1, y1) and (x2, y2) with |dx| == 1 and |dy| == 1 crosses
+            # through the diagonal seam formed by corner tiles (x1, y2) and (x2, y1).
+            # If both corner tiles are natural barriers ('~' or '/') and neither has an existing bridge,
+            # this is an unbridged diagonal barrier breach.
+            diagonal_barrier_breaches: list[tuple[list[int], list[int], tuple[int, int], tuple[int, int], str, str, int]] = []
+
+            pairs_to_check: list[tuple[list[int], list[int], int]] = []
+            if extend and clean_name in self.state.get("roads", {}):
+                existing_tiles = self.state["roads"][clean_name].get("tiles", [])
+                if existing_tiles:
+                    pairs_to_check.append((existing_tiles[-1], valid_tiles[0], -1))
+
+            for i in range(len(valid_tiles) - 1):
+                pairs_to_check.append((valid_tiles[i], valid_tiles[i + 1], i))
+
+            for p1, p2, pair_idx in pairs_to_check:
+                x1, y1 = p1
+                x2, y2 = p2
+                dx = x2 - x1
+                dy = y2 - y1
+                if abs(dx) == 1 and abs(dy) == 1:
+                    c1 = (x1, y2)
+                    c2 = (x2, y1)
+                    t1 = terrain_grid[y2][x1] if (0 <= y2 < len(terrain_grid) and 0 <= x1 < len(terrain_grid[y2])) else ""
+                    t2 = terrain_grid[y1][x2] if (0 <= y1 < len(terrain_grid) and 0 <= x2 < len(terrain_grid[y1])) else ""
+
+                    is_b1 = t1 in ("~", "/")
+                    is_b2 = t2 in ("~", "/")
+
+                    if is_b1 and is_b2:
+                        has_br1 = c1 in existing_bridges
+                        has_br2 = c2 in existing_bridges
+                        if not has_br1 and not has_br2:
+                            diagonal_barrier_breaches.append((p1, p2, c1, c2, t1, t2, pair_idx))
+                            break
+
+            if diagonal_barrier_breaches:
+                p1, p2, c1, c2, t1, t2, pair_idx = diagonal_barrier_breaches[0]
+                x1, y1 = p1
+                x2, y2 = p2
+                cx1, cy1 = c1
+                cx2, cy2 = c2
+
+                is_water = (t1 == "~" or t2 == "~")
+                barrier_type = "water / river" if is_water else "chasm / cliff"
+                barrier_name = "river" if is_water else "chasm"
+                bank_label = "river bank" if is_water else "cliff edge"
+
+                suggested_bridge = (
+                    f"{clean_name} Crossing"
+                    if "bridge" not in clean_name.lower() and "span" not in clean_name.lower() and "crossing" not in clean_name.lower()
+                    else clean_name
+                )
+
+                res_lines = [
+                    f"REJECTED: Road '{clean_name}' (type: '{road_type}') failed barrier validation.",
+                    f"- Diagonal {barrier_type} crossing detected between [{x1}, {y1}] and [{x2}, {y2}] through diagonal barrier seam at [{cx1}, {cy1}] ('{t1}') and [{cx2}, {cy2}] ('{t2}'). Standard roads cannot directly slip through diagonal river or chasm seams without a bridge.",
+                    "",
+                    "ACTIONABLE RESOLUTION:",
+                    "Option A — Cross via Bridge (Recommended):",
+                    f"If '{clean_name}' is meant to cross the {barrier_name}, anchor a bridge at one of the barrier coordinates (e.g., [{cx1}, {cy1}] or [{cx2}, {cy2}]):",
+                ]
+                step_num = 1
+                if pair_idx >= 0:
+                    tiles_before = valid_tiles[: pair_idx + 1]
+                    tiles_after = valid_tiles[pair_idx + 1 :]
+                    if tiles_before:
+                        res_lines.append(f"{step_num}. Terminate '{clean_name}' at the near {bank_label} [{x1}, {y1}]:")
+                        res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_before})")
+                        step_num += 1
+
+                    res_lines.append(f"{step_num}. Upsert a bridge across the {barrier_type} at [[{cx1}, {cy1}]] using the chronicle's named bridge or a contextual name (e.g., '{suggested_bridge}'):")
+                    res_lines.append(f"   upsert_road(road_name='{suggested_bridge}', road_type='bridge', tiles=[[{cx1}, {cy1}]])")
+                    step_num += 1
+
+                    if tiles_after:
+                        res_lines.append(f"{step_num}. Continue '{clean_name}' from the opposite {bank_label} [{x2}, {y2}] (using extend=True):")
+                        res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={tiles_after}, extend=True)")
+                else:
+                    # Breach at junction when extend=True
+                    res_lines.append(f"{step_num}. Upsert a bridge across the {barrier_type} at [[{cx1}, {cy1}]] using the chronicle's named bridge or a contextual name (e.g., '{suggested_bridge}'):")
+                    res_lines.append(f"   upsert_road(road_name='{suggested_bridge}', road_type='bridge', tiles=[[{cx1}, {cy1}]])")
+                    step_num += 1
+
+                    res_lines.append(f"{step_num}. Continue '{clean_name}' from the opposite {bank_label} [{x2}, {y2}] (using extend=True):")
+                    res_lines.append(f"   upsert_road(road_name='{clean_name}', road_type='{road_type}', tiles={valid_tiles}, extend=True)")
+
+                res_lines.append("")
+                res_lines.append("Option B — Reroute Along Same Bank:")
+                res_lines.append(f"If '{clean_name}' was intended to skirt or follow the {bank_label} without crossing, adjust route coordinates so they stay on the near bank without stepping across the diagonal seam.")
+
+                msg = "\n".join(res_lines)
+                self.mutation_log.append(f"[REJECTED] {clean_name}: Diagonal barrier crossing between [{x1}, {y1}] and [{x2}, {y2}]")
+                return msg
+
+
         if extend and clean_name in self.state["roads"]:
             existing = self.state["roads"][clean_name].get("tiles", [])
             seen = {tuple(t) for t in existing}
@@ -1173,6 +1270,110 @@ class WorldStateMutator:
             self._sync_to_disk()
 
         return logs
+
+    def enforce_river_cardinal_continuity(self) -> int:
+        """Enforces 4-way cardinal (orthogonal) continuity for all rivers ('~').
+
+        Identifies 2x2 diagonal pinches/leaks where water tiles touch only at corners
+        (e.g., (x, y) and (x+1, y+1) are water, while (x+1, y) and (x, y+1) are land).
+        Converts the most suitable intermediate land tile to water ('~') and assigns
+        it the river's region ID, eliminating diagonal seams where roads could bypass
+        bridges. Never overwrites landmark coordinates or tiles with existing roads
+        if an alternative corner is available.
+
+        Returns:
+            Number of diagonal pinches closed.
+        """
+        terrain_grid = self.state.get("terrain_grid", [])
+        region_grid = self.state.get("region_grid", [])
+        if not terrain_grid or not region_grid:
+            return 0
+
+        g = [list(row) for row in terrain_grid]
+        rg = [list(row) for row in region_grid]
+        height = len(g)
+        width = len(g[0]) if height > 0 else 0
+        if height < 2 or width < 2:
+            return 0
+
+        landmark_positions = {
+            tuple(lm["pos"])
+            for lm in self.state.get("landmarks", {}).values()
+            if isinstance(lm, dict) and "pos" in lm and isinstance(lm["pos"], (list, tuple)) and len(lm["pos"]) >= 2
+        }
+        road_positions = {
+            tuple(pt)
+            for r in self.state.get("roads", {}).values()
+            if isinstance(r, dict)
+            for pt in r.get("tiles", [])
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2
+        }
+
+        terrain_pref = {
+            ".": 5,
+            ",": 4,
+            ":": 3,
+            "#": 2,
+            "&": 2,
+            "%": 1,
+            ";": 1,
+            "*": 0,
+            "/": -1,
+            "^": -2,
+        }
+
+        def score_corner(cx: int, cy: int) -> int:
+            if (cx, cy) in landmark_positions:
+                return -99999
+            base = terrain_pref.get(g[cy][cx], 0)
+            if (cx, cy) in road_positions:
+                base -= 1000
+            return base
+
+        total_fixed = 0
+        changed = True
+        iterations = 0
+        max_iterations = 100
+
+        while changed and iterations < max_iterations:
+            changed = False
+            iterations += 1
+            for y in range(height - 1):
+                for x in range(width - 1):
+                    # Pattern 1: (x, y) and (x+1, y+1) are water, while (x+1, y) and (x, y+1) are not water
+                    if g[y][x] == "~" and g[y + 1][x + 1] == "~" and g[y][x + 1] != "~" and g[y + 1][x] != "~":
+                        c1, c2 = (x + 1, y), (x, y + 1)
+                        s1 = score_corner(c1[0], c1[1])
+                        s2 = score_corner(c2[0], c2[1])
+                        if s1 > -99999 or s2 > -99999:
+                            chosen = c1 if s1 >= s2 else c2
+                            ref = (x, y) if chosen == c1 else (x + 1, y + 1)
+                            g[chosen[1]][chosen[0]] = "~"
+                            rg[chosen[1]][chosen[0]] = rg[ref[1]][ref[0]]
+                            total_fixed += 1
+                            changed = True
+
+                    # Pattern 2: (x+1, y) and (x, y+1) are water, while (x, y) and (x+1, y+1) are not water
+                    if g[y][x + 1] == "~" and g[y + 1][x] == "~" and g[y][x] != "~" and g[y + 1][x + 1] != "~":
+                        c1, c2 = (x, y), (x + 1, y + 1)
+                        s1 = score_corner(c1[0], c1[1])
+                        s2 = score_corner(c2[0], c2[1])
+                        if s1 > -99999 or s2 > -99999:
+                            chosen = c1 if s1 >= s2 else c2
+                            ref = (x + 1, y) if chosen == c1 else (x, y + 1)
+                            g[chosen[1]][chosen[0]] = "~"
+                            rg[chosen[1]][chosen[0]] = rg[ref[1]][ref[0]]
+                            total_fixed += 1
+                            changed = True
+
+        if total_fixed > 0:
+            self.state["terrain_grid"] = ["".join(row) for row in g]
+            self.state["region_grid"] = ["".join(row) for row in rg]
+            self._sync_to_disk()
+            msg = f"Enforced river cardinal continuity: closed {total_fixed} diagonal pinch(es)."
+            self.mutation_log.append(msg)
+
+        return total_fixed
 
 
     def get_tools(self) -> list[Any]:

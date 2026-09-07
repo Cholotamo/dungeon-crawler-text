@@ -74,7 +74,7 @@ You will receive the world state as two parallel 32x32 matrices with column/row 
          * **Migration & Aftermath**: Explain where displaced populations fled and what new outposts or fortresses arose from the ashes. Anchor their new settlement coordinates.
          * **Connectivity & Roads**: 
             - Commission named routes (e.g., `**The King's Highway**`). Give the start landmark, destination landmark, and any pivotal mountain pass or bridge waypoints with coordinates so the Cartographer can trace the route tiles.
-            - When a road crosses a river (`~`) or chasm (`/`), explicitly name the crossing. Specify the water or chasm coordinate where the crossing tile is anchored.
+            - When a road crosses a river (`~`) or chasm (`/`)—including across diagonal river bends—explicitly name the crossing. Specify the water or chasm coordinate where the crossing tile is anchored.
          * **Emerging Hazards**: Mention newly occupied dark strongholds, bandit hideouts, or ancient crypts that awaken in remote wilderness.
 
 # Style & Tone Guidelines

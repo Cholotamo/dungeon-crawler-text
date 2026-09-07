@@ -119,7 +119,9 @@ class Cartographer:
             "Here is the Historian's primordial world description:\n\n"
             f"{historian_narrative}\n\n"
             "Execute a Python script to procedurally generate the baseline geography:\n"
-            "1. Generate a full 32x32 terrain_grid first (natural ground only).\n"
+            "1. Generate a full 32x32 terrain_grid first (natural ground only). "
+            "Ensure all rivers ('~') are strictly 4-way cardinally connected (orthogonal steps: North, South, East, West). "
+            "Never connect river tiles purely diagonally without an orthogonal connecting tile to prevent diagonal crossing leaks.\n"
             "2. Map biomes onto a parallel 32x32 region_grid with IDs mapped in regions dictionary.\n"
             "3. Initialize empty landmarks: {} and roads: {}.\n"
             "4. Print the complete JSON world state snapshot wrapped in the designated delimiters:\n"
@@ -148,6 +150,9 @@ class Cartographer:
 
         snapshot = extract_snapshot_from_text(combined_output)
         cartographic_log = extract_cartographic_log(text_content)
+
+        if snapshot and isinstance(snapshot, dict):
+            WorldStateMutator(state=snapshot).enforce_river_cardinal_continuity()
 
         return snapshot, cartographic_log, combined_output
 
@@ -182,7 +187,7 @@ class Cartographer:
             f"You MUST call your mutation tools to apply the chronicle updates for Epoch {epoch} directly to the world state:\n"
             "1. Parse bracketed coordinates (e.g., [X: 14, Y: 22]) from the chronicle.\n"
             "2. Call `upsert_landmark` for every founded, upgraded, or ruined site mentioned in the chronicle.\n"
-            "3. Call `upsert_road` to register routes on land ('paved' or 'dirt'), and barrier crossings separately ('bridge' over rivers '~' or chasms '/'). Do not pave roads across water or chasms directly.\n"
+            "3. Call `upsert_road` to register routes on land ('paved' or 'dirt'), and barrier crossings separately ('bridge' over rivers '~' or chasms '/'). Do not pave roads across water, chasms, or diagonal barrier seams directly.\n"
             "4. Call `set_tiles` or `fill_area` for dual-grid synchronized updates when terrain or biomes change. When a location expands its influence (agricultural farmlands ':' or dungeon wastelands '*'), ALWAYS register a new region via `upsert_region` first, then pass BOTH `terrain_char` and `region_id` to `set_tiles`.\n"
             "5. Call `decay_road` if connecting settlements fell to ruin, or `remove_road` if a route was permanently severed, swallowed, or obliterated by cataclysm. When a civilization falls, follow the chronicle's Mode of Fall: either convert the region to a wasteland via `upsert_region` and `set_tiles('*')`, or dissolve the domain back into the surrounding wild biome.\n"
             "6. Call `upsert_region` whenever newly named biomes, agricultural domains, or cursed wasteland zones emerge.\n"
@@ -213,6 +218,7 @@ class Cartographer:
 
         # Harmonize landmarks with surrounding domains, farmlands, or wastelands
         mutator.harmonize_landmark_biomes()
+        mutator.enforce_river_cardinal_continuity()
 
         # Update previous_state in-place
         previous_state.clear()
