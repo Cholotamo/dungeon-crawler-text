@@ -1,0 +1,2186 @@
+"""Interactive HTML viewer for dungeon crawler composite maps and world states."""
+
+import argparse
+import json
+from pathlib import Path
+import sys
+from typing import Any, Union
+import webbrowser
+
+DEFAULT_OUTPUT_HTML_PATH = Path("artifacts/viewer.html")
+DEFAULT_ROOT_HTML_PATH = Path("viewer.html")
+
+
+def load_world_data(source: Union[dict[str, Any], str, Path]) -> dict[str, Any]:
+    """Loads world data from a dictionary, JSON string, or file path."""
+    if isinstance(source, dict):
+        return source
+    if isinstance(source, Path):
+        with open(source, "r", encoding="utf-8") as f:
+            return json.load(f)
+    if isinstance(source, str):
+        p = Path(source)
+        if p.is_file():
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return json.loads(source)
+    raise ValueError(f"Unsupported world data source: {type(source)}")
+
+
+def discover_artifact_maps(artifacts_dir: Path | str = "artifacts") -> dict[str, dict[str, Any]]:
+    """Discovers all worldmap*.json files in the artifacts directory and loads them."""
+    art_path = Path(artifacts_dir)
+    discovered: dict[str, dict[str, Any]] = {}
+
+    if not art_path.is_dir():
+        return discovered
+
+    json_files = sorted(
+        art_path.glob("worldmap*.json"),
+        key=lambda p: (
+            0 if p.name == "worldmap.json" else
+            int(p.stem.split("_epoch_")[-1]) if "_epoch_" in p.stem and p.stem.split("_epoch_")[-1].isdigit() else
+            999,
+            p.name
+        )
+    )
+
+    for p in json_files:
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            epoch = data.get("epoch")
+            name = data.get("name", "Unknown Realm")
+            if epoch is None or epoch == 0:
+                key = "primordial"
+                label = f"Primordial Era: {name}"
+            else:
+                key = f"epoch_{epoch}"
+                label = f"Epoch {epoch}: {name}"
+            discovered[key] = {
+                "label": label,
+                "filename": p.name,
+                "data": data
+            }
+        except Exception:
+            continue
+
+    return discovered
+
+
+def build_viewer_html(
+    primary_data: dict[str, Any] | None = None,
+    preset_maps: dict[str, dict[str, Any]] | None = None
+) -> str:
+    """Generates a standalone, fully-contained HTML file for viewing composite maps."""
+    presets = dict(preset_maps if preset_maps is not None else discover_artifact_maps())
+
+    # If primary_data provided and not in presets, add it as default
+    if primary_data:
+        epoch = primary_data.get("epoch", 0)
+        name = primary_data.get("name", "Custom Realm")
+        key = "custom_map"
+        presets[key] = {
+            "label": f"Active Map: {name}" + (f" (Epoch {epoch})" if epoch else ""),
+            "filename": "custom.json",
+            "data": primary_data
+        }
+        default_preset_key = key
+    else:
+        if "epoch_2" in presets:
+            default_preset_key = "epoch_2"
+        elif "epoch_1" in presets:
+            default_preset_key = "epoch_1"
+        elif "primordial" in presets:
+            default_preset_key = "primordial"
+        elif presets:
+            default_preset_key = next(iter(presets.keys()))
+        else:
+            default_preset_key = ""
+
+    presets_json_str = json.dumps(presets, ensure_ascii=False)
+    default_key_str = json.dumps(default_preset_key)
+
+    html = HTML_TEMPLATE.replace("__PRESETS_JSON__", presets_json_str).replace("__DEFAULT_KEY__", default_key_str)
+    return html
+
+
+HTML_TEMPLATE = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dungeon Crawler Text - World Map Viewer</title>
+  <style>
+    :root {
+      --bg-dark: #0d1117;
+      --bg-panel: #161b22;
+      --bg-panel-header: #21262d;
+      --border-color: #30363d;
+      --border-hover: #58a6ff;
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --text-highlight: #58a6ff;
+      --text-gold: #f2cc60;
+      --accent-green: #3fb950;
+      --accent-red: #f85149;
+      --accent-purple: #bc8cff;
+      --tile-size: 26px;
+      --tile-gap: 2px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header Bar */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-badge {
+      background: #1f6feb22;
+      color: #58a6ff;
+      border: 1px solid #1f6feb;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .header-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    select, button, input[type="file"]::file-selector-button {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    select:hover, button:hover, input[type="file"]::file-selector-button:hover {
+      background: #30363d;
+      border-color: #8b949e;
+      color: #fff;
+    }
+
+    select:focus, button:focus {
+      outline: none;
+      border-color: var(--border-hover);
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+    }
+
+    .btn-primary {
+      background: #238636;
+      border-color: #2ea043;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #2ea043;
+      border-color: #3fb950;
+    }
+
+    /* Main Container Layout */
+    .app-layout {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* Map Viewport Area */
+    .viewport-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #090d13;
+      position: relative;
+    }
+
+    .toolbar-bar {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      font-size: 0.82rem;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toolbar-label {
+      color: var(--text-muted);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="range"] {
+      accent-color: var(--border-hover);
+      cursor: pointer;
+      width: 80px;
+    }
+
+    .view-mode-tabs {
+      display: flex;
+      background: #21262d;
+      border-radius: 6px;
+      padding: 2px;
+      border: 1px solid var(--border-color);
+    }
+
+    .view-mode-tab {
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .view-mode-tab.active {
+      background: #388bfd33;
+      color: #58a6ff;
+      border: 1px solid #388bfd66;
+    }
+
+    .map-scroll-area {
+      flex: 1;
+      overflow: auto;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: radial-gradient(circle at 50% 50%, #111722 0%, #080c12 100%);
+    }
+
+    /* Map Rendering Area */
+    .map-wrapper {
+      display: inline-flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      user-select: none;
+    }
+
+    .side-by-side-container {
+      display: flex;
+      gap: 30px;
+      align-items: flex-start;
+    }
+
+    .map-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .map-section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Grid & Axes */
+    .grid-with-axes {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-rows: auto 1fr;
+    }
+
+    .origin-corner {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .col-ruler {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      padding-left: 2px;
+    }
+
+    .ruler-col-cell {
+      width: calc(var(--tile-size) + var(--tile-gap));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      font-family: ui-monospace, monospace;
+      font-size: 0.65rem;
+      line-height: 1;
+      padding-bottom: 3px;
+      color: var(--text-muted);
+      transition: color 0.1s;
+    }
+
+    .ruler-col-cell.highlight {
+      color: #fff;
+      font-weight: 700;
+      background: rgba(88, 166, 255, 0.15);
+      border-radius: 2px;
+    }
+
+    .row-ruler {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-color);
+      padding-top: 2px;
+    }
+
+    .ruler-row-cell {
+      height: calc(var(--tile-size) + var(--tile-gap));
+      width: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: ui-monospace, monospace;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      transition: color 0.1s;
+    }
+
+    .ruler-row-cell.highlight {
+      color: #fff;
+      font-weight: 700;
+      background: rgba(88, 166, 255, 0.15);
+      border-radius: 2px;
+    }
+
+    .tiles-grid {
+      display: grid;
+      gap: var(--tile-gap);
+      padding: 2px;
+      position: relative;
+    }
+
+    /* Individual Tile */
+    .tile {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: calc(var(--tile-size) * 0.58);
+      font-weight: 700;
+      border-radius: 3px;
+      cursor: crosshair;
+      position: relative;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, z-index 0.08s ease;
+      z-index: 1;
+    }
+
+    .tile:hover, .tile.cross-highlight {
+      z-index: 10;
+      transform: scale(1.18);
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.8), 0 0 0 2px #fff;
+    }
+
+    .tile.pinned {
+      z-index: 11;
+      box-shadow: 0 0 12px rgba(242, 204, 96, 0.9), 0 0 0 2px #f2cc60;
+    }
+
+    .tile.filtered-out {
+      opacity: 0.15;
+      filter: grayscale(80%);
+    }
+
+    .tile.highlighted-match {
+      transform: scale(1.1);
+      box-shadow: 0 0 8px #f2cc60;
+      z-index: 5;
+    }
+
+    /* Feature Badge / Decorators */
+    .tile-feat-badge {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+
+    .feat-settlement {
+      box-shadow: 0 0 6px #ffd166;
+    }
+
+    .feat-city {
+      box-shadow: 0 0 8px #ff9f1c;
+      border: 1px solid #ff9f1c;
+    }
+
+    .feat-dungeon {
+      box-shadow: 0 0 8px #ff3860;
+      border: 1px solid #ff3860;
+      animation: pulse-danger 2s infinite;
+    }
+
+    @keyframes pulse-danger {
+      0% { box-shadow: 0 0 4px #ff3860; }
+      50% { box-shadow: 0 0 10px #ff3860; }
+      100% { box-shadow: 0 0 4px #ff3860; }
+    }
+
+    /* Sidebar Inspector & Details */
+    .sidebar-panel {
+      width: 440px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-panel-header);
+    }
+
+    .sidebar-tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sidebar-tab-btn.active {
+      color: #fff;
+      border-bottom-color: var(--border-hover);
+      background: rgba(88, 166, 255, 0.05);
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Card Panels */
+    .info-card {
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #161b22;
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 0.84rem;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .field-label {
+      min-width: 105px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      padding-top: 2px;
+    }
+
+    .field-value {
+      flex: 1;
+      color: #fff;
+      word-break: break-word;
+    }
+
+    .glyph-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .badge-tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid var(--border-color);
+    }
+
+    .badge-tag.feat-type {
+      background: rgba(242, 204, 96, 0.15);
+      color: #f2cc60;
+      border-color: rgba(242, 204, 96, 0.4);
+    }
+
+    .badge-tag.region-type {
+      background: rgba(88, 166, 255, 0.15);
+      color: #58a6ff;
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    .lore-text {
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 3px solid #58a6ff;
+      padding: 8px 12px;
+      border-radius: 0 4px 4px 0;
+      font-style: italic;
+      line-height: 1.45;
+      color: #e6edf3;
+      font-size: 0.83rem;
+    }
+
+    .lore-empty {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Floating Tooltip */
+    #floatingTooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+      background: rgba(13, 17, 23, 0.95);
+      border: 1px solid #58a6ff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 12px rgba(88, 166, 255, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      width: 280px;
+      display: none;
+      backdrop-filter: blur(8px);
+      font-size: 0.8rem;
+    }
+
+    .tt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }
+
+    .tt-coord {
+      font-family: ui-monospace, monospace;
+      font-weight: 700;
+      color: #58a6ff;
+      font-size: 0.85rem;
+    }
+
+    .tt-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 8px;
+      font-size: 0.77rem;
+    }
+
+    .tt-label {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .tt-val {
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tt-desc {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border-color);
+      font-size: 0.75rem;
+      color: #e6edf3;
+      font-style: italic;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Interactive Legend List */
+    .legend-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .legend-item:hover {
+      border-color: var(--border-hover);
+      background: #161b22;
+      transform: translateX(3px);
+    }
+
+    .legend-item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Timeline Section */
+    .timeline-entry {
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .timeline-title {
+      color: var(--text-gold);
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+    }
+
+    .timeline-body {
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+    }
+
+    /* Paste JSON Modal */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-dialog {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 600px;
+      max-width: 90vw;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .modal-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    textarea.json-input {
+      width: 100%;
+      height: 250px;
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      color: #c9d1d9;
+      font-family: ui-monospace, monospace;
+      font-size: 0.8rem;
+      padding: 10px;
+      border-radius: 6px;
+      resize: vertical;
+    }
+
+    .modal-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating HUD Tooltip -->
+  <div id="floatingTooltip">
+    <div class="tt-header">
+      <span class="tt-coord" id="ttCoord">X: 00, Y: 00</span>
+      <span class="glyph-chip" id="ttGlyph">~</span>
+    </div>
+    <div class="tt-grid">
+      <span class="tt-label">Terrain:</span>
+      <span class="tt-val" id="ttTerrain">Water (~)</span>
+
+      <span class="tt-label">Region ID:</span>
+      <span class="tt-val" id="ttRegionId">A</span>
+
+      <span class="tt-label">Region Name:</span>
+      <span class="tt-val" id="ttRegionName">Thalass-Grave</span>
+
+      <span class="tt-label">Region Type:</span>
+      <span class="tt-val" id="ttRegionType">ocean</span>
+
+      <span class="tt-label">Feature ID:</span>
+      <span class="tt-val" id="ttFeatureId">None</span>
+
+      <span class="tt-label">Feature Name:</span>
+      <span class="tt-val" id="ttFeatureName">None</span>
+
+      <span class="tt-label">Feature Type:</span>
+      <span class="tt-val" id="ttFeatureType">None</span>
+    </div>
+    <div class="tt-desc" id="ttFeatureDesc">No feature present on this tile.</div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <div class="header-title">
+        <span>🗺️ Realm Cartographer</span>
+        <span class="header-badge" id="realmNameBadge">Vaelen-Thir</span>
+        <span class="badge-tag" id="epochBadge">Epoch 2</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <label for="mapSelect" style="font-size: 0.8rem; color: var(--text-muted);">Preset:</label>
+      <select id="mapSelect"></select>
+
+      <button id="btnOpenModal">📋 Paste JSON</button>
+
+      <label class="btn-primary" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer;">
+        📂 Load JSON
+        <input type="file" id="filePicker" accept=".json" style="display: none;">
+      </label>
+    </div>
+  </header>
+
+  <!-- App Layout -->
+  <div class="app-layout">
+
+    <!-- Viewport Panel -->
+    <div class="viewport-panel">
+      <!-- Toolbar -->
+      <div class="toolbar-bar">
+        <div class="toolbar-group">
+          <div class="view-mode-tabs">
+            <button class="view-mode-tab active" data-mode="composite">Composite Map</button>
+            <button class="view-mode-tab" data-mode="side-by-side">Side-by-Side</button>
+            <button class="view-mode-tab" data-mode="terrain">Terrain Only</button>
+            <button class="view-mode-tab" data-mode="regions">Region Biomes</button>
+          </div>
+        </div>
+
+        <div class="toolbar-group">
+          <div class="slider-container">
+            <span class="toolbar-label">Size:</span>
+            <input type="range" id="sliderTileSize" min="16" max="44" value="26">
+            <span id="tileSizeVal" style="font-family: ui-monospace; font-size: 0.75rem; color: var(--text-muted);">26px</span>
+          </div>
+
+          <div class="slider-container">
+            <span class="toolbar-label">Gap:</span>
+            <input type="range" id="sliderTileGap" min="0" max="6" value="2">
+            <span id="tileGapVal" style="font-family: ui-monospace; font-size: 0.75rem; color: var(--text-muted);">2px</span>
+          </div>
+
+          <label class="toolbar-label" style="cursor: pointer;">
+            <input type="checkbox" id="chkGlyphs" checked> Glyphs
+          </label>
+
+          <label class="toolbar-label" style="cursor: pointer;">
+            <input type="checkbox" id="chkRulers" checked> Coordinates
+          </label>
+        </div>
+      </div>
+
+      <!-- Scrollable Canvas -->
+      <div class="map-scroll-area" id="mapScrollArea">
+        <div class="map-wrapper" id="mapWrapper">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Panel (Inspector & Legends) -->
+    <div class="sidebar-panel">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab-btn active" data-tab="inspector">🎯 Tile Inspector</button>
+        <button class="sidebar-tab-btn" data-tab="features">🏛️ Features (<span id="featCountTab">0</span>)</button>
+        <button class="sidebar-tab-btn" data-tab="regions">🌿 Regions (<span id="regCountTab">0</span>)</button>
+        <button class="sidebar-tab-btn" data-tab="legend">📖 Legend</button>
+        <button class="sidebar-tab-btn" data-tab="timeline">📜 Timeline</button>
+      </div>
+
+      <div class="sidebar-content" id="tabContentInspector">
+        <!-- Tile Coordinates Card -->
+        <div class="info-card">
+          <div class="card-header">
+            <span>Coordinates & Position</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="badge-tag" id="pinIndicator">Live Hover</span>
+              <button id="btnTogglePin" style="padding: 2px 8px; font-size: 0.75rem;">📌 Pin</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="field-row">
+              <span class="field-label">Tile Coord:</span>
+              <span class="field-value" style="font-family: ui-monospace; font-size: 1.1rem; color: #58a6ff; font-weight: 700;" id="inspCoord">X: --, Y: --</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Composite:</span>
+              <div class="field-value" style="display: flex; align-items: center;">
+                <span class="glyph-chip" id="inspCompGlyph">?</span>
+                <span id="inspCompLabel" style="font-weight: 600;">Hover over map</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Regional Biome Card -->
+        <div class="info-card">
+          <div class="card-header">
+            <span>Regional Biome</span>
+            <span class="badge-tag region-type" id="inspRegionTypeBadge">Wilderness</span>
+          </div>
+          <div class="card-body">
+            <div class="field-row">
+              <span class="field-label">Region ID:</span>
+              <span class="field-value"><code id="inspRegionId" style="background:#21262d; padding: 2px 6px; border-radius: 4px; font-weight: 700;">--</code></span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Region Name:</span>
+              <span class="field-value" style="font-weight: 600;" id="inspRegionName">--</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Region Type:</span>
+              <span class="field-value" id="inspRegionType">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terrain Card -->
+        <div class="info-card">
+          <div class="card-header">
+            <span>Natural Terrain Ground</span>
+            <span class="badge-tag" id="inspTerrainCharBadge">Char: -</span>
+          </div>
+          <div class="card-body">
+            <div class="field-row">
+              <span class="field-label">Terrain Char:</span>
+              <div class="field-value" style="display: flex; align-items: center;">
+                <span class="glyph-chip" id="inspTerrainGlyph">.</span>
+                <span id="inspTerrainChar" style="font-family: ui-monospace; font-weight: 700;">'.'</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Terrain Name:</span>
+              <span class="field-value" style="font-weight: 600;" id="inspTerrainName">--</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Description:</span>
+              <span class="field-value" style="color: var(--text-muted);" id="inspTerrainDesc">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature Overlay Card -->
+        <div class="info-card" id="inspFeatureCard">
+          <div class="card-header">
+            <span>Feature Landmark</span>
+            <span class="badge-tag feat-type" id="inspFeatureTypeBadge">None</span>
+          </div>
+          <div class="card-body">
+            <div class="field-row">
+              <span class="field-label">Feature ID:</span>
+              <span class="field-value"><code id="inspFeatureId" style="background:#21262d; padding: 2px 6px; border-radius: 4px;">None</code></span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Feature Name:</span>
+              <span class="field-value" style="font-weight: 700; color: var(--text-gold);" id="inspFeatureName">None</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Feature Type:</span>
+              <span class="field-value" id="inspFeatureType">None</span>
+            </div>
+            <div class="field-row" id="inspFeatureCharRow">
+              <span class="field-label">Feature Char:</span>
+              <div class="field-value" style="display: flex; align-items: center;">
+                <span class="glyph-chip" id="inspFeatureGlyph">-</span>
+                <span id="inspFeatureChar">None</span>
+              </div>
+            </div>
+            <div class="field-row" style="flex-direction: column; gap: 4px;">
+              <span class="field-label">Feature Lore:</span>
+              <div class="lore-text" id="inspFeatureDesc">Natural ground without constructed or discovered features.</div>
+            </div>
+            <div class="field-row" id="inspOverlapsRow" style="display: none;">
+              <span class="field-label">Underlying:</span>
+              <span class="field-value" style="font-size: 0.78rem; color: var(--text-muted);" id="inspOverlapsVal">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Features Tab Content -->
+      <div class="sidebar-content" id="tabContentFeatures" style="display: none;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">
+          Click any feature to highlight its tiles and inspect its details:
+        </div>
+        <div class="legend-list" id="featuresList"></div>
+      </div>
+
+      <!-- Regions Tab Content -->
+      <div class="sidebar-content" id="tabContentRegions" style="display: none;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">
+          Click any regional biome to highlight its territory:
+        </div>
+        <div class="legend-list" id="regionsList"></div>
+      </div>
+
+      <!-- Legend Tab Content -->
+      <div class="sidebar-content" id="tabContentLegend" style="display: none;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">
+          Click any terrain type to highlight corresponding tiles:
+        </div>
+        <div class="legend-list" id="legendList"></div>
+      </div>
+
+      <!-- Timeline Tab Content -->
+      <div class="sidebar-content" id="tabContentTimeline" style="display: none;">
+        <div id="timelineContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paste JSON Modal -->
+  <div class="modal-backdrop" id="modalPaste">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span>Paste World Map JSON</span>
+        <button id="btnCloseModal" style="background: transparent; border: none; font-size: 1.1rem; color: var(--text-muted);">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Paste any valid world map JSON artifact containing <code>terrain_grid</code>, <code>region_grid</code>, <code>regions</code>, and <code>features</code>.
+        </p>
+        <textarea class="json-input" id="jsonPasteText" placeholder='{ "name": "My Realm", "terrain_grid": [...], "region_grid": [...], "regions": {...}, "features": {...} }'></textarea>
+        <div id="pasteError" style="color: var(--accent-red); font-size: 0.8rem; display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelModal">Cancel</button>
+        <button class="btn-primary" id="btnLoadPasted">Load Map</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Embedded Presets discovered during build
+    const PRESETS = __PRESETS_JSON__;
+    let currentPresetKey = __DEFAULT_KEY__;
+    let currentWorld = null;
+    let currentMatrix = null;
+    let currentViewMode = "composite";
+    let activeFilter = null; // { type: 'terrain'|'region'|'feature', key: string }
+    let isPinned = false;
+    let pinnedCoord = null;
+
+    // Feature Overlay Hierarchy Priority (matches world_state.py)
+    const FEATURE_PRIORITY = {
+      "+": 10,  // Active Road / Trade Route
+      "=": 20,  // Bridge / River Crossing
+      "o": 30,  // Small Settlement / Outpost
+      "O": 40,  // Major City / Metropolis
+      "!": 50   // Dungeon / Ruin / Stronghold
+    };
+
+    // Canonical Terrain Specifications
+    const TERRAIN_DEFS = {
+      ".": { name: "Plains / Wilderness", desc: "Open lowlands and temperate meadows", bg: "#365328", fg: "#b4e88c", border: "#466b34" },
+      ",": { name: "Hills / Slopes", desc: "Rolling uplands and foothills", bg: "#585b24", fg: "#d7dc7b", border: "#73772f" },
+      "#": { name: "Forest / Woods", desc: "Temperate woodland and copse", bg: "#194220", fg: "#72d98d", border: "#235f2e" },
+      "&": { name: "Dense Forest / Deep Jungle", desc: "Ancient, impenetrable primeval canopy", bg: "#0d2b17", fg: "#38a169", border: "#154224" },
+      "%": { name: "Swamp / Bog / Marsh", desc: "Wetlands, mires, and sodden fens", bg: "#28372d", fg: "#82b28c", border: "#3d5345" },
+      "~": { name: "Water / River / Ocean", desc: "Cardinal waterways, seas, and lakes", bg: "#163f70", fg: "#6cb8ff", border: "#215da2" },
+      ";": { name: "Coast / Beach / Shallows", desc: "Shingle shores, sandbanks, and tidal reaches", bg: "#6d592f", fg: "#f3d178", border: "#8c723c" },
+      "^": { name: "Mountain Peak / Ridge", desc: "Towering alpine peaks and jagged crests", bg: "#424b59", fg: "#f1f5f9", border: "#586477" },
+      "/": { name: "Cliffs / Chasms / Edges", desc: "Precipitous escarpments and fissures", bg: "#392f44", fg: "#d4bef0", border: "#524362" },
+      "*": { name: "Wastelands / Dam / Barrier", desc: "Blighted, volcanic, or desolate wastes", bg: "#362426", fg: "#ff8585", border: "#54373b" },
+      ":": { name: "Farmland", desc: "Arable agricultural lands and cultivated crops", bg: "#56451e", fg: "#ffd460", border: "#78612a" }
+    };
+
+    const DEFAULT_TERRAIN = {
+      name: "Unknown Ground",
+      desc: "Uncharted terrain",
+      bg: "#21262d",
+      fg: "#8b949e",
+      border: "#30363d"
+    };
+
+    const FEATURE_STYLES = {
+      "o": { label: "Settlement / Outpost", badgeClass: "feat-settlement", fg: "#ffd166", bg: "rgba(255, 209, 102, 0.22)", border: "#ffd166" },
+      "O": { label: "Major City / Metropolis", badgeClass: "feat-city", fg: "#ff9f1c", bg: "rgba(255, 159, 28, 0.28)", border: "#ff9f1c" },
+      "!": { label: "Dungeon / Ruin / Stronghold", badgeClass: "feat-dungeon", fg: "#ff3860", bg: "rgba(255, 56, 96, 0.28)", border: "#ff3860" },
+      "+": { label: "Road / Trade Route", badgeClass: "feat-road", fg: "#e5c093", bg: "rgba(229, 192, 147, 0.2)", border: "#e5c093" },
+      "=": { label: "Bridge / Viaduct", badgeClass: "feat-bridge", fg: "#ffaf7a", bg: "rgba(255, 175, 122, 0.25)", border: "#ffaf7a" }
+    };
+
+    // Canonical Region Biome Color Palette
+    const REGION_PALETTE = {
+      "0": { bg: "#1f2937", fg: "#9ca3af", border: "#374151" }, // Wilderness
+      "A": { bg: "#1e3a8a", fg: "#93c5fd", border: "#2563eb" }, // Ocean
+      "B": { bg: "#4c1d95", fg: "#c4b5fd", border: "#6d28d9" }, // Cliffs
+      "C": { bg: "#0369a1", fg: "#7dd3fc", border: "#0284c7" }, // Bay
+      "D": { bg: "#334155", fg: "#cbd5e1", border: "#475569" }, // Mountains
+      "E": { bg: "#581c87", fg: "#d8b4fe", border: "#7e22ce" }, // Chasm
+      "F": { bg: "#0284c7", fg: "#bae6fd", border: "#0369a1" }, // River
+      "G": { bg: "#0891b2", fg: "#a5f3fc", border: "#0e7490" }, // Lake
+      "H": { bg: "#14532d", fg: "#86efac", border: "#166534" }, // Swamp
+      "I": { bg: "#166534", fg: "#bbf7d0", border: "#15803d" }, // Forest
+      "J": { bg: "#854d0e", fg: "#fde047", border: "#a16207" }, // Hills
+      "K": { bg: "#7f1d1d", fg: "#fca5a5", border: "#991b1b" }, // Wasteland
+      "f": { bg: "#b45309", fg: "#fde68a", border: "#d97706" }  // Farmland
+    };
+
+    function getRegionColors(regId) {
+      if (REGION_PALETTE[regId]) return REGION_PALETTE[regId];
+      // Generate deterministic vibrant hue
+      const charCode = regId.charCodeAt(0) || 65;
+      const hue = (charCode * 137.5) % 360;
+      return {
+        bg: `hsl(${hue}, 45%, 22%)`,
+        fg: `hsl(${hue}, 85%, 75%)`,
+        border: `hsl(${hue}, 60%, 40%)`
+      };
+    }
+
+    // Process World Data into Complete Matrix
+    function processWorld(world) {
+      const terrainGrid = world.terrain_grid || [];
+      const regionGrid = world.region_grid || [];
+      const regions = world.regions || {};
+      const features = world.features || {};
+
+      const height = terrainGrid.length;
+      const width = height > 0 ? terrainGrid[0].length : 0;
+
+      const matrix = [];
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          const tChar = terrainGrid[y] ? terrainGrid[y][x] : " ";
+          const rId = (regionGrid[y] && regionGrid[y][x]) ? regionGrid[y][x] : "0";
+          const rInfo = regions[rId] || { name: "Unnamed Wilderness", type: "wilderness" };
+
+          row.push({
+            x,
+            y,
+            terrainChar: tChar,
+            regionId: rId,
+            regionName: rInfo.name || `Region ${rId}`,
+            regionType: rInfo.type || "wilderness",
+            features: [],
+            topFeature: null,
+            compositeChar: tChar
+          });
+        }
+        matrix.push(row);
+      }
+
+      // Layer features in priority order
+      const sortedFeatEntries = Object.entries(features).map(([id, feat]) => ({
+        id,
+        ...feat
+      })).sort((a, b) => {
+        const prioA = FEATURE_PRIORITY[a.char] ?? 25;
+        const prioB = FEATURE_PRIORITY[b.char] ?? 25;
+        return prioA - prioB;
+      });
+
+      sortedFeatEntries.forEach(feat => {
+        let tiles = feat.tiles || [];
+        if ((!tiles || tiles.length === 0) && feat.pos) {
+          tiles = [feat.pos];
+        } else if (tiles.length > 0 && typeof tiles[0] === "number") {
+          tiles = [tiles];
+        }
+
+        tiles.forEach(pt => {
+          const x = pt[0];
+          const y = pt[1];
+          if (y >= 0 && y < height && x >= 0 && x < width) {
+            const cell = matrix[y][x];
+            cell.features.push(feat);
+            cell.topFeature = feat;
+            cell.compositeChar = String(feat.char || "o")[0];
+          }
+        });
+      });
+
+      return { matrix, width, height };
+    }
+
+    // Populate Presets in Dropdown
+    function initPresetsDropdown() {
+      const select = document.getElementById("mapSelect");
+      select.innerHTML = "";
+      Object.entries(PRESETS).forEach(([key, preset]) => {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = preset.label;
+        if (key === currentPresetKey) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener("change", (e) => {
+        loadPreset(e.target.value);
+      });
+    }
+
+    function loadPreset(key) {
+      if (!PRESETS[key]) return;
+      currentPresetKey = key;
+      const select = document.getElementById("mapSelect");
+      select.value = key;
+      loadWorldData(PRESETS[key].data);
+    }
+
+    function loadWorldData(world) {
+      currentWorld = world;
+      const processed = processWorld(world);
+      currentMatrix = processed.matrix;
+
+      // Update Header Badges
+      document.getElementById("realmNameBadge").textContent = world.name || "Unknown Realm";
+      const epoch = world.epoch !== undefined ? world.epoch : (world.name && world.name.includes("Epoch") ? "Historical" : 0);
+      document.getElementById("epochBadge").textContent = `Epoch ${epoch}`;
+
+      // Update Tab Counts
+      const featCount = Object.keys(world.features || {}).length;
+      const regCount = Object.keys(world.regions || {}).length;
+      document.getElementById("featCountTab").textContent = featCount;
+      document.getElementById("regCountTab").textContent = regCount;
+
+      renderView();
+      renderFeaturesTab();
+      renderRegionsTab();
+      renderLegendTab();
+      renderTimelineTab();
+
+      // Reset pin or inspect default interesting tile (e.g. first feature or center)
+      if (featCount > 0) {
+        const firstFeat = Object.values(world.features)[0];
+        const pt = (firstFeat.tiles && firstFeat.tiles[0]) || firstFeat.pos || [0, 0];
+        inspectTile(pt[0], pt[1], false);
+      } else {
+        inspectTile(0, 0, false);
+      }
+    }
+
+    // Render Map Grids
+    function renderView() {
+      const wrapper = document.getElementById("mapWrapper");
+      wrapper.innerHTML = "";
+
+      if (!currentMatrix || currentMatrix.length === 0) {
+        wrapper.innerHTML = "<div style='color: var(--text-muted); padding: 40px;'>No map data loaded.</div>";
+        return;
+      }
+
+      const height = currentMatrix.length;
+      const width = currentMatrix[0].length;
+      const showRulers = document.getElementById("chkRulers").checked;
+      const showGlyphs = document.getElementById("chkGlyphs").checked;
+
+      if (currentViewMode === "side-by-side") {
+        const container = document.createElement("div");
+        container.className = "side-by-side-container";
+
+        const compSec = createMapSection("Composite Map (Terrain + Features)", "composite", width, height, showRulers, showGlyphs);
+        const regSec = createMapSection("Region Grid (Biome IDs)", "regions", width, height, showRulers, showGlyphs);
+
+        container.appendChild(compSec);
+        container.appendChild(regSec);
+        wrapper.appendChild(container);
+      } else {
+        let title = "Composite Map (Terrain + Features)";
+        if (currentViewMode === "terrain") title = "Natural Terrain Ground";
+        if (currentViewMode === "regions") title = "Region Biomes Grid";
+
+        const sec = createMapSection(title, currentViewMode, width, height, showRulers, showGlyphs);
+        wrapper.appendChild(sec);
+      }
+    }
+
+    function createMapSection(titleText, mode, width, height, showRulers, showGlyphs) {
+      const sec = document.createElement("div");
+      sec.className = "map-section";
+
+      const title = document.createElement("div");
+      title.className = "map-section-title";
+      title.innerHTML = `<span>${titleText}</span><span style="font-family: ui-monospace; font-size: 0.72rem;">${width}x${height}</span>`;
+      sec.appendChild(title);
+
+      const gridBox = document.createElement("div");
+      gridBox.className = "grid-with-axes";
+
+      // Origin
+      if (showRulers) {
+        const origin = document.createElement("div");
+        origin.className = "origin-corner";
+        origin.textContent = "Y\\X";
+        gridBox.appendChild(origin);
+
+        // Column Ruler (Top)
+        const colRuler = document.createElement("div");
+        colRuler.className = "col-ruler";
+        colRuler.id = `colRuler_${mode}`;
+        for (let x = 0; x < width; x++) {
+          const cell = document.createElement("div");
+          cell.className = "ruler-col-cell";
+          cell.dataset.x = x;
+          const tens = Math.floor(x / 10);
+          const ones = x % 10;
+          cell.innerHTML = `<span>${tens}</span><span>${ones}</span>`;
+          colRuler.appendChild(cell);
+        }
+        gridBox.appendChild(colRuler);
+
+        // Row Ruler (Left)
+        const rowRuler = document.createElement("div");
+        rowRuler.className = "row-ruler";
+        rowRuler.id = `rowRuler_${mode}`;
+        for (let y = 0; y < height; y++) {
+          const cell = document.createElement("div");
+          cell.className = "ruler-row-cell";
+          cell.dataset.y = y;
+          cell.textContent = String(y).padStart(2, "0");
+          rowRuler.appendChild(cell);
+        }
+        gridBox.appendChild(rowRuler);
+      }
+
+      // Tiles Grid
+      const tilesGrid = document.createElement("div");
+      tilesGrid.className = "tiles-grid";
+      tilesGrid.style.gridTemplateColumns = `repeat(${width}, var(--tile-size))`;
+      tilesGrid.style.gridTemplateRows = `repeat(${height}, var(--tile-size))`;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const cell = currentMatrix[y][x];
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          tile.dataset.x = x;
+          tile.dataset.y = y;
+          tile.dataset.mode = mode;
+
+          // Determine Display Glyph and Color Scheme
+          let glyph = "";
+          let bgColor = "#161b22";
+          let fgColor = "#fff";
+          let borderColor = "transparent";
+
+          const tDef = TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+
+          if (mode === "composite") {
+            glyph = cell.compositeChar;
+            bgColor = tDef.bg;
+            fgColor = tDef.fg;
+            borderColor = tDef.border;
+
+            if (cell.topFeature) {
+              const fStyle = FEATURE_STYLES[cell.topFeature.char];
+              if (fStyle) {
+                fgColor = fStyle.fg;
+                tile.classList.add(fStyle.badgeClass);
+                tile.style.borderColor = fStyle.border;
+              }
+            }
+          } else if (mode === "terrain") {
+            glyph = cell.terrainChar;
+            bgColor = tDef.bg;
+            fgColor = tDef.fg;
+            borderColor = tDef.border;
+          } else if (mode === "regions") {
+            glyph = cell.regionId;
+            const rStyle = getRegionColors(cell.regionId);
+            bgColor = rStyle.bg;
+            fgColor = rStyle.fg;
+            borderColor = rStyle.border;
+          }
+
+          tile.style.backgroundColor = bgColor;
+          tile.style.color = fgColor;
+          if (borderColor !== "transparent") {
+            tile.style.border = `1px solid ${borderColor}`;
+          }
+
+          if (showGlyphs) {
+            tile.textContent = glyph;
+          }
+
+          // Check if active filter matches
+          if (activeFilter) {
+            let match = false;
+            if (activeFilter.type === "terrain" && cell.terrainChar === activeFilter.key) match = true;
+            if (activeFilter.type === "region" && cell.regionId === activeFilter.key) match = true;
+            if (activeFilter.type === "feature" && cell.features.some(f => f.id === activeFilter.key)) match = true;
+
+            if (match) {
+              tile.classList.add("highlighted-match");
+            } else {
+              tile.classList.add("filtered-out");
+            }
+          }
+
+          // Interaction Listeners
+          tile.addEventListener("mouseenter", (e) => {
+            handleTileHover(cell, e);
+          });
+
+          tile.addEventListener("mousemove", (e) => {
+            positionTooltip(e);
+          });
+
+          tile.addEventListener("mouseleave", () => {
+            handleTileLeave();
+          });
+
+          tile.addEventListener("click", () => {
+            togglePinTile(cell.x, cell.y);
+          });
+
+          tilesGrid.appendChild(tile);
+        }
+      }
+
+      gridBox.appendChild(tilesGrid);
+      sec.appendChild(gridBox);
+      return sec;
+    }
+
+    // Hover & Tooltip Handling
+    const tooltip = document.getElementById("floatingTooltip");
+
+    function handleTileHover(cell, event) {
+      highlightCrosshairs(cell.x, cell.y, true);
+      updateTooltip(cell);
+      positionTooltip(event);
+      tooltip.style.display = "block";
+
+      if (!isPinned) {
+        inspectTile(cell.x, cell.y, false);
+      }
+    }
+
+    function handleTileLeave() {
+      highlightCrosshairs(null, null, false);
+      tooltip.style.display = "none";
+      if (isPinned && pinnedCoord) {
+        inspectTile(pinnedCoord.x, pinnedCoord.y, true);
+      }
+    }
+
+    function positionTooltip(event) {
+      const pad = 14;
+      let left = event.clientX + pad;
+      let top = event.clientY + pad;
+
+      const ttWidth = tooltip.offsetWidth || 280;
+      const ttHeight = tooltip.offsetHeight || 180;
+
+      if (left + ttWidth > window.innerWidth - 10) {
+        left = event.clientX - ttWidth - pad;
+      }
+      if (top + ttHeight > window.innerHeight - 10) {
+        top = event.clientY - ttHeight - pad;
+      }
+
+      tooltip.style.left = `${Math.max(10, left)}px`;
+      tooltip.style.top = `${Math.max(10, top)}px`;
+    }
+
+    function updateTooltip(cell) {
+      const tDef = TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+
+      document.getElementById("ttCoord").textContent = `X: ${String(cell.x).padStart(2, "0")}, Y: ${String(cell.y).padStart(2, "0")}`;
+      const ttGlyph = document.getElementById("ttGlyph");
+      ttGlyph.textContent = cell.compositeChar;
+      ttGlyph.style.background = tDef.bg;
+      ttGlyph.style.color = cell.topFeature ? (FEATURE_STYLES[cell.topFeature.char]?.fg || tDef.fg) : tDef.fg;
+
+      document.getElementById("ttTerrain").textContent = `${tDef.name} ('${cell.terrainChar}')`;
+      document.getElementById("ttRegionId").textContent = cell.regionId;
+      document.getElementById("ttRegionName").textContent = cell.regionName;
+      document.getElementById("ttRegionType").textContent = cell.regionType;
+
+      if (cell.topFeature) {
+        document.getElementById("ttFeatureId").textContent = cell.topFeature.id;
+        document.getElementById("ttFeatureName").textContent = cell.topFeature.name || cell.topFeature.id;
+        document.getElementById("ttFeatureType").textContent = cell.topFeature.type || "feature";
+        document.getElementById("ttFeatureDesc").textContent = cell.topFeature.description || "No description provided.";
+      } else {
+        document.getElementById("ttFeatureId").textContent = "None";
+        document.getElementById("ttFeatureName").textContent = "None";
+        document.getElementById("ttFeatureType").textContent = "None";
+        document.getElementById("ttFeatureDesc").textContent = "No feature present on this tile.";
+      }
+    }
+
+    function highlightCrosshairs(x, y, active) {
+      document.querySelectorAll(".ruler-col-cell").forEach(el => {
+        if (active && parseInt(el.dataset.x, 10) === x) {
+          el.classList.add("highlight");
+        } else {
+          el.classList.remove("highlight");
+        }
+      });
+
+      document.querySelectorAll(".ruler-row-cell").forEach(el => {
+        if (active && parseInt(el.dataset.y, 10) === y) {
+          el.classList.add("highlight");
+        } else {
+          el.classList.remove("highlight");
+        }
+      });
+
+      // Cross-highlight matching tile across views in side-by-side mode
+      document.querySelectorAll(".tile").forEach(t => {
+        if (active && parseInt(t.dataset.x, 10) === x && parseInt(t.dataset.y, 10) === y) {
+          t.classList.add("cross-highlight");
+        } else {
+          t.classList.remove("cross-highlight");
+        }
+      });
+    }
+
+    // Tile Inspection in Sidebar
+    function inspectTile(x, y, pinned) {
+      if (!currentMatrix || y >= currentMatrix.length || x >= currentMatrix[0].length) return;
+      const cell = currentMatrix[y][x];
+      const tDef = TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+
+      // Pin indicator
+      const pinBadge = document.getElementById("pinIndicator");
+      const pinBtn = document.getElementById("btnTogglePin");
+      if (pinned) {
+        pinBadge.textContent = "Pinned 📌";
+        pinBadge.style.color = "#f2cc60";
+        pinBadge.style.borderColor = "#f2cc60";
+        pinBtn.textContent = "🔓 Unpin";
+      } else {
+        pinBadge.textContent = "Live Hover";
+        pinBadge.style.color = "#58a6ff";
+        pinBadge.style.borderColor = "#58a6ff";
+        pinBtn.textContent = "📌 Pin";
+      }
+
+      // Coordinates & Composite
+      document.getElementById("inspCoord").textContent = `X: ${String(cell.x).padStart(2, "0")}, Y: ${String(cell.y).padStart(2, "0")}`;
+      const compGlyph = document.getElementById("inspCompGlyph");
+      compGlyph.textContent = cell.compositeChar;
+      compGlyph.style.background = tDef.bg;
+      compGlyph.style.color = cell.topFeature ? (FEATURE_STYLES[cell.topFeature.char]?.fg || tDef.fg) : tDef.fg;
+
+      const compLabel = cell.topFeature ?
+        `${cell.topFeature.name || cell.topFeature.id} [${cell.topFeature.char}] on ${tDef.name}` :
+        `${tDef.name} ('${cell.terrainChar}')`;
+      document.getElementById("inspCompLabel").textContent = compLabel;
+
+      // Regional Biome
+      document.getElementById("inspRegionId").textContent = cell.regionId;
+      document.getElementById("inspRegionName").textContent = cell.regionName;
+      document.getElementById("inspRegionType").textContent = cell.regionType;
+      document.getElementById("inspRegionTypeBadge").textContent = cell.regionType;
+
+      // Terrain Ground
+      document.getElementById("inspTerrainChar").textContent = `'${cell.terrainChar}'`;
+      document.getElementById("inspTerrainName").textContent = tDef.name;
+      document.getElementById("inspTerrainDesc").textContent = tDef.desc;
+      document.getElementById("inspTerrainCharBadge").textContent = `Char: '${cell.terrainChar}'`;
+
+      const terrGlyph = document.getElementById("inspTerrainGlyph");
+      terrGlyph.textContent = cell.terrainChar;
+      terrGlyph.style.background = tDef.bg;
+      terrGlyph.style.color = tDef.fg;
+
+      // Features Overlay
+      const featCard = document.getElementById("inspFeatureCard");
+      const featGlyph = document.getElementById("inspFeatureGlyph");
+      const overlapsRow = document.getElementById("inspOverlapsRow");
+
+      if (cell.topFeature) {
+        const f = cell.topFeature;
+        const fStyle = FEATURE_STYLES[f.char];
+        document.getElementById("inspFeatureId").textContent = f.id;
+        document.getElementById("inspFeatureName").textContent = f.name || f.id;
+        document.getElementById("inspFeatureType").textContent = f.type || "feature";
+        document.getElementById("inspFeatureTypeBadge").textContent = f.type || "feature";
+        document.getElementById("inspFeatureChar").textContent = `'${f.char}' (${fStyle?.label || 'Custom Feature'})`;
+        document.getElementById("inspFeatureDesc").textContent = f.description || "No lore recorded for this feature.";
+        document.getElementById("inspFeatureDesc").className = "lore-text";
+
+        featGlyph.textContent = f.char;
+        featGlyph.style.background = fStyle ? fStyle.bg : "#21262d";
+        featGlyph.style.color = fStyle ? fStyle.fg : "#f2cc60";
+
+        if (cell.features.length > 1) {
+          overlapsRow.style.display = "flex";
+          const otherNames = cell.features.filter(o => o.id !== f.id).map(o => `${o.name || o.id} (${o.type})`).join(", ");
+          document.getElementById("inspOverlapsVal").textContent = otherNames;
+        } else {
+          overlapsRow.style.display = "none";
+        }
+      } else {
+        document.getElementById("inspFeatureId").textContent = "None";
+        document.getElementById("inspFeatureName").textContent = "None";
+        document.getElementById("inspFeatureType").textContent = "None";
+        document.getElementById("inspFeatureTypeBadge").textContent = "None";
+        document.getElementById("inspFeatureChar").textContent = "None";
+        document.getElementById("inspFeatureDesc").textContent = "Natural pristine terrain with no registered structures, trails, or discovered landmarks.";
+        document.getElementById("inspFeatureDesc").className = "lore-empty";
+        featGlyph.textContent = "-";
+        featGlyph.style.background = "#21262d";
+        featGlyph.style.color = "var(--text-muted)";
+        overlapsRow.style.display = "none";
+      }
+
+      // Update pinned class on tiles
+      document.querySelectorAll(".tile").forEach(t => {
+        if (pinned && parseInt(t.dataset.x, 10) === x && parseInt(t.dataset.y, 10) === y) {
+          t.classList.add("pinned");
+        } else {
+          t.classList.remove("pinned");
+        }
+      });
+    }
+
+    function togglePinTile(x, y) {
+      if (isPinned && pinnedCoord && pinnedCoord.x === x && pinnedCoord.y === y) {
+        isPinned = false;
+        pinnedCoord = null;
+        inspectTile(x, y, false);
+      } else {
+        isPinned = true;
+        pinnedCoord = { x, y };
+        inspectTile(x, y, true);
+      }
+    }
+
+    // Render Tab Contents
+    function renderFeaturesTab() {
+      const list = document.getElementById("featuresList");
+      list.innerHTML = "";
+      if (!currentWorld || !currentWorld.features) return;
+
+      const feats = Object.entries(currentWorld.features);
+      if (feats.length === 0) {
+        list.innerHTML = "<div style='color: var(--text-muted); font-size: 0.85rem; padding: 10px;'>No features registered in this era.</div>";
+        return;
+      }
+
+      feats.forEach(([id, f]) => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        if (activeFilter && activeFilter.type === "feature" && activeFilter.key === id) {
+          item.style.borderColor = "var(--border-hover)";
+        }
+
+        const fStyle = FEATURE_STYLES[f.char];
+        let tiles = f.tiles || [];
+        if ((!tiles || tiles.length === 0) && f.pos) tiles = [f.pos];
+        const count = tiles.length;
+
+        item.innerHTML = `
+          <div class="legend-item-left">
+            <span class="glyph-chip" style="background: ${fStyle ? fStyle.bg : '#21262d'}; color: ${fStyle ? fStyle.fg : '#f2cc60'};">${f.char || 'o'}</span>
+            <div>
+              <div style="font-weight: 600; color: #fff;">${f.name || id}</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">${f.type || 'feature'}</div>
+            </div>
+          </div>
+          <span class="legend-count">${count} ${count === 1 ? 'tile' : 'tiles'}</span>
+        `;
+
+        item.addEventListener("click", () => {
+          toggleFilter("feature", id);
+          if (tiles.length > 0) {
+            const pt = tiles[0];
+            togglePinTile(pt[0], pt[1]);
+            document.querySelector(`[data-tab="inspector"]`).click();
+          }
+        });
+
+        list.appendChild(item);
+      });
+    }
+
+    function renderRegionsTab() {
+      const list = document.getElementById("regionsList");
+      list.innerHTML = "";
+      if (!currentWorld || !currentWorld.regions) return;
+
+      // Count tiles per region
+      const counts = {};
+      if (currentMatrix) {
+        currentMatrix.forEach(row => {
+          row.forEach(cell => {
+            counts[cell.regionId] = (counts[cell.regionId] || 0) + 1;
+          });
+        });
+      }
+
+      Object.entries(currentWorld.regions).sort((a, b) => a[0].localeCompare(b[0])).forEach(([rId, r]) => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        if (activeFilter && activeFilter.type === "region" && activeFilter.key === rId) {
+          item.style.borderColor = "var(--border-hover)";
+        }
+
+        const rStyle = getRegionColors(rId);
+        const count = counts[rId] || 0;
+
+        item.innerHTML = `
+          <div class="legend-item-left">
+            <span class="glyph-chip" style="background: ${rStyle.bg}; color: ${rStyle.fg}; border: 1px solid ${rStyle.border};">${rId}</span>
+            <div>
+              <div style="font-weight: 600; color: #fff;">${r.name || 'Unnamed'}</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">${r.type || 'wilderness'}</div>
+            </div>
+          </div>
+          <span class="legend-count">${count} tiles</span>
+        `;
+
+        item.addEventListener("click", () => {
+          toggleFilter("region", rId);
+        });
+
+        list.appendChild(item);
+      });
+    }
+
+    function renderLegendTab() {
+      const list = document.getElementById("legendList");
+      list.innerHTML = "";
+
+      // Count terrain tiles
+      const counts = {};
+      if (currentMatrix) {
+        currentMatrix.forEach(row => {
+          row.forEach(cell => {
+            counts[cell.terrainChar] = (counts[cell.terrainChar] || 0) + 1;
+          });
+        });
+      }
+
+      Object.entries(TERRAIN_DEFS).forEach(([char, def]) => {
+        const count = counts[char] || 0;
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        if (activeFilter && activeFilter.type === "terrain" && activeFilter.key === char) {
+          item.style.borderColor = "var(--border-hover)";
+        }
+
+        item.innerHTML = `
+          <div class="legend-item-left">
+            <span class="glyph-chip" style="background: ${def.bg}; color: ${def.fg}; border: 1px solid ${def.border};">${char}</span>
+            <div>
+              <div style="font-weight: 600; color: #fff;">${def.name}</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">${def.desc}</div>
+            </div>
+          </div>
+          <span class="legend-count">${count} tiles</span>
+        `;
+
+        item.addEventListener("click", () => {
+          toggleFilter("terrain", char);
+        });
+
+        list.appendChild(item);
+      });
+    }
+
+    function renderTimelineTab() {
+      const container = document.getElementById("timelineContainer");
+      container.innerHTML = "";
+      if (!currentWorld) return;
+
+      const timeline = currentWorld.timeline;
+      if (!timeline || timeline.length === 0) {
+        container.innerHTML = "<div style='color: var(--text-muted); font-size: 0.85rem; padding: 10px;'>No recorded timeline entries in this artifact.</div>";
+        return;
+      }
+
+      const entries = Array.isArray(timeline) ? timeline : [String(timeline)];
+      entries.forEach((entry, idx) => {
+        const card = document.createElement("div");
+        card.className = "timeline-entry";
+
+        let title = `Epoch Record #${idx + 1}`;
+        let text = entry;
+        if (typeof entry === "string" && entry.startsWith("## Epoch")) {
+          const lines = entry.split("\n");
+          title = lines[0].replace(/^##\s*/, "");
+          text = lines.slice(1).join("\n").trim();
+        }
+
+        card.innerHTML = `
+          <div class="timeline-title">${title}</div>
+          <div class="timeline-body">${text}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleFilter(type, key) {
+      if (activeFilter && activeFilter.type === type && activeFilter.key === key) {
+        activeFilter = null;
+      } else {
+        activeFilter = { type, key };
+      }
+      renderView();
+      renderFeaturesTab();
+      renderRegionsTab();
+      renderLegendTab();
+    }
+
+    // DOM & Event Bindings
+    document.addEventListener("DOMContentLoaded", () => {
+      initPresetsDropdown();
+
+      // Load initial map
+      if (currentPresetKey && PRESETS[currentPresetKey]) {
+        loadWorldData(PRESETS[currentPresetKey].data);
+      }
+
+      // Pin button listener
+      document.getElementById("btnTogglePin").addEventListener("click", () => {
+        if (isPinned) {
+          isPinned = false;
+          pinnedCoord = null;
+          inspectTile(0, 0, false);
+        } else {
+          isPinned = true;
+          const coordEl = document.getElementById("inspCoord").textContent;
+          const match = coordEl.match(/X:\s*(\d+),\s*Y:\s*(\d+)/);
+          if (match) {
+            pinnedCoord = { x: parseInt(match[1], 10), y: parseInt(match[2], 10) };
+            inspectTile(pinnedCoord.x, pinnedCoord.y, true);
+          }
+        }
+      });
+
+      // View Mode Switcher
+      document.querySelectorAll(".view-mode-tab").forEach(tab => {
+        tab.addEventListener("click", (e) => {
+          document.querySelectorAll(".view-mode-tab").forEach(t => t.classList.remove("active"));
+          e.target.classList.add("active");
+          currentViewMode = e.target.dataset.mode;
+          renderView();
+        });
+      });
+
+      // Sliders & Toggles
+      const sliderSize = document.getElementById("sliderTileSize");
+      const valSize = document.getElementById("tileSizeVal");
+      sliderSize.addEventListener("input", (e) => {
+        document.documentElement.style.setProperty("--tile-size", `${e.target.value}px`);
+        valSize.textContent = `${e.target.value}px`;
+      });
+
+      const sliderGap = document.getElementById("sliderTileGap");
+      const valGap = document.getElementById("tileGapVal");
+      sliderGap.addEventListener("input", (e) => {
+        document.documentElement.style.setProperty("--tile-gap", `${e.target.value}px`);
+        valGap.textContent = `${e.target.value}px`;
+      });
+
+      document.getElementById("chkGlyphs").addEventListener("change", renderView);
+      document.getElementById("chkRulers").addEventListener("change", renderView);
+
+      // Sidebar Tabs
+      document.querySelectorAll(".sidebar-tab-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          document.querySelectorAll(".sidebar-tab-btn").forEach(b => b.classList.remove("active"));
+          e.target.classList.add("active");
+
+          const tab = e.target.dataset.tab;
+          document.getElementById("tabContentInspector").style.display = tab === "inspector" ? "flex" : "none";
+          document.getElementById("tabContentFeatures").style.display = tab === "features" ? "flex" : "none";
+          document.getElementById("tabContentRegions").style.display = tab === "regions" ? "flex" : "none";
+          document.getElementById("tabContentLegend").style.display = tab === "legend" ? "flex" : "none";
+          document.getElementById("tabContentTimeline").style.display = tab === "timeline" ? "flex" : "none";
+        });
+      });
+
+      // File Picker (JSON)
+      const filePicker = document.getElementById("filePicker");
+      filePicker.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const parsed = JSON.parse(evt.target.result);
+            const key = `uploaded_${Date.now()}`;
+            PRESETS[key] = {
+              label: `Loaded: ${parsed.name || file.name}`,
+              filename: file.name,
+              data: parsed
+            };
+            currentPresetKey = key;
+            initPresetsDropdown();
+            loadWorldData(parsed);
+          } catch (err) {
+            alert(`Error parsing JSON file: ${err.message}`);
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // Drag & Drop on scroll area
+      const dropTarget = document.getElementById("mapScrollArea");
+      dropTarget.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      dropTarget.addEventListener("drop", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          const file = e.dataTransfer.files[0];
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const parsed = JSON.parse(evt.target.result);
+              const key = `dragged_${Date.now()}`;
+              PRESETS[key] = {
+                label: `Loaded: ${parsed.name || file.name}`,
+                filename: file.name,
+                data: parsed
+              };
+              currentPresetKey = key;
+              initPresetsDropdown();
+              loadWorldData(parsed);
+            } catch (err) {
+              alert(`Error parsing JSON file: ${err.message}`);
+            }
+          };
+          reader.readAsText(file);
+        }
+      });
+
+      // Modal Dialog Listeners
+      const modal = document.getElementById("modalPaste");
+      document.getElementById("btnOpenModal").addEventListener("click", () => {
+        document.getElementById("pasteError").style.display = "none";
+        document.getElementById("jsonPasteText").value = "";
+        modal.style.display = "flex";
+      });
+
+      const closeModal = () => {
+        modal.style.display = "none";
+      };
+      document.getElementById("btnCloseModal").addEventListener("click", closeModal);
+      document.getElementById("btnCancelModal").addEventListener("click", closeModal);
+
+      document.getElementById("btnLoadPasted").addEventListener("click", () => {
+        const text = document.getElementById("jsonPasteText").value.trim();
+        const errEl = document.getElementById("pasteError");
+        if (!text) {
+          errEl.textContent = "Please enter world map JSON text.";
+          errEl.style.display = "block";
+          return;
+        }
+        try {
+          const parsed = JSON.parse(text);
+          if (!parsed.terrain_grid || !Array.isArray(parsed.terrain_grid)) {
+            throw new Error("JSON must contain a 'terrain_grid' array.");
+          }
+          const key = `pasted_${Date.now()}`;
+          PRESETS[key] = {
+            label: `Pasted: ${parsed.name || 'Custom Map'}`,
+            filename: "pasted.json",
+            data: parsed
+          };
+          currentPresetKey = key;
+          initPresetsDropdown();
+          loadWorldData(parsed);
+          closeModal();
+        } catch (err) {
+          errEl.textContent = `JSON Parse Error: ${err.message}`;
+          errEl.style.display = "block";
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+"""
+
+
+def generate_html_viewer(
+    json_path: Path | str | None = None,
+    output_path: Path | str | None = DEFAULT_OUTPUT_HTML_PATH,
+    copy_to_root: bool = True,
+) -> Path:
+    """Generates the standalone HTML viewer and saves it to output_path."""
+    primary_data = None
+    if json_path:
+        primary_data = load_world_data(json_path)
+
+    presets = discover_artifact_maps()
+    html_content = build_viewer_html(primary_data=primary_data, preset_maps=presets)
+
+    out_file = Path(output_path) if output_path else DEFAULT_OUTPUT_HTML_PATH
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(html_content, encoding="utf-8")
+
+    if copy_to_root:
+        DEFAULT_ROOT_HTML_PATH.write_text(html_content, encoding="utf-8")
+
+    return out_file
+
+
+def open_viewer(html_path: Path | str | None = None) -> None:
+    """Opens the HTML map viewer in the user's default web browser."""
+    target = Path(html_path) if html_path else DEFAULT_ROOT_HTML_PATH
+    if not target.is_file():
+        target = DEFAULT_OUTPUT_HTML_PATH
+    if not target.is_file():
+        target = generate_html_viewer()
+
+    webbrowser.open(target.resolve().as_uri())
+
+
+def serve_viewer(
+    port: int = 8000,
+    host: str = "127.0.0.1",
+    directory: Path | str = ".",
+    open_browser: bool = False,
+) -> None:
+    """Serves the workspace via a local HTTP server for in-IDE preview and browser viewing."""
+    import functools
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+    dir_path = Path(directory).resolve()
+    handler = functools.partial(SimpleHTTPRequestHandler, directory=str(dir_path))
+
+    for p in range(port, port + 20):
+        try:
+            with ThreadingHTTPServer((host, p), handler) as httpd:
+                url = f"http://{host}:{p}/viewer.html"
+                print("\n" + "=" * 70, flush=True)
+                print(f" MAP VIEWER LOCAL SERVER RUNNING", flush=True)
+                print(f" URL: {url}", flush=True)
+                print("=" * 70, flush=True)
+                print("\nIn-IDE Preview Instructions:")
+                print("  1. In your IDE, press Ctrl+Shift+P (or Cmd+Shift+P on Mac)")
+                print("  2. Type: Simple Browser: Show")
+                print(f"  3. Enter: {url}\n", flush=True)
+                print("Press Ctrl+C in terminal to stop server.\n", flush=True)
+                if open_browser:
+                    webbrowser.open(url)
+                httpd.serve_forever()
+                break
+        except OSError:
+            continue
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Interactive HTML Map Viewer for Dungeon Crawler Text composite maps."
+    )
+    parser.add_argument(
+        "--input",
+        "-i",
+        type=str,
+        default=None,
+        help="Path to world map JSON file to load as active map",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default=str(DEFAULT_OUTPUT_HTML_PATH),
+        help=f"Output HTML file path (default: {DEFAULT_OUTPUT_HTML_PATH})",
+    )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Automatically open the generated HTML viewer in the default browser",
+    )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Start a local HTTP server for in-IDE preview via Simple Browser",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for local HTTP server (default: 8000)",
+    )
+
+    args = parser.parse_args()
+
+    print("Generating HTML map viewer...", flush=True)
+    target = generate_html_viewer(json_path=args.input, output_path=args.output)
+    print(f"Interactive Map Viewer generated successfully at:\n  -> {target}", flush=True)
+    if DEFAULT_ROOT_HTML_PATH.is_file():
+        print(f"  -> {DEFAULT_ROOT_HTML_PATH.resolve()}", flush=True)
+
+    if args.serve:
+        serve_viewer(port=args.port, open_browser=args.open)
+    elif args.open:
+        print("Opening in default browser...", flush=True)
+        open_viewer(target)
+
+
+if __name__ == "__main__":
+    main()

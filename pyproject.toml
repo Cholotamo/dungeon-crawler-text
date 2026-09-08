@@ -16,6 +16,7 @@ dependencies = [
 [project.scripts]
 dungeon-crawler-text = "dungeon_crawler_text.main:main"
 dungeon-crawler-historian = "dungeon_crawler_text.historian:main"
+dungeon-crawler-viewer = "dungeon_crawler_text.viewer:main"
 
 [dependency-groups]
 dev = [

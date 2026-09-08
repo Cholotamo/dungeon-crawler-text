@@ -189,6 +189,31 @@ uv run dungeon-crawler-historian --query "A devastating civil war splits the rea
 
 ---
 
+### Step 4: Inspect Maps Interactively (HTML Map Viewer)
+
+Open the interactive HTML Map Viewer to inspect the composite world map with rich colors, customizable tile spacing, and full hover inspection:
+
+```bash
+# Generate/update the viewer and open it directly in your default browser
+uv run dungeon-crawler-viewer --open
+```
+
+Or open [`viewer.html`](file:///C:/Developer/Random/dungeon-crawler-text/viewer.html) or [`artifacts/viewer.html`](file:///C:/Developer/Random/dungeon-crawler-text/artifacts/viewer.html) directly in any browser.
+
+#### Viewer Features:
+- **Composite Map Rendering:** Accurately layers features (cities, outposts, dungeons, roads, bridges) over natural terrain following strict cartographic priority rules.
+- **Hover Inspection HUD & Sidebar:** Hovering over any tile reveals:
+  - **Tile Coordinates:** `[X, Y]` with highlighted crosshair rulers (00..31).
+  - **Natural Terrain Ground:** Terrain character (e.g. `~`, `.`, `#`, `:`) and full type name/description.
+  - **Regional Biome:** Region ID, Region Name, and Region Type.
+  - **Feature Landmark:** Feature ID, Name, Type, Symbol, and comprehensive lore narrative.
+- **Side-by-Side View:** Compare the Composite Map side-by-side with the Region Biomes Grid with synchronized cross-hover.
+- **Visual Controls:** Sliders to adjust tile size (16px..44px) and spacing/gap (0px..6px), plus toggles for glyphs and coordinate axes.
+- **Interactive Legend & Filters:** Click terrain types, regions, or features in the sidebar to highlight corresponding tiles across the realm.
+- **Custom JSON Loading:** Switch between embedded historical epochs, drag-and-drop any custom `worldmap*.json` file, or paste raw JSON.
+
+---
+
 ## Python API
 
 All agents can be imported and executed programmatically:
