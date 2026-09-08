@@ -39,7 +39,7 @@ VALID_TERRAIN_CHARS = {
     ";",  # Coast / Beach / Shallows
     "^",  # Mountain Peak / Ridge
     "/",  # Cliffs / Edges / Chasms
-    "*",  # Wastelands
+    "*",  # Wastelands / Barrier / Dam
     ":",  # Farmland
 }
 

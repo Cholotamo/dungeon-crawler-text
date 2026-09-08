@@ -541,13 +541,14 @@ class WorldStateSnapshot:
         tiles: list[list[int]] | None = None,
         description: str = "",
     ) -> str:
-        """Updates an existing feature on the world map (e.g. upgrade village to city, ruin a site, extend road).
+        """Updates an existing feature on the world map (e.g. upgrade village to city, ruin a site, reclaim a ruin, extend road).
 
         Args:
             feature_id: Unique identifier of the feature to update.
             name: New display name (leave empty to keep current name).
-            char: New map character symbol, e.g. 'O' when upgraded to major city, or '!' when ruined.
-            feature_type: New semantic category, e.g. 'major_city', 'ruin' (leave empty to keep current).
+            char: New map character symbol, e.g. 'O' when upgraded to major city, '!' when ruined,
+                or 'o' / 'O' when an ancient ruin is reclaimed and resettled.
+            feature_type: New semantic category, e.g. 'major_city', 'ruin', 'outpost', 'settlement' (leave empty to keep current).
             tiles: New list of [x, y] coordinates if position changed or road extended (leave empty to keep current).
             description: Updated description or chronicle note (leave empty to keep current).
 
@@ -656,6 +657,376 @@ class WorldStateSnapshot:
         msg = (
             f"[SUCCESS] Deleted feature '{match_key}' ('{deleted.get('name')}'). "
             f"Remaining registered features: {len(features)}."
+        )
+        self.mutations_log.append(msg)
+        print(f"  -> {msg}", flush=True)
+        return msg
+
+    # =========================================================================
+    # SEMANTIC TERRAFORMING & DUAL-GRID MUTATION TOOLS
+    # =========================================================================
+
+    def expand_domain(
+        self,
+        center: list[int],
+        radius: int,
+        domain_type: str,
+        region_name: str,
+        region_id: str,
+    ) -> str:
+        """Expands a territorial domain (farmlands, blighted wastelands, or forest canopy) around a center point.
+
+        Automatically synchronizes terrain_grid and region_grid, registers the region, and shields natural waterways:
+        existing water tiles ('~') and bridges ('=') within the radius are strictly preserved and never paved over.
+
+        Args:
+            center: [x, y] center coordinate (e.g. location of a settlement, city, or ruin).
+            radius: Tile radius of expansion (1 to 5).
+            domain_type: Category of domain ('farmland' -> ':' tiles, 'wasteland' -> '*' tiles, 'forest' -> '#' tiles).
+            region_name: Display name of the domain (e.g. 'Oakhaven Farmlands', 'The Ashen Blight').
+            region_id: Single alphanumeric character identifier for region_grid (e.g. 'h', 'w').
+
+        Returns:
+            Confirmation message detailing modified tiles and preserved water/landmarks.
+        """
+        if not center or len(center) < 2:
+            return "Error: center must be an [x, y] coordinate pair."
+        cx, cy = int(center[0]), int(center[1])
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        if not (0 <= cx < width and 0 <= cy < height):
+            return f"Error: Center coordinate [{cx}, {cy}] is out of bounds."
+
+        reg_key = str(region_id).strip()[:1]
+        if not reg_key:
+            return "Error: region_id must be a non-empty single character."
+
+        dtype = str(domain_type).strip().lower()
+        if any(sub in dtype for sub in ("farm", "agrarian", "crop", "polder")):
+            target_char = ":"
+            reg_type = "farmland"
+        elif any(sub in dtype for sub in ("waste", "blight", "ash", "corrupt", "cursed")):
+            target_char = "*"
+            reg_type = "wasteland"
+        elif any(sub in dtype for sub in ("forest", "wood", "jungle", "sylvan", "grove")):
+            target_char = "#"
+            reg_type = "forest"
+        else:
+            target_char = ":"
+            reg_type = dtype or "domain"
+
+        # Register or update region in regions dict
+        r_name = str(region_name).strip() or f"Domain {reg_key}"
+        self.data.setdefault("regions", {})[reg_key] = {
+            "name": r_name,
+            "type": reg_type,
+        }
+
+        r = max(1, min(int(radius), 8))
+        tg = [list(row) for row in terrain]
+        rg = [list(row) for row in region]
+
+        features = self.data.get("features", {})
+        bridge_coords = {
+            tuple(pt)
+            for feat in features.values()
+            if isinstance(feat, dict) and (feat.get("char") == "=" or feat.get("type") in ("bridge", "viaduct"))
+            for pt in feat.get("tiles", [])
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2
+        }
+
+        modified_coords = []
+        preserved_water = []
+
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if dx * dx + dy * dy > r * r + r:
+                    continue
+                nx, ny = cx + dx, cy + dy
+                if not (0 <= nx < width and 0 <= ny < height):
+                    continue
+
+                curr_t = tg[ny][nx]
+                # River Shield: Never overwrite natural water tiles
+                if curr_t == "~":
+                    preserved_water.append([nx, ny])
+                    continue
+                # Shield bridges
+                if (nx, ny) in bridge_coords:
+                    continue
+                # Shield alpine peaks from farming
+                if curr_t == "^" and target_char == ":":
+                    continue
+
+                tg[ny][nx] = target_char
+                rg[ny][nx] = reg_key
+                modified_coords.append([nx, ny])
+
+        self.data["terrain_grid"] = ["".join(row) for row in tg]
+        self.data["region_grid"] = ["".join(row) for row in rg]
+        self.save()
+
+        msg = (
+            f"[SUCCESS] Expanded domain '{reg_key}' ('{r_name}', type: '{reg_type}', char: '{target_char}') "
+            f"around [{cx}, {cy}] (radius {r}): modified {len(modified_coords)} land tiles. "
+            f"Preserved {len(preserved_water)} water tiles."
+        )
+        self.mutations_log.append(msg)
+        print(f"  -> {msg}", flush=True)
+        return msg
+
+    def clear_land(
+        self,
+        coords: list[list[int]],
+        target_terrain: str = ".",
+        domain_region_id: str = "",
+        new_domain_name: str = "",
+        new_domain_id: str = "",
+    ) -> str:
+        """Clears natural obstacles (deforestation, fen drainage, stone quarrying) into usable plains or farmland.
+
+        Converts woods ('#', '&') or bogs ('%') into open plains ('.') or farmlands (':').
+        If converted to farmland, can extend an existing domain region or register a new one.
+        Strictly rejects execution on water tiles ('~').
+
+        Args:
+            coords: List of [x, y] coordinates to clear.
+            target_terrain: Ground type after clearing: '.' for open plains/pasture, ':' for farmland, '*' for quarry.
+            domain_region_id: Optional existing region ID (e.g. 'h') to assign these cleared tiles to.
+            new_domain_name: Optional name if founding a new agricultural domain (e.g. 'Greenwood Grange').
+            new_domain_id: Single character ID if founding a new domain.
+
+        Returns:
+            Confirmation message or actionable rejection if water tiles were targeted.
+        """
+        norm_coords = _normalize_tiles(coords)
+        if not norm_coords:
+            return "Error: coords must contain at least one valid [x, y] coordinate."
+
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        # Check bounds and reject water tiles
+        water_tiles = []
+        for pt in norm_coords:
+            x, y = pt[0], pt[1]
+            if not (0 <= x < width and 0 <= y < height):
+                return f"Error: Coordinate [{x}, {y}] is out of bounds."
+            if terrain[y][x] == "~":
+                water_tiles.append(pt)
+
+        if water_tiles:
+            return (
+                f"[REJECTION] clear_land cannot be used on natural water tiles '~' at {water_tiles}.\n"
+                f"To dam, drain, or reclaim waterways into dry land, use engineer_waterworks(action='dam' or 'drain')."
+            )
+
+        t_target = str(target_terrain).strip()[:1] if target_terrain and str(target_terrain).strip() in (".", ":", "*", ",") else "."
+
+        # Determine target region
+        reg_key = "0"
+        if new_domain_name and new_domain_id:
+            reg_key = str(new_domain_id).strip()[:1]
+            self.data.setdefault("regions", {})[reg_key] = {
+                "name": str(new_domain_name).strip(),
+                "type": "farmland" if t_target == ":" else "cleared_land",
+            }
+        elif domain_region_id and domain_region_id.strip()[:1] in self.data.get("regions", {}):
+            reg_key = domain_region_id.strip()[:1]
+        elif t_target == ":":
+            reg_key = domain_region_id.strip()[:1] if domain_region_id else "0"
+
+        tg = [list(row) for row in terrain]
+        rg = [list(row) for row in region]
+
+        for pt in norm_coords:
+            x, y = pt[0], pt[1]
+            tg[y][x] = t_target
+            rg[y][x] = reg_key
+
+        self.data["terrain_grid"] = ["".join(row) for row in tg]
+        self.data["region_grid"] = ["".join(row) for row in rg]
+        self.save()
+
+        reg_name = self.data.get("regions", {}).get(reg_key, {}).get("name", f"Region {reg_key}")
+        msg = (
+            f"[SUCCESS] Cleared {len(norm_coords)} tile(s) to '{t_target}' "
+            f"assigned to region '{reg_key}' ({reg_name})."
+        )
+        self.mutations_log.append(msg)
+        print(f"  -> {msg}", flush=True)
+        return msg
+
+    def engineer_waterworks(
+        self,
+        coords: list[list[int]],
+        action: str,
+        target_terrain: str = "",
+        target_region_id: str = "",
+        waterway_name: str = "",
+        waterway_region_id: str = "",
+    ) -> str:
+        """Modifies waterways, dams, canals, and reclaimed polders while guaranteeing dual-grid synchronization.
+
+        Actions:
+        - 'dam' / 'drain': Converts water ('~') into ground ('.' plains, ':' farmlands, '*' masonry dam).
+          Automatically reassigns region away from the water body to the target land region or ambient wilderness ('0').
+        - 'canal' / 'flood': Converts land into water ('~') and registers/assigns a designated water region ('river'/'lake').
+
+        Args:
+            coords: List of [x, y] coordinates to modify.
+            action: 'dam', 'drain', 'canal', or 'flood'.
+            target_terrain: For dam/drain: ground type to convert into ('.' for plains, ':' for farmland, '*' for masonry dam).
+            target_region_id: For dam/drain: land region ID to assign (defaults to ambient wilderness '0').
+            waterway_name: For canal/flood: name of the canal or reservoir (e.g. 'King's Canal').
+            waterway_region_id: For canal/flood: single-character region ID for the water body.
+
+        Returns:
+            Confirmation message detailing modified water/ground tiles and updated regional biomes.
+        """
+        norm_coords = _normalize_tiles(coords)
+        if not norm_coords:
+            return "Error: coords must contain at least one valid [x, y] coordinate."
+
+        act = str(action).strip().lower()
+        if act not in ("dam", "drain", "canal", "flood"):
+            return "Error: action must be one of 'dam', 'drain', 'canal', or 'flood'."
+
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        regions = self.data.get("regions", {})
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        for pt in norm_coords:
+            x, y = pt[0], pt[1]
+            if not (0 <= x < width and 0 <= y < height):
+                return f"Error: Coordinate [{x}, {y}] is out of bounds."
+
+        tg = [list(row) for row in terrain]
+        rg = [list(row) for row in region]
+
+        if act in ("dam", "drain"):
+            # Converting water -> dry land / dam masonry
+            t_ground = target_terrain.strip()[:1] if target_terrain and target_terrain.strip() in (".", ":", "*", ",") else "."
+            land_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else "0"
+
+            # Guard against phantom river bug: verify land_reg is NOT a water-type region!
+            existing_reg_type = regions.get(land_reg, {}).get("type", "").lower()
+            if existing_reg_type in ("river", "ocean", "lake", "bay", "water"):
+                land_reg = "0"
+
+            for pt in norm_coords:
+                x, y = pt[0], pt[1]
+                tg[y][x] = t_ground
+                rg[y][x] = land_reg
+
+            self.data["terrain_grid"] = ["".join(row) for row in tg]
+            self.data["region_grid"] = ["".join(row) for row in rg]
+            self.save()
+
+            reg_name = regions.get(land_reg, {}).get("name", "Unnamed Wilderness")
+            msg = (
+                f"[SUCCESS] Engineered waterworks ({act}): converted {len(norm_coords)} water tile(s) to "
+                f"dry ground '{t_ground}' assigned to land region '{land_reg}' ({reg_name})."
+            )
+            self.mutations_log.append(msg)
+            print(f"  -> {msg}", flush=True)
+            return msg
+
+        else:  # canal or flood (land -> water)
+            w_id = waterway_region_id.strip()[:1] if waterway_region_id and waterway_region_id.strip() else "F"
+            w_name = str(waterway_name).strip() or "Constructed Canal"
+            w_type = "river" if act == "canal" else "lake"
+
+            # Register water region
+            self.data.setdefault("regions", {})[w_id] = {
+                "name": w_name,
+                "type": w_type,
+            }
+
+            for pt in norm_coords:
+                x, y = pt[0], pt[1]
+                tg[y][x] = "~"
+                rg[y][x] = w_id
+
+            self.data["terrain_grid"] = ["".join(row) for row in tg]
+            self.data["region_grid"] = ["".join(row) for row in rg]
+            self.save()
+
+            msg = (
+                f"[SUCCESS] Engineered waterworks ({act}): carved {len(norm_coords)} water tile(s) ('~') "
+                f"registered to water region '{w_id}' ('{w_name}', type: '{w_type}')."
+            )
+            self.mutations_log.append(msg)
+            print(f"  -> {msg}", flush=True)
+            return msg
+
+    def abandon_domain(
+        self,
+        center: list[int],
+        radius: int,
+        target_terrain: str = ".",
+    ) -> str:
+        """Simulates nature reclaiming fallen civilizations or cleansed blights.
+
+        Reverts abandoned farmlands (':') or wastelands ('*') back to wild grasslands ('.') or light woods ('#'),
+        and dissolves the domain by reassigning tiles to ambient wilderness ('0').
+        Waterways ('~') and mountain peaks ('^') are preserved.
+
+        Args:
+            center: [x, y] coordinate of the abandoned settlement, ruin, or epicenter.
+            radius: Tile radius to dissolve (1 to 5).
+            target_terrain: Ground type to revert to ('.' for wild plains, '#' for overgrown woods).
+
+        Returns:
+            Confirmation message detailing reclaimed tiles and dissolved regions.
+        """
+        if not center or len(center) < 2:
+            return "Error: center must be an [x, y] coordinate pair."
+        cx, cy = int(center[0]), int(center[1])
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        if not (0 <= cx < width and 0 <= cy < height):
+            return f"Error: Center coordinate [{cx}, {cy}] is out of bounds."
+
+        r = max(1, min(int(radius), 8))
+        t_revert = str(target_terrain).strip()[:1] if target_terrain and str(target_terrain).strip() in (".", "#", ",") else "."
+
+        tg = [list(row) for row in terrain]
+        rg = [list(row) for row in region]
+
+        reclaimed_coords = []
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if dx * dx + dy * dy > r * r + r:
+                    continue
+                nx, ny = cx + dx, cy + dy
+                if not (0 <= nx < width and 0 <= ny < height):
+                    continue
+
+                curr_t = tg[ny][nx]
+                # Only dissolve farmlands (:) or wastelands (*)
+                if curr_t in (":", "*"):
+                    tg[ny][nx] = t_revert
+                    rg[ny][nx] = "0"
+                    reclaimed_coords.append([nx, ny])
+
+        self.data["terrain_grid"] = ["".join(row) for row in tg]
+        self.data["region_grid"] = ["".join(row) for row in rg]
+        self.save()
+
+        msg = (
+            f"[SUCCESS] Abandoned domain around [{cx}, {cy}] (radius {r}): "
+            f"nature reclaimed {len(reclaimed_coords)} tile(s) to '{t_revert}' (Wilderness Region '0')."
         )
         self.mutations_log.append(msg)
         print(f"  -> {msg}", flush=True)
@@ -789,17 +1160,21 @@ class Historian:
             f"\nInvoking stateless Historian agent ({self.model_name}, thinking={self.thinking_level}, tools=CRUD)...",
             flush=True,
         )
-        crud_tools = [
+        historian_tools = [
             self.snapshot.create_feature,
             self.snapshot.read_feature,
             self.snapshot.update_feature,
             self.snapshot.delete_feature,
+            self.snapshot.expand_domain,
+            self.snapshot.clear_land,
+            self.snapshot.engineer_waterworks,
+            self.snapshot.abandon_domain,
         ]
         config = types.GenerateContentConfig(
             system_instruction=self.system_prompt,
             temperature=0.7,
             thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level),
-            tools=crud_tools,
+            tools=historian_tools,
         )
         turn_chat = self.client.chats.create(model=self.model_name, config=config)
 
