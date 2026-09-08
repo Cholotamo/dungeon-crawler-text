@@ -259,6 +259,139 @@ class WorldStateSnapshot:
         r_name = regions.get(r_id, {}).get("name", f"Region {r_id}")
         return t_char, r_id, r_name
 
+    def _validate_feature_terrain(
+        self,
+        fid: str,
+        fchar: str,
+        ftype: str,
+        tiles: list[list[int]],
+    ) -> Optional[str]:
+        """Validates feature placement against natural terrain and existing landmarks.
+
+        Returns an actionable prescriptive rejection message if invalid, or None if valid.
+        """
+        terrain = self.data.get("terrain_grid", [])
+        features = self.data.get("features", {})
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        # 1. Road Validation ('+')
+        if fchar == "+" or ftype.lower() in ("road", "highway", "trail", "path", "route"):
+            water_coords: list[list[int]] = []
+            chasm_coords: list[list[int]] = []
+            peak_coords: list[list[int]] = []
+            bridge_overlaps: list[tuple[list[int], str]] = []
+
+            for pt in tiles:
+                x, y = pt[0], pt[1]
+                t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
+                if t_char == "~":
+                    water_coords.append(pt)
+                elif t_char == "/":
+                    chasm_coords.append(pt)
+                elif t_char == "^":
+                    peak_coords.append(pt)
+
+                # Check for collision with existing bridge
+                for existing_id, feat in features.items():
+                    if existing_id == fid:
+                        continue
+                    if feat.get("char") == "=" or feat.get("type", "").lower() in ("bridge", "viaduct"):
+                        ex_tiles = feat.get("tiles", [])
+                        if pt in ex_tiles:
+                            bridge_overlaps.append((pt, feat.get("name", existing_id)))
+
+            if bridge_overlaps:
+                pt, bname = bridge_overlaps[0]
+                return (
+                    f"[REJECTION] Road '{fid}' includes coordinate {pt} which is already assigned to bridge '{bname}'. "
+                    f"Roads must terminate at the bridge approach rather than overlapping bridge coordinates."
+                )
+
+            if water_coords:
+                first_water = water_coords[0]
+                return (
+                    f"[REJECTION] Road '{fid}' attempts to cross water tile(s) '~' without a bridge at {water_coords}.\n"
+                    f"Actionable 3-Step Remedy:\n"
+                    f"1. Terminate this road at the near bank (before coordinate {first_water}).\n"
+                    f"2. Call create_feature to anchor an explicit bridge ('=') across water tile {first_water}.\n"
+                    f"3. Call create_feature to continue the road from the opposite bank."
+                )
+
+            if chasm_coords:
+                first_chasm = chasm_coords[0]
+                return (
+                    f"[REJECTION] Road '{fid}' attempts to cross sheer chasm/cliff tile(s) '/' without a bridge at {chasm_coords}.\n"
+                    f"Actionable 3-Step Remedy:\n"
+                    f"1. Terminate this road at the near cliff edge (before coordinate {first_chasm}).\n"
+                    f"2. Call create_feature to anchor a stone bridge/viaduct ('=') across chasm tile {first_chasm}.\n"
+                    f"3. Call create_feature to continue the road from the opposite edge."
+                )
+
+            if peak_coords:
+                return (
+                    f"[REJECTION] Road '{fid}' attempts to traverse impassable alpine mountain peak(s) '^' at {peak_coords}.\n"
+                    f"Roads cannot scale sheer mountain peaks. Route through mountain passes, foothills (','), or valleys ('.')."
+                )
+
+        # 2. Settlement Validation ('o', 'O')
+        elif fchar in ("o", "O") or ftype.lower() in (
+            "settlement", "outpost", "village", "major_city", "city", "metropolis", "town", "hamlet"
+        ):
+            for pt in tiles:
+                x, y = pt[0], pt[1]
+                t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
+                if t_char == "~":
+                    return (
+                        f"[REJECTION] Settlement '{fid}' cannot be placed on water tile '~' at [{x}, {y}]. "
+                        f"Settlements must be founded on dry land: fertile plains ('.'), sheltered coasts (';'), hills (','), or farmlands (':'). "
+                        f"For coastal ports, place the settlement on an adjacent coast tile (';') or riverbank ('.')."
+                    )
+                elif t_char == "/":
+                    return (
+                        f"[REJECTION] Settlement '{fid}' cannot be placed in a sheer chasm/cliff '/' at [{x}, {y}]. "
+                        f"Found settlements on stable, habitable terrain."
+                    )
+                elif t_char == "^":
+                    return (
+                        f"[REJECTION] Settlement '{fid}' cannot be placed atop an impassable mountain peak '^' at [{x}, {y}]. "
+                        f"Place mountain outposts and mining camps in surrounding foothills (',') or valleys ('.')."
+                    )
+
+        # 3. Bridge Validation ('=')
+        elif fchar == "=" or ftype.lower() in ("bridge", "viaduct"):
+            barrier_tiles = []
+            for pt in tiles:
+                x, y = pt[0], pt[1]
+                t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
+                if t_char in ("~", "/", "%"):
+                    barrier_tiles.append(pt)
+
+            if not barrier_tiles:
+                ground_chars = [terrain[pt[1]][pt[0]] for pt in tiles if 0 <= pt[1] < height and 0 <= pt[0] < width]
+                return (
+                    f"[REJECTION] Bridge '{fid}' at {tiles} is situated entirely on dry land ({ground_chars}). "
+                    f"Bridges must span a natural water barrier ('~'), chasm ('/'), or wetland bottleneck ('%'). "
+                    f"Use a road ('+') for terrestrial overland routes."
+                )
+
+        # 4. Dungeon / Landmark Validation ('!')
+        elif fchar == "!":
+            for pt in tiles:
+                x, y = pt[0], pt[1]
+                t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
+                if t_char == "~" and not any(
+                    sub in ftype.lower() or sub in fid.lower()
+                    for sub in ("sunken", "submerged", "drowned", "water", "sea")
+                ):
+                    return (
+                        f"[REJECTION] Landmark '{fid}' is placed on water tile '~' at [{x}, {y}]. "
+                        f"Unless explicitly a sunken ruin or submerged shrine (with 'sunken' or 'submerged' in feature_type), "
+                        f"place dungeons on land: deep forests ('&', '#'), peaks ('^'), bogs ('%'), wastelands ('*'), or cliffs ('/')."
+                    )
+
+        return None
+
     # =========================================================================
     # FEATURE CRUD TOOLS (BOUND TO THIS ACTIVE SNAPSHOT)
     # =========================================================================
@@ -320,6 +453,17 @@ class WorldStateSnapshot:
         ftype = str(feature_type).strip() or "feature"
         fname = str(name).strip() or fid
         fdesc = str(description).strip()
+
+        # Validate feature placement against terrain barriers and existing infrastructure
+        rejection = self._validate_feature_terrain(
+            fid=fid,
+            fchar=fchar,
+            ftype=ftype,
+            tiles=norm_tiles,
+        )
+        if rejection:
+            print(f"  -> {rejection}", flush=True)
+            return rejection
 
         features[fid] = {
             "name": fname,
@@ -428,17 +572,9 @@ class WorldStateSnapshot:
         feat = features[match_key]
         changes: list[str] = []
 
-        if name and str(name).strip():
-            feat["name"] = str(name).strip()
-            changes.append(f"name='{feat['name']}'")
-
-        if char and str(char).strip():
-            feat["char"] = str(char).strip()[0]
-            changes.append(f"char='{feat['char']}'")
-
-        if feature_type and str(feature_type).strip():
-            feat["type"] = str(feature_type).strip()
-            changes.append(f"type='{feat['type']}'")
+        proposed_char = str(char).strip()[0] if char and str(char).strip() else feat.get("char", "o")
+        proposed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else feat.get("type", "feature")
+        proposed_tiles = feat.get("tiles", [])
 
         if tiles is not None and len(tiles) > 0:
             norm_tiles = _normalize_tiles(tiles)
@@ -451,8 +587,34 @@ class WorldStateSnapshot:
                         f"Error: Coordinate [{pt[0]}, {pt[1]}] is out of bounds "
                         f"(X: 0..{width-1}, Y: 0..{height-1})."
                     )
-            feat["tiles"] = norm_tiles
-            changes.append(f"tiles={norm_tiles}")
+            proposed_tiles = norm_tiles
+
+        # Validate updated feature placement against terrain
+        rejection = self._validate_feature_terrain(
+            fid=match_key,
+            fchar=proposed_char,
+            ftype=proposed_type,
+            tiles=proposed_tiles,
+        )
+        if rejection:
+            print(f"  -> {rejection}", flush=True)
+            return rejection
+
+        if name and str(name).strip():
+            feat["name"] = str(name).strip()
+            changes.append(f"name='{feat['name']}'")
+
+        if char and str(char).strip():
+            feat["char"] = proposed_char
+            changes.append(f"char='{proposed_char}'")
+
+        if feature_type and str(feature_type).strip():
+            feat["type"] = proposed_type
+            changes.append(f"type='{proposed_type}'")
+
+        if tiles is not None and len(tiles) > 0:
+            feat["tiles"] = proposed_tiles
+            changes.append(f"tiles={proposed_tiles}")
 
         if description and str(description).strip():
             feat["description"] = str(description).strip()
