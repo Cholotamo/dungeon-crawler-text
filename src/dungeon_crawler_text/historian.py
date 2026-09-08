@@ -673,6 +673,7 @@ class WorldStateSnapshot:
         domain_type: str,
         region_name: str,
         region_id: str,
+        lore: str = "",
     ) -> str:
         """Expands a territorial domain (farmlands, blighted wastelands, or forest canopy) around a center point.
 
@@ -685,6 +686,7 @@ class WorldStateSnapshot:
             domain_type: Category of domain ('farmland' -> ':' tiles, 'wasteland' -> '*' tiles, 'forest' -> '#' tiles).
             region_name: Display name of the domain (e.g. 'Oakhaven Farmlands', 'The Ashen Blight').
             region_id: Single alphanumeric character identifier for region_grid (e.g. 'h', 'w').
+            lore: Optional narrative lore describing the atmosphere, history, or ecological nature of this domain.
 
         Returns:
             Confirmation message detailing modified tiles and preserved water/landmarks.
@@ -720,10 +722,17 @@ class WorldStateSnapshot:
 
         # Register or update region in regions dict
         r_name = str(region_name).strip() or f"Domain {reg_key}"
-        self.data.setdefault("regions", {})[reg_key] = {
+        regions_dict = self.data.setdefault("regions", {})
+        existing_reg = regions_dict.get(reg_key, {}) if isinstance(regions_dict.get(reg_key), dict) else {}
+        reg_entry = {
             "name": r_name,
             "type": reg_type,
         }
+        if lore and str(lore).strip():
+            reg_entry["lore"] = str(lore).strip()
+        elif "lore" in existing_reg:
+            reg_entry["lore"] = existing_reg["lore"]
+        regions_dict[reg_key] = reg_entry
 
         r = max(1, min(int(radius), 8))
         tg = [list(row) for row in terrain]
@@ -785,6 +794,7 @@ class WorldStateSnapshot:
         domain_region_id: str = "",
         new_domain_name: str = "",
         new_domain_id: str = "",
+        new_domain_lore: str = "",
     ) -> str:
         """Clears natural obstacles (deforestation, fen drainage, stone quarrying) into usable plains or farmland.
 
@@ -798,6 +808,7 @@ class WorldStateSnapshot:
             domain_region_id: Optional existing region ID (e.g. 'h') to assign these cleared tiles to.
             new_domain_name: Optional name if founding a new agricultural domain (e.g. 'Greenwood Grange').
             new_domain_id: Single character ID if founding a new domain.
+            new_domain_lore: Optional narrative lore describing the newly cleared and settled land.
 
         Returns:
             Confirmation message or actionable rejection if water tiles were targeted.
@@ -832,10 +843,17 @@ class WorldStateSnapshot:
         reg_key = "0"
         if new_domain_name and new_domain_id:
             reg_key = str(new_domain_id).strip()[:1]
-            self.data.setdefault("regions", {})[reg_key] = {
+            regions_dict = self.data.setdefault("regions", {})
+            existing_reg = regions_dict.get(reg_key, {}) if isinstance(regions_dict.get(reg_key), dict) else {}
+            reg_entry = {
                 "name": str(new_domain_name).strip(),
                 "type": "farmland" if t_target == ":" else "cleared_land",
             }
+            if new_domain_lore and str(new_domain_lore).strip():
+                reg_entry["lore"] = str(new_domain_lore).strip()
+            elif "lore" in existing_reg:
+                reg_entry["lore"] = existing_reg["lore"]
+            regions_dict[reg_key] = reg_entry
         elif domain_region_id and domain_region_id.strip()[:1] in self.data.get("regions", {}):
             reg_key = domain_region_id.strip()[:1]
         elif t_target == ":":
@@ -870,6 +888,7 @@ class WorldStateSnapshot:
         target_region_id: str = "",
         waterway_name: str = "",
         waterway_region_id: str = "",
+        waterway_lore: str = "",
     ) -> str:
         """Modifies waterways, dams, canals, and reclaimed polders while guaranteeing dual-grid synchronization.
 
@@ -885,6 +904,7 @@ class WorldStateSnapshot:
             target_region_id: For dam/drain: land region ID to assign (defaults to ambient wilderness '0').
             waterway_name: For canal/flood: name of the canal or reservoir (e.g. 'King's Canal').
             waterway_region_id: For canal/flood: single-character region ID for the water body.
+            waterway_lore: Optional narrative lore describing the constructed canal or flooded basin.
 
         Returns:
             Confirmation message detailing modified water/ground tiles and updated regional biomes.
@@ -945,10 +965,17 @@ class WorldStateSnapshot:
             w_type = "river" if act == "canal" else "lake"
 
             # Register water region
-            self.data.setdefault("regions", {})[w_id] = {
+            regions_dict = self.data.setdefault("regions", {})
+            existing_reg = regions_dict.get(w_id, {}) if isinstance(regions_dict.get(w_id), dict) else {}
+            reg_entry = {
                 "name": w_name,
                 "type": w_type,
             }
+            if waterway_lore and str(waterway_lore).strip():
+                reg_entry["lore"] = str(waterway_lore).strip()
+            elif "lore" in existing_reg:
+                reg_entry["lore"] = existing_reg["lore"]
+            regions_dict[w_id] = reg_entry
 
             for pt in norm_coords:
                 x, y = pt[0], pt[1]
@@ -1028,6 +1055,63 @@ class WorldStateSnapshot:
             f"[SUCCESS] Abandoned domain around [{cx}, {cy}] (radius {r}): "
             f"nature reclaimed {len(reclaimed_coords)} tile(s) to '{t_revert}' (Wilderness Region '0')."
         )
+        self.mutations_log.append(msg)
+        print(f"  -> {msg}", flush=True)
+        return msg
+
+    def update_region(
+        self,
+        region_id: str,
+        lore: str = "",
+        name: str = "",
+        region_type: str = "",
+    ) -> str:
+        """Updates an existing regional biome's lore, name, or classification as history transforms the realm.
+
+        Use this tool when a region's ecology, atmosphere, dangers, or reputation evolves across epochs
+        (e.g., an ancient primeval forest becomes blighted, corrupted, or logged; a mountain range becomes haunted
+        by dragons or excavated for iron mines; a desolate wasteland is cleansed; or uncharted wilderness is settled).
+
+        Args:
+            region_id: Single-character alphanumeric ID of the region to update (e.g. 'I', 'D', '0', 'K').
+            lore: Updated or expanded narrative lore describing the region's current state, history, threats, or ecology.
+            name: Optional new display name for the region if renamed.
+            region_type: Optional updated semantic category (e.g. 'forest', 'wasteland', 'mountains', 'wilderness', 'farmland').
+
+        Returns:
+            A confirmation string detailing the region updates.
+        """
+        reg_key = str(region_id).strip()[:1]
+        if not reg_key:
+            return "Error: region_id cannot be empty."
+
+        regions = self.data.setdefault("regions", {})
+        if reg_key not in regions or not isinstance(regions[reg_key], dict):
+            return (
+                f"Error: Region ID '{reg_key}' not found in registered regions. "
+                f"Available region IDs: {list(regions.keys())}"
+            )
+
+        reg = regions[reg_key]
+        changes: list[str] = []
+
+        if name and str(name).strip():
+            reg["name"] = str(name).strip()
+            changes.append(f"name='{reg['name']}'")
+
+        if region_type and str(region_type).strip():
+            reg["type"] = str(region_type).strip().lower()
+            changes.append(f"type='{reg['type']}'")
+
+        if lore and str(lore).strip():
+            reg["lore"] = str(lore).strip()
+            changes.append("lore updated")
+
+        if not changes:
+            return f"Region '{reg_key}' ('{reg.get('name')}') unchanged. Provide lore, name, or region_type to update."
+
+        self.save()
+        msg = f"[SUCCESS] Updated Region '{reg_key}' ('{reg.get('name')}'): {', '.join(changes)}."
         self.mutations_log.append(msg)
         print(f"  -> {msg}", flush=True)
         return msg
@@ -1169,6 +1253,7 @@ class Historian:
             self.snapshot.clear_land,
             self.snapshot.engineer_waterworks,
             self.snapshot.abandon_domain,
+            self.snapshot.update_region,
         ]
         config = types.GenerateContentConfig(
             system_instruction=self.system_prompt,

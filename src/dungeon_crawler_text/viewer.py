@@ -1000,6 +1000,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <span class="field-label">Region Type:</span>
               <span class="field-value" id="inspRegionType">--</span>
             </div>
+            <div class="field-row" style="flex-direction: column; gap: 4px;">
+              <span class="field-label">Region Lore:</span>
+              <div class="lore-text" id="inspRegionLore">No lore recorded for this region.</div>
+            </div>
           </div>
         </div>
 
@@ -1223,6 +1227,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             regionId: rId,
             regionName: rInfo.name || `Region ${rId}`,
             regionType: rInfo.type || "wilderness",
+            regionLore: rInfo.lore || rInfo.description || "",
             features: [],
             topFeature: null,
             compositeChar: tChar
@@ -1568,7 +1573,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         document.getElementById("ttFeatureId").textContent = "None";
         document.getElementById("ttFeatureName").textContent = "None";
         document.getElementById("ttFeatureType").textContent = "None";
-        document.getElementById("ttFeatureDesc").textContent = "No feature present on this tile.";
+        document.getElementById("ttFeatureDesc").textContent = cell.regionLore || "No feature present on this tile.";
       }
     }
 
@@ -1637,6 +1642,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       document.getElementById("inspRegionName").textContent = cell.regionName;
       document.getElementById("inspRegionType").textContent = cell.regionType;
       document.getElementById("inspRegionTypeBadge").textContent = cell.regionType;
+      const inspRegionLore = document.getElementById("inspRegionLore");
+      if (inspRegionLore) {
+        inspRegionLore.textContent = cell.regionLore || "No lore recorded for this region.";
+        inspRegionLore.className = cell.regionLore ? "lore-text" : "lore-empty";
+      }
 
       // Terrain Ground
       document.getElementById("inspTerrainChar").textContent = `'${cell.terrainChar}'`;
@@ -1784,6 +1794,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
         const rStyle = getRegionColors(rId);
         const count = counts[rId] || 0;
+        const lore = r.lore || r.description || "";
+        const loreHtml = lore ? `<div style="font-size: 0.72rem; color: #8b949e; font-style: italic; margin-top: 3px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${lore}</div>` : "";
 
         item.innerHTML = `
           <div class="legend-item-left">
@@ -1791,6 +1803,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             <div>
               <div style="font-weight: 600; color: #fff;">${r.name || 'Unnamed'}</div>
               <div style="font-size: 0.72rem; color: var(--text-muted);">${r.type || 'wilderness'}</div>
+              ${loreHtml}
             </div>
           </div>
           <span class="legend-count">${count} tiles</span>

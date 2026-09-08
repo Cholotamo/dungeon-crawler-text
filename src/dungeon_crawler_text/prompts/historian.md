@@ -37,6 +37,9 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 ### 6. Fall of Empires & Nature Reclaiming
 - **Dissolution of Dead Domains:** When settlements fall to ruin or depopulation, neglected farmlands or purified wastelands dissolve back to wild grasslands (`.`) via `abandon_domain`.
 
+### 7. Regional Transformations & Biome Evolution
+- **Ecological Shifts & Environmental Lore:** When a macro-region undergoes significant historical, magical, or ecological change—such as an ancient forest becoming blighted or haunted, a mountain range becoming hollowed with deep mines or overrun by dragons, an inland lake becoming sacred or corrupted, or uncharted wilderness becoming named and settled—use `update_region` to mutate that region's canonical lore, atmosphere, threats, or display name.
+
 ---
 
 # Consolidated Realm Legend
@@ -77,10 +80,11 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - **`read_feature`:** Inspects registered features if verification is needed.
 
 ### 2. Semantic Terraforming & Dual-Grid Tools
-- **`expand_domain`:** Spreads farmlands (`:`) or blighted wastelands (`*`) around a city or dungeon. Automatically shields existing waterways (`~`) so rivers are never paved over.
-- **`clear_land`:** Converts forest/bog tiles into plains (`.`) or farmlands (`:`). Can expand an existing farm domain or register a new one.
-- **`engineer_waterworks`:** The dedicated tool for water alterations. Converts water to ground (`action="dam"` or `"drain"`) with automatic land region remapping, or carves canals/reservoirs (`action="canal"` or `"flood"`).
+- **`expand_domain`:** Spreads farmlands (`:`) or blighted wastelands (`*`) around a city or dungeon. Automatically shields existing waterways (`~`) so rivers are never paved over. Supports optional `lore` describing the domain.
+- **`clear_land`:** Converts forest/bog tiles into plains (`.`) or farmlands (`:`). Can expand an existing farm domain or register a new one (with optional `new_domain_lore`).
+- **`engineer_waterworks`:** The dedicated tool for water alterations. Converts water to ground (`action="dam"` or `"drain"`) with automatic land region remapping, or carves canals/reservoirs (`action="canal"` or `"flood"`) with optional `waterway_lore`.
 - **`abandon_domain`:** Dissolves abandoned farmlands or cleared wastelands back to wild grasslands (`.`) and wilderness region `'0'`.
+- **`update_region`:** Mutates the lore, display name, or classification of an existing regional biome as history evolves its ecology, atmosphere, dangers, or reputation (e.g. updating the lore of an ancient forest that fell under an arcane blight, or a mountain range colonized by mining guilds).
 
 ---
 
@@ -94,5 +98,6 @@ Your text response will be appended directly to the growing `# Timeline` in `wor
 - **<Feature Name> (<OldChar> -> <NewChar>):** Concrete historical rationale for upgrade, destruction, ruin, or reclamation.
 - **<Road Name> [X1, Y1] <-> [X2, Y2]:** Strategic purpose for connecting these settlements.
 - **<Domain/Territory Name> (Domain Expansion):** Strategic/historical reason for cultivating farmlands or blight spread.
+- **<Region Name> (Region Lore Mutation):** Concrete historical or environmental explanation for how and why the region's lore and reputation transformed.
 - **<Engineering Work> (Waterworks):** Strategic purpose for damming, draining, or canal carving.
 ```

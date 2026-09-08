@@ -143,9 +143,9 @@ uv run python -m dungeon_crawler_text.architect --thinking HIGH
 
 ---
 
-### Step 3: Advance Epochs & Mutate Map Features (Historian)
+### Step 3: Advance Epochs & Mutate Map Features & Region Lore (Historian)
 
-Advance time across historical epochs, founding settlements, paving trade roads, building bridges, and discovering ancient ruins using the Historian agent equipped with **Feature CRUD tools**:
+Advance time across historical epochs, founding settlements, paving trade roads, building bridges, discovering ancient ruins, and mutating regional biomes and region lore as civilizations expand or fall, using the Historian agent equipped with **Feature CRUD, Semantic Terraforming, and Region Mutation tools**:
 
 ```bash
 uv run dungeon-crawler-historian
@@ -158,8 +158,8 @@ uv run python -m dungeon_crawler_text.historian
 ```
 
 #### Historian Workflow
-- **Turn 1 (Epoch 1):** Takes `artifacts/worldmap.md` as input, creates an active copy `artifacts/worldmap_epoch_1.json`, mutates features via tools, and saves the rendered companion `artifacts/worldmap_epoch_1.md`.
-- **Subsequent Turns (Epoch 2+):** Within the same conversation, automatically takes the previous epoch markdown (`worldmap_epoch_1.md`) as input, creates `worldmap_epoch_2.json`, applies further mutations (upgrading settlements to cities `'O'`, paving roads `'+'`, creating dungeons `'!'`), and saves `worldmap_epoch_2.md`.
+- **Turn 1 (Epoch 1):** Takes `artifacts/worldmap.md` as input, creates an active copy `artifacts/worldmap_epoch_1.json`, mutates features and regions via tools, and saves the rendered companion `artifacts/worldmap_epoch_1.md`.
+- **Subsequent Turns (Epoch 2+):** Automatically takes the previous epoch markdown (`worldmap_epoch_1.md`) as input, creates `worldmap_epoch_2.json`, applies further mutations (upgrading settlements to cities `'O'`, paving roads `'+'`, creating dungeons `'!'`, expanding domains `:`, mutating region lore via `update_region`), and saves `worldmap_epoch_2.md`.
 
 #### Historian CLI Options
 
@@ -256,9 +256,16 @@ The Architect outputs a structured JSON artifact conforming to the following sch
     "32 strings of exactly 32 single-character region IDs..."
   ],
   "regions": {
-    "0": { "name": "Unnamed Wilderness", "type": "wilderness" },
-    "1": { "name": "Iron-Grip Coast", "type": "coastal" },
-    "2": { "name": "Skyshear Spine", "type": "mountain" }
+    "0": {
+      "name": "Unnamed Wilderness",
+      "type": "wilderness",
+      "lore": "Untamed and primeval wilderness connecting the distinct geographic landmarks of the realm."
+    },
+    "1": {
+      "name": "Iron-Grip Coast",
+      "type": "coastal",
+      "lore": "A storm-lashed shoreline of basalt sea stacks and churning dark surf."
+    }
   },
   "features": {}
 }

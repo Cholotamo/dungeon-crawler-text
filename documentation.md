@@ -1,3 +1,56 @@
+# 08/09/2026
+Introduced **Dynamic Regional Biome Lore Mutation Protocol for the Grand Historian**.
+
+### The Problem
+While region lore was successfully extracted by the Architect and persisted to `worldmap.json` and `worldmap.md`, the Grand Historian lacked tool mechanisms to mutate, expand, or evolve region lore across successive epochs:
+1. **Static Regional Lore Across Generations:** As settlements rose, empires fell, cataclysms struck, and wildernesses were conquered, region lore remained frozen in its primordial Epoch 1 state. If an ancient forest (`Elden-Sylvan`) became cursed with necrotic blight or an alpine range (`Jotun-Crags`) was colonized by mining leagues, the Historian could chronicle the event in `# Timeline`, but could not update the canonical regional lore in the `regions` dictionary.
+2. **Missing Tool Declaration:** The Historian's AFC toolset lacked an `update_region` tool, and terraforming tools (`expand_domain`, `clear_land`, `engineer_waterworks`) lacked lore arguments.
+
+### The Solution: Dynamic Region Mutation & Tool Integration
+1. **Dedicated Region Update Tool (`WorldStateSnapshot.update_region` in `historian.py`):**
+   - Allows the Grand Historian to mutate an existing region's `lore`, `name`, or `region_type` via Gemini AFC.
+   - Automatically validates region IDs, applies atomic mutations, logs the change to `mutations_log`, and persists to `worldmap_epoch_n.json` and `worldmap_epoch_n.md`.
+2. **Terraforming Lore Integration (`historian.py`):**
+   - Added optional `lore` parameters to `expand_domain(..., lore="")`, `clear_land(..., new_domain_lore="")`, and `engineer_waterworks(..., waterway_lore="")`.
+3. **Prompt & Catalyst Mandate (`prompts/historian.md`):**
+   - Added Catalyst 7: *Regional Transformations & Biome Evolution*.
+   - Instructed the Historian on when and how to invoke `update_region` (arcane blights, colonization, renaming, ecological shifts).
+   - Added `- **<Region Name> (Region Lore Mutation):**` to the epoch timeline output contract.
+
+---
+
+# 08/09/2026
+Introduced **Region Lore Extraction & Dual-Artifact Lore Harmonization Protocol**.
+
+### The Problem
+Previously, while the Loremaster generated rich, evocative narrative prose in `worldprose.md` describing the distinct regions of the realm (e.g. *Thalass-Grave*, *Jotun-Crags*, *Elden-Sylvan*), the Architect only extracted region `name` and `type` into `worldmap.json`:
+1. **Context Starvation for Subsequent Epochs:** When the Grand Historian chronologized subsequent epochs using `worldmap.md`, the Regional Biomes registry only listed names and types (e.g. `- ID 'A': **Thalass-Grave** (ocean)`). The evocative descriptions of geography, climate, and ecology written by the Loremaster were lost from map artifacts and LLM context.
+2. **Missing Region Lore in Viewer:** In the interactive HTML viewer and Tile Inspector, tiles without features only displayed generic fallback text (`"No feature present on this tile."`) and region cards lacked lore.
+3. **Registry Desynchronization:** No prompt mandate existed for the Architect to synthesize region lore from `worldprose.md` during code execution, and `format_world_for_llm` only formatted lore for feature overlays rather than regional biomes.
+
+### The Solution: End-to-End Region Lore Pipeline
+1. **Architect Prompt & Schema Mandate (`prompts/architect_worldmap.md`):**
+   - Added `lore` field to region schema in `regions` registry.
+   - Mandated that the Architect extract a concise 1–3 sentence narrative summary capturing the atmosphere, ecology, physical characteristics, and mythic weight of each region directly from the Loremaster's prose.
+2. **Validation Engine Support (`validate_world_map` in `architect.py`):**
+   - Defensively verifies that all regions in `region_grid` have valid `lore` entries, with fallback for default wilderness `'0'`.
+   - Updated CLI preview to display region lore snippets.
+3. **Dual-Artifact Rendering (`format_world_for_llm` in `world_state.py`):**
+   - Formats region lore under each regional biome entry:
+     ```markdown
+     - ID 'A': **Thalass-Grave** (ocean)
+       - Lore: An endless ocean of iron-dark waters to the west...
+     ```
+   - Injects canonical region lore directly into downstream agents (Historian, Scribes).
+4. **Interactive Viewer Integration (`viewer.py` & `viewer.html`):**
+   - Added `Region Lore` to the Regional Biome card in the Inspector (`#inspRegionLore`).
+   - Enhanced hover tooltips to fall back to `regionLore` when inspecting pristine tiles without features.
+   - Enhanced the Regions sidebar tab to display lore snippets for every biome.
+5. **Historian Tool Protection (`historian.py`):**
+   - Defensively preserved existing `lore` fields during domain expansion, land clearing, and waterworks engineering.
+
+---
+
 # 07/09/2026
 Introduced **Automatic Road Continuity Interpolation & Gap Elimination Protocol**.
 

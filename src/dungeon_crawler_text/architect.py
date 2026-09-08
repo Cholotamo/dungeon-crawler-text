@@ -161,14 +161,40 @@ def validate_world_map(data: dict[str, Any]) -> dict[str, Any]:
         data["regions"] = regions
 
     # Ensure default wilderness '0'
-    if "0" not in regions:
-        regions["0"] = {"name": "Unnamed Wilderness", "type": "wilderness"}
+    if "0" not in regions or not isinstance(regions["0"], dict):
+        regions["0"] = {
+            "name": "Unnamed Wilderness",
+            "type": "wilderness",
+            "lore": "Untamed and primeval wilderness connecting the distinct geographic landmarks of the realm.",
+        }
+    else:
+        if "name" not in regions["0"]:
+            regions["0"]["name"] = "Unnamed Wilderness"
+        if "type" not in regions["0"]:
+            regions["0"]["type"] = "wilderness"
+        if "lore" not in regions["0"]:
+            regions["0"]["lore"] = regions["0"].get(
+                "description",
+                "Untamed and primeval wilderness connecting the distinct geographic landmarks of the realm.",
+            )
 
     # Ensure all region characters in region_grid exist in regions registry
     used_region_chars = {char for row in region for char in row}
     for char in used_region_chars:
-        if char not in regions:
-            regions[char] = {"name": f"Region {char}", "type": "wilderness"}
+        if char not in regions or not isinstance(regions[char], dict):
+            regions[char] = {
+                "name": f"Region {char}",
+                "type": "wilderness",
+                "lore": f"Wild and uncharted territory designated as Region {char}.",
+            }
+        else:
+            r_info = regions[char]
+            if "name" not in r_info:
+                r_info["name"] = f"Region {char}"
+            if "type" not in r_info:
+                r_info["type"] = "wilderness"
+            if "lore" not in r_info:
+                r_info["lore"] = r_info.get("description", "")
 
     # Features: strictly empty dictionary for primordial stage
     data["features"] = {}
@@ -275,7 +301,9 @@ def print_map_preview(map_data: dict[str, Any]) -> None:
 
     print("\nREGION REGISTRY:")
     for rid, info in sorted(map_data.get("regions", {}).items()):
-        print(f"  [{rid}] {info.get('name')} ({info.get('type')})")
+        lore = info.get("lore", "")
+        lore_snippet = f" - \"{lore[:60]}...\"" if len(lore) > 60 else (f" - \"{lore}\"" if lore else "")
+        print(f"  [{rid}] {info.get('name')} ({info.get('type')}){lore_snippet}")
     print("=" * 68)
 
 

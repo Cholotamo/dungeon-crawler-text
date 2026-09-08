@@ -127,11 +127,20 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
                 )
 
     # 4. Regions Registry
-    region_lines = [
-        f"- ID '{r_id}': **{r_info.get('name', 'Unnamed')}** ({r_info.get('type', 'wilderness')})"
-        for r_id, r_info in sorted(regions.items())
-        if isinstance(r_info, dict)
-    ]
+    region_lines = []
+    for r_id, r_info in sorted(regions.items()):
+        if not isinstance(r_info, dict):
+            continue
+        r_name = r_info.get("name", "Unnamed")
+        r_type = r_info.get("type", "wilderness")
+        r_lore = r_info.get("lore", "") or r_info.get("description", "")
+        if r_lore and str(r_lore).strip():
+            region_lines.append(
+                f"- ID '{r_id}': **{r_name}** ({r_type})\n"
+                f"  - Lore: {str(r_lore).strip()}"
+            )
+        else:
+            region_lines.append(f"- ID '{r_id}': **{r_name}** ({r_type})")
 
     epoch = world_data.get("epoch")
     epoch_line = f"- Epoch: {epoch}\n" if epoch is not None else ""
