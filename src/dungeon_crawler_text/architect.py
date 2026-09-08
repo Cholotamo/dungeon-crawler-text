@@ -17,6 +17,7 @@ from google import genai
 from google.genai import types
 
 from dungeon_crawler_text.retry import retry_with_backoff
+from dungeon_crawler_text.world_state import format_world_for_llm
 
 # Suppress the redundant SDK warning for stateless automatic function calling/code execution
 try:
@@ -244,7 +245,7 @@ class Architect:
 
     @staticmethod
     def save_world_map(map_data: dict[str, Any], output_path: Path = DEFAULT_OUTPUT_MAP_PATH) -> Path:
-        """Saves the validated world map dictionary to disk as JSON."""
+        """Saves the validated world map dictionary to disk as JSON and LLM-readable Markdown."""
         if output_path.is_dir() or output_path.suffix == "":
             output_path.mkdir(parents=True, exist_ok=True)
             target_file = output_path / "worldmap.json"
@@ -253,6 +254,12 @@ class Architect:
             target_file = output_path
 
         target_file.write_text(json.dumps(map_data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        # Save LLM-readable Markdown companion right after JSON
+        md_file = target_file.with_suffix(".md")
+        md_content = format_world_for_llm(map_data)
+        md_file.write_text(md_content, encoding="utf-8")
+
         return target_file
 
 
@@ -332,7 +339,8 @@ def main() -> None:
         output_file = architect.save_world_map(world_map, output_path=Path(args.output))
 
         print_map_preview(world_map)
-        print(f"\nWorld map successfully saved to: {output_file}", flush=True)
+        print(f"\nWorld map JSON successfully saved to:     {output_file}", flush=True)
+        print(f"World map Markdown successfully saved to: {output_file.with_suffix('.md')}", flush=True)
 
         print("\n" + "=" * 80, flush=True)
         print(" TOKEN USAGE SUMMARY", flush=True)

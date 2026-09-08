@@ -6,6 +6,7 @@ from dungeon_crawler_text.loremaster import (
     DEFAULT_PRIMORDIAL_QUERY,
     Loremaster,
 )
+from dungeon_crawler_text.world_state import format_world_for_llm
 
 if TYPE_CHECKING:
     from dungeon_crawler_text.architect import (
@@ -29,4 +30,5 @@ __all__ = [
     "DEFAULT_OUTPUT_MAP_PATH",
     "Loremaster",
     "DEFAULT_PRIMORDIAL_QUERY",
+    "format_world_for_llm",
 ]
