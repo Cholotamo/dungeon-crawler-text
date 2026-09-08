@@ -26,7 +26,7 @@ except Exception:
     pass
 
 DEFAULT_INPUT_PROSE_PATH = Path("artifacts/worldprose.md")
-DEFAULT_OUTPUT_MAP_PATH = Path("artifacts/world_map.json")
+DEFAULT_OUTPUT_MAP_PATH = Path("artifacts/worldmap.json")
 
 VALID_TERRAIN_CHARS = {
     ".",  # Open Plains / Wilderness
@@ -247,7 +247,7 @@ class Architect:
         """Saves the validated world map dictionary to disk as JSON."""
         if output_path.is_dir() or output_path.suffix == "":
             output_path.mkdir(parents=True, exist_ok=True)
-            target_file = output_path / "world_map.json"
+            target_file = output_path / "worldmap.json"
         else:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             target_file = output_path

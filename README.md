@@ -1,6 +1,40 @@
-# Dungeon Crawler Text: Loremaster Primordial World-Building
+# Dungeon Crawler Text: Primordial World-Building Pipeline
 
-A generative fantasy world-building tool powered by Gemini. The **Loremaster** agent describes the untouched, primordial landscape and raw geography of a fantasy realm at the dawn of time, balancing Tolkien-esque mythic depth with gritty, atmospheric weight.
+A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in two coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map:
+
+1. **The Loremaster:** Synthesizes evocative, mythic narrative prose describing the untouched primordial landscape and raw physical geography of a realm at the dawn of creation.
+2. **The Architect:** Translates the primordial world prose into a structured 32x32 ASCII and JSON world map using Gemini with **Python Code Execution**, enforcing organic biome geography and strict hydrological rules.
+
+```
+                    ┌─────────────────────────┐
+                    │   Primordial Prompt /   │
+                    │          Query          │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │       Loremaster        │
+                    │  (gemini-3.6-flash)     │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/worldprose.md │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │        Architect        │
+                    │ (LLM + Code Execution)  │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/worldmap.json │
+                    │   (32x32 Terrain &      │
+                    │    Region Registry)     │
+                    └─────────────────────────┘
+```
 
 ---
 
@@ -25,59 +59,146 @@ uv sync
 
 ---
 
-## Running the Generator
+## Running the Pipeline
 
-Generate the primordial landscape via the package entry point:
+### Step 1: Generate Primordial World Prose (Loremaster)
+
+Generate the primordial narrative prose using the CLI:
 
 ```bash
 uv run dungeon-crawler-text
 ```
 
-Alternatively, invoke the module directly with Python:
+Or invoke the module directly:
 
 ```bash
 uv run python -m dungeon_crawler_text.main
 ```
 
----
-
-## CLI Options
-
-Customize the generation using command-line arguments:
+#### Loremaster CLI Options
 
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
 | `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
 | `--query` | `str` | *Default Primordial Query* | Custom prompt query to ask the Loremaster |
-| `--output`, `-o` | `str` | `artifacts/worldprose.md` | File or directory path to save the output artifact file |
+| `--output`, `-o` | `str` | `artifacts/worldprose.md` | Path to save the output prose file |
 
-### Examples
+**Examples:**
+```bash
+# Default run (saves to artifacts/worldprose.md)
+uv run dungeon-crawler-text
 
-- **Default run (saves to `artifacts/worldprose.md`):**
-  ```bash
-  uv run dungeon-crawler-text
-  ```
+# Save to custom file
+uv run dungeon-crawler-text --output artifacts/custom_world.md
 
-- **Save landscape description to a custom path:**
-  ```bash
-  uv run dungeon-crawler-text --output custom_world.md
-  ```
+# Custom world query
+uv run dungeon-crawler-text --query "Describe a primordial volcanic archipelago of black glass and boiling lagoons."
+```
 
-- **Use a custom query:**
-  ```bash
-  uv run dungeon-crawler-text --query "Describe a primordial volcanic island chain surrounded by boiling reefs."
-  ```
+---
+
+### Step 2: Generate 32x32 World Map (Architect)
+
+Translate the generated world prose into a validated 32x32 world map using the Architect:
+
+```bash
+uv run python -m dungeon_crawler_text.architect
+```
+
+#### Architect CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--input`, `-i` | `str` | `artifacts/worldprose.md` | Path to input world prose markdown file |
+| `--output`, `-o` | `str` | `artifacts/worldmap.json` | Path to save output world map JSON file |
+| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
+
+**Examples:**
+```bash
+# Default run (reads artifacts/worldprose.md, saves artifacts/worldmap.json)
+uv run python -m dungeon_crawler_text.architect
+
+# Custom input and output paths
+uv run python -m dungeon_crawler_text.architect -i artifacts/custom_world.md -o artifacts/custom_map.json
+
+# Run with HIGH thinking level
+uv run python -m dungeon_crawler_text.architect --thinking HIGH
+```
+
+---
+
+## Python API
+
+Both agents can be imported and executed programmatically:
+
+```python
+from dungeon_crawler_text import Architect, Loremaster
+
+# 1. Generate primordial narrative prose
+loremaster = Loremaster(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+prose = loremaster.generate_primordial_world()
+
+# 2. Architect 32x32 world map from prose
+architect = Architect(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+world_map = architect.generate_world_map(worldprose=prose)
+
+# 3. Save to disk
+architect.save_world_map(world_map)
+```
+
+---
+
+## Map Structure & Legend
+
+The Architect outputs a structured JSON artifact conforming to the following schema:
+
+```json
+{
+  "name": "Realm Name from Prose",
+  "terrain_grid": [
+    "32 strings of exactly 32 terrain chars..."
+  ],
+  "region_grid": [
+    "32 strings of exactly 32 single-character region IDs..."
+  ],
+  "regions": {
+    "0": { "name": "Unnamed Wilderness", "type": "wilderness" },
+    "1": { "name": "Iron-Grip Coast", "type": "coastal" },
+    "2": { "name": "Skyshear Spine", "type": "mountain" }
+  },
+  "features": {}
+}
+```
+
+### Terrain Character Legend
+
+| Char | Terrain Type | Description |
+| :---: | :--- | :--- |
+| `.` | Plains / Wilderness | Open lowlands and temperate meadows |
+| `,` | Hills / Slopes | Rolling uplands and foothills |
+| `#` | Forest / Woods | Temperate woodland and copse |
+| `&` | Dense Forest / Deep Jungle | Ancient, impenetrable canopy |
+| `%` | Swamp / Bog / Marsh | Wetlands, mires, and sodden fens |
+| `~` | Water / River / Ocean | Cardinal waterways, seas, and lakes |
+| `;` | Coast / Beach / Shallows | Shingle shores, sandbanks, and tidal reaches |
+| `^` | Mountain Peak / Ridge | Towering alpine peaks and jagged crests |
+| `/` | Cliffs / Edges / Chasms | Precipitous escarpments and fissures |
+| `*` | Wastelands | Blighted, volcanic, or desolate wastes |
+| `:` | Farmland | Arable agricultural lands |
 
 ---
 
 ## Architecture & How It Works
 
-1. **System Prompt (`loremaster_worldprose.md`):**
+1. **Loremaster (`loremaster.py` & `prompts/loremaster_worldprose.md`):**
    - Anchors the model in high-fantasy mythic world-building (Tolkien + Kentaro Miura).
-   - Constrains the narrative to primordial physical geography: natural boundaries, mountain ridges, waterways, coastlines, and untamed biomes before mortal civilizations or settlements.
+   - Restricts focus purely to macro-geography: ridgelines, coastlines, river basins, and primal ecosystems before mortal civilization or settlements.
 
-2. **Single-Question Generation (`Loremaster` & `main.py`):**
-   - Dispatches a single focused query via `client.models.generate_content`.
-   - Displays the narrative prose and tracks token usage.
-   - Saves clean Markdown if an output path is provided.
+2. **Architect (`architect.py` & `prompts/architect_worldmap.md`):**
+   - **Python Code Execution:** Operates with Gemini code execution enabled. The model writes and runs procedural Python code (using cellular smoothing, noise, and distance heuristics) to ensure natural, organic landmasses rather than artificial straight lines or blocks.
+   - **Hydrological Continuity:** Enforces strict 4-way cardinal connectivity for rivers (`~`) to avoid diagonal water leaks and ensure sound downstream bridge and navigation topology.
+   - **Validation Engine:** Automatically validates grid dimensions (strictly 32x32), verifies all characters in `region_grid` exist in the `regions` dictionary, guarantees region `'0'` is mapped to `"Unnamed Wilderness"`, and keeps `features` strictly empty for the primordial age.
+   - **Visual CLI Preview:** Renders an ASCII map preview and regional registry breakdown directly to the terminal upon completion.
+   - **Resilience & Tracking:** Employs exponential backoff retry handling and tracks token usage (prompt, candidate, thinking, and total counts).
