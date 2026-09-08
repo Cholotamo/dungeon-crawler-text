@@ -58,7 +58,9 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
             continue
         char = str(feat.get("char", "o"))[0]
         tiles = feat.get("tiles", [])
-        if tiles and isinstance(tiles[0], int):
+        if not tiles and "pos" in feat:
+            tiles = [feat["pos"]]
+        elif tiles and isinstance(tiles[0], int):
             tiles = [tiles]
 
         for pt in tiles:
@@ -97,8 +99,13 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
             fchar = feat.get("char", "?")
             ftype = feat.get("type", "feature")
             tiles = feat.get("tiles", [])
-            if tiles and isinstance(tiles[0], int):
+            if not tiles and "pos" in feat:
+                tiles = [feat["pos"]]
+            elif tiles and isinstance(tiles[0], int):
                 tiles = [tiles]
+
+            desc = feat.get("description", "")
+            desc_line = f"\n  - Lore: {desc}" if desc else ""
 
             if len(tiles) == 1:
                 x, y = tiles[0][0], tiles[0][1]
@@ -108,7 +115,7 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
                 feature_lines.append(
                     f"- `[{key}]` **{fname}** ['{fchar}'] ({ftype})\n"
                     f"  - Position: [X: {x:02d}, Y: {y:02d}]\n"
-                    f"  - Biome: Region '{r_id}' ({r_name}) | Natural Ground: '{t_char}'"
+                    f"  - Biome: Region '{r_id}' ({r_name}) | Natural Ground: '{t_char}'{desc_line}"
                 )
             else:
                 p_start = f"[X: {tiles[0][0]:02d}, Y: {tiles[0][1]:02d}]" if tiles else "[?]"
@@ -116,7 +123,7 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
                 feature_lines.append(
                     f"- `[{key}]` **{fname}** ['{fchar}'] ({ftype}, {len(tiles)} tiles)\n"
                     f"  - Span: {p_start} <---> {p_end}\n"
-                    f"  - Coordinates: {tiles}"
+                    f"  - Coordinates: {tiles}{desc_line}"
                 )
 
     # 4. Regions Registry
@@ -126,16 +133,49 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
         if isinstance(r_info, dict)
     ]
 
+    epoch = world_data.get("epoch")
+    epoch_line = f"- Epoch: {epoch}\n" if epoch is not None else ""
+
+    timeline = world_data.get("timeline")
+    timeline_section = ""
+    if timeline:
+        if isinstance(timeline, list):
+            entries = []
+            for item in timeline:
+                if isinstance(item, dict):
+                    ep = item.get("epoch", "")
+                    title = item.get("title", "")
+                    hdr = f"## Epoch {ep}: {title}\n" if title else (f"## Epoch {ep}\n" if ep else "")
+                    entries.append(f"{hdr}{item.get('content', '').strip()}".strip())
+                elif isinstance(item, str) and item.strip():
+                    entries.append(item.strip())
+            joined = "\n\n".join(entries)
+        else:
+            joined = str(timeline).strip()
+
+        if joined:
+            if not joined.startswith("# Timeline"):
+                timeline_section = f"\n\n# Timeline\n\n{joined}"
+            else:
+                timeline_section = f"\n\n{joined}"
+    elif world_data.get("current_events"):
+        ce = str(world_data["current_events"]).strip()
+        if ce:
+            if not ce.startswith("# Timeline"):
+                timeline_section = f"\n\n# Timeline\n\n{ce}"
+            else:
+                timeline_section = f"\n\n{ce}"
+
     return (
         f"# World State: {name}\n"
+        f"{epoch_line}"
         f"- Dimensions: {width}x{height} (X: 00..{width-1:02d}, Y: 00..{height-1:02d})\n"
         f"- Registered Features: {len(features)}\n\n"
         f"### Map Inspection (Side-by-Side)\n"
         f"```text\n{map_block}\n```\n\n"
-        f"### Feature Legend\n"
-        f"- `+` : Road / Route  |  `=` : Bridge  |  `o` : Outpost/Settlement  |  `O` : Major City  |  `!` : Dungeon/Stronghold\n\n"
         f"### Features Registry\n"
         f"{chr(10).join(feature_lines)}\n\n"
         f"### Regional Biomes\n"
         f"{chr(10).join(region_lines)}"
+        f"{timeline_section}"
     )

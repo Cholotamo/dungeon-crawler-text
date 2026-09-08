@@ -4,6 +4,7 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
 
 1. **The Loremaster:** Synthesizes evocative, mythic narrative prose describing the untouched primordial landscape and raw physical geography of a realm at the dawn of creation.
 2. **The Architect:** Translates the primordial world prose into a structured 32x32 ASCII and JSON world map using Gemini with **Python Code Execution**, enforcing organic biome geography and strict hydrological rules.
+3. **The Historian:** Chronicles the passage of historical epochs, translating narrative developments into physical changes on the map using fine-grained **Feature CRUD Tools** via Gemini Automatic Function Calling (AFC).
 
 ```
                     ┌─────────────────────────┐
@@ -31,8 +32,21 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
                                  ▼
                     ┌─────────────────────────┐
                     │ artifacts/worldmap.json │
-                    │   (32x32 Terrain &      │
-                    │    Region Registry)     │
+                    │ artifacts/worldmap.md   │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │        Historian        │
+                    │   (Feature CRUD Tools)  │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/              │
+                    │   worldmap_epoch_1.json │
+                    │   worldmap_epoch_1.md   │
+                    │   worldmap_epoch_n...   │
                     └─────────────────────────┘
 ```
 
@@ -129,12 +143,58 @@ uv run python -m dungeon_crawler_text.architect --thinking HIGH
 
 ---
 
+### Step 3: Advance Epochs & Mutate Map Features (Historian)
+
+Advance time across historical epochs, founding settlements, paving trade roads, building bridges, and discovering ancient ruins using the Historian agent equipped with **Feature CRUD tools**:
+
+```bash
+uv run dungeon-crawler-historian
+```
+
+Or invoke via Python module:
+
+```bash
+uv run python -m dungeon_crawler_text.historian
+```
+
+#### Historian Workflow
+- **Turn 1 (Epoch 1):** Takes `artifacts/worldmap.md` as input, creates an active copy `artifacts/worldmap_epoch_1.json`, mutates features via tools, and saves the rendered companion `artifacts/worldmap_epoch_1.md`.
+- **Subsequent Turns (Epoch 2+):** Within the same conversation, automatically takes the previous epoch markdown (`worldmap_epoch_1.md`) as input, creates `worldmap_epoch_2.json`, applies further mutations (upgrading settlements to cities `'O'`, paving roads `'+'`, creating dungeons `'!'`), and saves `worldmap_epoch_2.md`.
+
+#### Historian CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--input`, `-i` | `str` | *Auto-detect latest epoch* | Input markdown file path |
+| `--epochs`, `-n` | `int` | `1` | Number of sequential epochs to advance within the same conversation |
+| `--query`, `-q` | `str` | *Epoch Default* | Custom historical prompt or directive for the epoch |
+| `--interactive` | `flag` | `False` | Run interactively, prompting for epoch directives within the same conversation |
+| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `MEDIUM` | Thinking level for Gemini models (`HIGH`, `MEDIUM`, `LOW`) |
+
+**Examples:**
+```bash
+# Advance one epoch (takes worldmap.md or latest epoch, saves _epoch_n)
+uv run dungeon-crawler-historian
+
+# Run 3 consecutive epochs in a single ongoing conversation
+uv run dungeon-crawler-historian --epochs 3
+
+# Run interactive simulation loop
+uv run dungeon-crawler-historian --interactive
+
+# Custom historical event query
+uv run dungeon-crawler-historian --query "A devastating civil war splits the realm, turning the eastern fortress into a ruined dungeon."
+```
+
+---
+
 ## Python API
 
-Both agents can be imported and executed programmatically:
+All agents can be imported and executed programmatically:
 
 ```python
-from dungeon_crawler_text import Architect, Loremaster
+from dungeon_crawler_text import Architect, Historian, Loremaster
 
 # 1. Generate primordial narrative prose
 loremaster = Loremaster(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
@@ -143,9 +203,16 @@ prose = loremaster.generate_primordial_world()
 # 2. Architect 32x32 world map from prose
 architect = Architect(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
 world_map = architect.generate_world_map(worldprose=prose)
-
-# 3. Save to disk
 architect.save_world_map(world_map)
+
+# 3. Advance world history across epochs using the Historian
+historian = Historian(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+
+# Run Epoch 1 (takes worldmap.md, creates worldmap_epoch_1.json and worldmap_epoch_1.md)
+res_epoch1 = historian.run_epoch()
+
+# Run Epoch 2 in the same conversation (takes worldmap_epoch_1.md, creates worldmap_epoch_2.json and worldmap_epoch_2.md)
+res_epoch2 = historian.run_epoch()
 ```
 
 ---
