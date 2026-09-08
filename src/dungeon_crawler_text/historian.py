@@ -38,15 +38,13 @@ DEFAULT_INPUT_MD_PATH = DEFAULT_ARTIFACTS_DIR / "worldmap.md"
 DEFAULT_EPOCH_1_QUERY = (
     "The dawn of mortal civilization has arrived. Chronicle the arrival of the realm's first peoples, "
     "the founding of initial settlements and outposts, the paving of early trade trails, and "
-    "the discovery or awakening of ancient primordial ruins or perilous dens. Use your feature CRUD tools "
-    "to establish these initial locations upon the world map."
+    "the discovery or awakening of ancient primordial ruins or perilous dens."
 )
 
 DEFAULT_SUBSEQUENT_EPOCH_QUERY = (
     "Generations have passed. Chronicle the unfolding history of the realm: how established settlements "
     "prospered into major cities or succumbed to war, plague, or famine; how new frontiers were settled; "
-    "how trade routes expanded; and what ancient horrors or dungeons were unearthed. "
-    "Use your feature CRUD tools to mutate the world map accordingly."
+    "how trade routes expanded; and what ancient horrors or dungeons were unearthed."
 )
 
 
@@ -650,18 +648,10 @@ class Historian:
         )
 
         user_prompt = (
-            f"## Epoch {epoch_num} World State & Directive\n\n"
-            f"Here is the current world map state from `{in_md.name}` (including geography, feature registry, and growing Timeline):\n\n"
             f"{input_md_content}\n\n"
             f"---\n"
-            f"### Directive for Epoch {epoch_num}:\n"
-            f"{epoch_directive}\n\n"
-            f"### Execution Instructions:\n"
-            f"1. Reason through your plans in your own head first. Analyze the physical terrain, existing features, and prior timeline entries.\n"
-            f"2. Execute your feature CRUD tools (`create_feature`, `update_feature`, `delete_feature`, `read_feature`) "
-            f"to apply this epoch's physical changes to the 32x32 world map.\n"
-            f"3. Output your entry for Epoch {epoch_num} to be appended to the growing `# Timeline`. "
-            f"Keep it tight, focused, and purposeful: only output content that directly supports and explains WHY these specific changes happened on the map."
+            f"### Epoch {epoch_num} Directive\n"
+            f"{epoch_directive}"
         )
 
         response = self._execute_turn(turn_chat, user_prompt)
