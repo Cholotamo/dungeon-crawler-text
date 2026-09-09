@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING, Any
 
 from dungeon_crawler_text.historian import (
+    DEFAULT_EPOCH_1_QUERY,
+    DEFAULT_SUBSEQUENT_EPOCH_QUERY,
     Historian,
     HistorianEpochResult,
     ToolRejectionError,
@@ -52,10 +54,12 @@ __all__ = [
     "Architect",
     "DEFAULT_INPUT_PROSE_PATH",
     "DEFAULT_OUTPUT_MAP_PATH",
+    "DEFAULT_PRIMORDIAL_QUERY",
+    "DEFAULT_EPOCH_1_QUERY",
+    "DEFAULT_SUBSEQUENT_EPOCH_QUERY",
     "Historian",
     "HistorianEpochResult",
     "Loremaster",
-    "DEFAULT_PRIMORDIAL_QUERY",
     "ToolRejectionError",
     "WorldStateSnapshot",
     "build_viewer_html",
