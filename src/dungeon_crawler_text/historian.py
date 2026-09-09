@@ -7,6 +7,7 @@ using feature CRUD tools via Gemini Automatic Function Calling (AFC).
 import argparse
 from copy import deepcopy
 from dataclasses import dataclass, field
+import heapq
 import json
 import logging
 from pathlib import Path
@@ -1399,53 +1400,191 @@ class WorldStateSnapshot:
 
         return ordered_downstream
 
+    def _find_canal_path(
+        self,
+        destination: list[int],
+        source: list[int],
+        max_length: int = 25,
+    ) -> list[list[int]]:
+        """Finds an optimal 4-cardinal path carving from destination to a source waterbody using A* pathfinding.
+
+        Curves around settlements ('o', 'O'), dungeons ('!'), dams ('*'), bridges ('='), and mountain peaks ('^').
+        Penalizes difficult terrain (cliffs have high cost, plains have low cost).
+        Terminates upon reaching the source coordinate or any contiguous tile of the source's water region.
+        """
+        dest_x, dest_y = int(destination[0]), int(destination[1])
+        src_x, src_y = int(source[0]), int(source[1])
+
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        if not (0 <= dest_x < width and 0 <= dest_y < height):
+            raise ToolRejectionError(f"[REJECTION] Destination coordinate [{dest_x}, {dest_y}] is out of bounds.")
+        if not (0 <= src_x < width and 0 <= src_y < height):
+            raise ToolRejectionError(f"[REJECTION] Source coordinate [{src_x}, {src_y}] is out of bounds.")
+
+        # Identify source water region. If source tile itself isn't water, check if adjacent to water.
+        src_reg_id = region[src_y][src_x]
+        if terrain[src_y][src_x] not in ("~", ";"):
+            found_water = None
+            for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = src_x + ddx, src_y + ddy
+                if 0 <= nx < width and 0 <= ny < height and terrain[ny][nx] in ("~", ";"):
+                    found_water = (nx, ny)
+                    src_reg_id = region[ny][nx]
+                    break
+            if not found_water:
+                raise ToolRejectionError(
+                    f"[REJECTION] Source coordinate [{src_x}, {src_y}] is situated on dry land ('{terrain[src_y][src_x]}'). "
+                    f"Source must be an existing waterbody tile ('~' or ';') or directly adjacent to one."
+                )
+            src_x, src_y = found_water
+
+        # 1. Collect protected landmark tiles (cannot be excavated/flooded)
+        protected_tiles = set()
+        features = self.data.get("features", {})
+        for feat in features.values():
+            if not isinstance(feat, dict):
+                continue
+            fchar = feat.get("char", "")
+            ftype = feat.get("type", "")
+            if fchar in ("+",) or ftype in ("road", "highway", "trail"):
+                continue  # Roads can be crossed/dredged
+            tiles = feat.get("tiles") or ([feat["pos"]] if "pos" in feat else [])
+            for pt in tiles:
+                protected_tiles.add((pt[0], pt[1]))
+
+        dest_is_landmark = (dest_x, dest_y) in protected_tiles
+
+        # 2. A* Priority Queue: (f_score, cost_so_far, (cx, cy), path)
+        open_set: list[tuple[float, float, tuple[int, int], list[tuple[int, int]]]] = []
+        h_start = float(abs(dest_x - src_x) + abs(dest_y - src_y))
+        heapq.heappush(open_set, (h_start, 0.0, (dest_x, dest_y), [(dest_x, dest_y)]))
+        visited: dict[tuple[int, int], float] = {}
+
+        while open_set:
+            f, cost, (cx, cy), path = heapq.heappop(open_set)
+
+            # Check if current tile connects to source waterbody
+            is_goal = False
+            if (cx, cy) == (src_x, src_y):
+                is_goal = True
+            elif (cx, cy) != (dest_x, dest_y) and terrain[cy][cx] in ("~", ";") and region[cy][cx] == src_reg_id:
+                is_goal = True
+
+            if is_goal:
+                # Extract path tiles that need excavation
+                excavated: list[list[int]] = []
+                for px, py in path:
+                    if (px, py) == (dest_x, dest_y) and dest_is_landmark:
+                        continue
+                    if terrain[py][px] in ("~", ";") and region[py][px] == src_reg_id:
+                        continue
+                    excavated.append([px, py])
+                return excavated
+
+            if (cx, cy) in visited and visited[(cx, cy)] <= cost:
+                continue
+            visited[(cx, cy)] = cost
+
+            if len(path) > max_length:
+                continue
+
+            # Expand 4-cardinal neighbors strictly (prevents diagonal water pinches)
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                if not (0 <= nx < width and 0 <= ny < height):
+                    continue
+                # Cannot dig through protected landmarks
+                if (nx, ny) in protected_tiles and (nx, ny) != (dest_x, dest_y):
+                    continue
+
+                t = terrain[ny][nx]
+                if t == "^":  # Mountain peaks are strictly impassable
+                    continue
+
+                # Excavation terrain weights
+                if t in ("~", ";") and region[ny][nx] == src_reg_id:
+                    step_cost = 0.5  # Docking into target water is encouraged
+                elif t in (".", "%"):
+                    step_cost = 1.0  # Soft ground / wetlands
+                elif t in (",", "#", "&", ":"):
+                    step_cost = 2.0  # Hills, timberlands, farmlands
+                elif t == "/":
+                    step_cost = 4.0  # Cliffs require rock-sapping / blasting powder
+                else:
+                    step_cost = 2.5
+
+                new_cost = cost + step_cost
+                h = float(abs(nx - src_x) + abs(ny - src_y))
+                heapq.heappush(open_set, (new_cost + h, new_cost, (nx, ny), path + [(nx, ny)]))
+
+        raise ToolRejectionError(
+            f"[REJECTION] Could not find a viable canal route from destination [{dest_x}, {dest_y}] "
+            f"to source waterbody [{src_x}, {src_y}]. Path is blocked by impassable mountain peaks ('^') "
+            f"or landmarks, or exceeds maximum length of {max_length} tiles."
+        )
+
     def engineer_waterworks(
         self,
-        coords: list[list[int]],
-        action: str,
-        target_terrain: str = "",
-        target_region_id: str = "",
-        dam_name: str = "",
-        dam_lore: str = "",
-        river_lore: str = "",
-        downstream_coords: Optional[list[list[int]]] = None,
+        coords: Optional[list[list[int]]] = None,
+        action: str = "canal",
+        destination: Optional[list[int]] = None,
+        source: Optional[list[int]] = None,
         waterway_name: str = "",
         waterway_region_id: str = "",
         waterway_lore: str = "",
+        dam_name: str = "",
+        dam_lore: str = "",
+        river_lore: str = "",
+        target_terrain: str = "",
+        target_region_id: str = "",
+        downstream_coords: Optional[list[list[int]]] = None,
     ) -> str:
-        """Modifies waterways, dams, canals, and reclaimed polders while guaranteeing dual-grid synchronization.
+        """Alters waterways, carves canals, builds dams, or drains wetlands with automatic dual-grid synchronization.
 
         Actions:
-        - 'dam': Converts river water ('~') into masonry dam barrier ('*').
-          Keeps the river's existing regional identity, updates the river's lore with the damming event,
-          automatically registers a '*' feature of type 'dam' with lore, and mutates 50% of the downstream
-          river tiles into shallow sandbanks (';').
-        - 'drain': Converts water ('~') into ground ('.' plains, ':' farmlands).
-          Reassigns region away from the water body to target land region or ambient wilderness ('0').
-        - 'canal' / 'flood': Converts land into water ('~') and registers/assigns a designated water region ('river'/'lake').
+        - 'canal': Automatically carves a navigable water channel ('~') between 'destination' and 'source' using
+          pathfinding that curves around settlements ('o', 'O'), dungeons ('!'), and mountains ('^').
+        - 'dam': Converts river water ('~') at 'coords' into a masonry barrage ('*'), auto-updates river lore,
+          and reduces 50% of downstream river tiles to shallow sandbanks (';').
+        - 'drain': Converts water ('~') at 'coords' into dry ground ('.' plains, ':' farmlands).
+        - 'flood': Expands an existing water body or creates a new reservoir across 'coords'.
 
         Args:
-            coords: List of [x, y] coordinates to modify.
-            action: 'dam', 'drain', 'canal', or 'flood'.
-            target_terrain: Ground type to convert into ('*' for masonry dam, '.' for plains, ':' for farmland).
-            target_region_id: For drain: land region ID to assign. For dam: optional override region ID (defaults to retaining the river region).
-            dam_name: For dam: display name of the dam (e.g. 'Highwall Dam', 'Serpentine Barrage').
-            dam_lore: For dam: narrative lore describing the dam's construction, purpose, and majesty.
-            river_lore: For dam: optional updated lore for the dammed river. If omitted, dam event is auto-appended to current river lore.
-            downstream_coords: For dam: optional explicit downstream coordinates to mutate 50% to ';' (auto-detected if omitted).
-            waterway_name: For canal/flood: name if establishing a NEW distinct waterway (e.g. 'King's Canal'). Omit if extending an existing water body.
-            waterway_region_id: For canal/flood: single-character region ID. If naming a NEW distinct canal/waterway, must be an UNUSED ID. If extending an EXISTING water body (e.g. river '6' or ocean '1'), pass its existing ID and leave waterway_name empty.
-            waterway_lore: For canal/flood: optional narrative lore describing the constructed canal or flooded basin (appended if extending an existing water body).
+            action: One of 'canal', 'dam', 'drain', or 'flood'.
+
+            # --- Canal Pathfinding Parameters (action='canal') ---
+            destination: [X, Y] coordinate for the inland start of the canal (e.g. city quays or fortress).
+                Do NOT provide manual intermediate tiles; pathfinding automatically excavates the optimal route.
+            source: [X, Y] coordinate on the target waterbody (ocean '~', river '~', or lake '~') to connect to.
+                Pathfinding will terminate as soon as it reaches this tile or any contiguous tile of its water region.
+
+            # --- Canal / Waterway Identity & Naming (action='canal' or 'flood') ---
+            waterway_name: Display name for a NEW distinct civil engineering project (e.g. 'King's Canal').
+                Leave empty if this canal is simply an unnamed extension/inlet of the source water body.
+            waterway_region_id: Single-character region ID for the canal:
+                - If 'waterway_name' is provided: MUST be a fresh, UNUSED single character (e.g. an unassigned letter).
+                  Do NOT reuse established biome IDs (e.g. do not pass '1' for ocean or '6' for river).
+                - If 'waterway_name' is empty: Pass the existing source water body ID to extend its biome.
+            waterway_lore: Narrative lore describing the canal's construction, trade role, and engineering feats.
+
+            # --- Dam Parameters (action='dam') ---
+            coords: List of [X, Y] coordinates for the dam barrier (e.g. [[23, 7], [24, 7]]).
+            dam_name: Display name of the dam landmark (e.g. 'Highwall Barrage').
+            dam_lore: Narrative lore describing the dam and reservoir.
+            river_lore: Optional updated lore for the dammed river. If omitted, dam event is appended automatically.
+            downstream_coords: Optional explicit downstream tiles to mutate to ';' (auto-detected if omitted).
+
+            # --- Drain Parameters (action='drain') ---
+            target_terrain: Ground type to convert into ('.' for plains, ':' for farmland).
+            target_region_id: Established land region ID to assign to reclaimed tiles (defaults to '0' wilderness).
 
         Returns:
             Confirmation message detailing modified water/ground tiles, registered features, and updated regional biomes.
         """
-        norm_coords = _normalize_tiles(coords)
-        if not norm_coords:
-            err = "Error: coords must contain at least one valid [x, y] coordinate."
-            print(f"  -> {err}", flush=True)
-            raise ToolRejectionError(err)
-
         act = str(action).strip().lower()
         if act not in ("dam", "drain", "canal", "flood"):
             err = "Error: action must be one of 'dam', 'drain', 'canal', or 'flood'."
@@ -1457,6 +1596,24 @@ class WorldStateSnapshot:
         regions = self.data.get("regions", {})
         height = len(terrain)
         width = len(terrain[0]) if height > 0 else 32
+
+        # Coordinate resolution: A* pathfinding for 'canal' when destination and source are supplied
+        norm_dest = _normalize_tiles(destination) if destination else []
+        norm_src = _normalize_tiles(source) if source else []
+
+        if act == "canal" and norm_dest and norm_src:
+            norm_coords = self._find_canal_path(norm_dest[0], norm_src[0])
+            if not norm_coords:
+                return f"[SUCCESS] Destination [{norm_dest[0][0]}, {norm_dest[0][1]}] is already adjacent to water body [{norm_src[0][0]}, {norm_src[0][1]}]."
+        else:
+            norm_coords = _normalize_tiles(coords)
+            if not norm_coords:
+                if act == "canal":
+                    err = "Error: For action='canal', must provide 'destination' and 'source' coordinates (or explicit 'coords')."
+                else:
+                    err = f"Error: coords must contain at least one valid [x, y] coordinate for action='{act}'."
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
 
         for pt in norm_coords:
             x, y = pt[0], pt[1]
@@ -1629,10 +1786,17 @@ class WorldStateSnapshot:
             self.data["region_grid"] = ["".join(row) for row in rg]
             self.save()
 
-            msg = (
-                f"[SUCCESS] Engineered waterworks ({act}): carved {len(norm_coords)} water tile(s) ('~') "
-                f"registered to water region '{w_id}' ('{w_name}', type: '{w_type}')."
-            )
+            if act == "canal" and norm_dest and norm_src:
+                msg = (
+                    f"[SUCCESS] Engineered waterworks (canal): excavated navigable channel across {len(norm_coords)} tile(s) "
+                    f"at {norm_coords} linking destination {norm_dest[0]} to source waterbody {norm_src[0]} "
+                    f"under water region '{w_id}' ('{w_name}', type: '{w_type}')."
+                )
+            else:
+                msg = (
+                    f"[SUCCESS] Engineered waterworks ({act}): carved {len(norm_coords)} water tile(s) ('~') "
+                    f"registered to water region '{w_id}' ('{w_name}', type: '{w_type}')."
+                )
             self.mutations_log.append(msg)
             print(f"  -> {msg}", flush=True)
             return msg
