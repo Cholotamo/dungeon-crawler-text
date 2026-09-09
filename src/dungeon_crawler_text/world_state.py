@@ -113,7 +113,7 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
                 r_id = region_grid[y][x] if 0 <= y < len(region_grid) and 0 <= x < len(region_grid[y]) else "?"
                 r_name = regions.get(r_id, {}).get("name", f"Region {r_id}")
                 feature_lines.append(
-                    f"- `[{key}]` **{fname}** ['{fchar}'] ({ftype})\n"
+                    f"- ID '{key}': **{fname}** ['{fchar}'] ({ftype})\n"
                     f"  - Position: [X: {x:02d}, Y: {y:02d}]\n"
                     f"  - Biome: Region '{r_id}' ({r_name}) | Natural Ground: '{t_char}'{desc_line}"
                 )
@@ -121,7 +121,7 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
                 p_start = f"[X: {tiles[0][0]:02d}, Y: {tiles[0][1]:02d}]" if tiles else "[?]"
                 p_end = f"[X: {tiles[-1][0]:02d}, Y: {tiles[-1][1]:02d}]" if tiles else "[?]"
                 feature_lines.append(
-                    f"- `[{key}]` **{fname}** ['{fchar}'] ({ftype}, {len(tiles)} tiles)\n"
+                    f"- ID '{key}': **{fname}** ['{fchar}'] ({ftype}, {len(tiles)} tiles)\n"
                     f"  - Span: {p_start} <---> {p_end}\n"
                     f"  - Coordinates: {tiles}{desc_line}"
                 )

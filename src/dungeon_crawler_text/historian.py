@@ -509,7 +509,7 @@ class WorldStateSnapshot:
             for k, f in sorted(features.items()):
                 tiles = f.get("tiles", [])
                 pos_str = f"at {tiles}" if len(tiles) <= 3 else f"{len(tiles)} tiles ({tiles[0]}..{tiles[-1]})"
-                lines.append(f"- [{k}] '{f.get('name')}' ['{f.get('char')}'] ({f.get('type')}) {pos_str}")
+                lines.append(f"- ID '{k}': '{f.get('name')}' ['{f.get('char')}'] ({f.get('type')}) {pos_str}")
             return "\n".join(lines)
 
         match_key = None
