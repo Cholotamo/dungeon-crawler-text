@@ -77,7 +77,6 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - **`create_feature`:** Establishes a new landmark (`o`, `O`, `!`), road (`+`), or bridge (`=`).
 - **`update_feature`:** Upgrades settlements (`o` -> `O`), ruins fallen cities (`O` -> `!`), reclaims and resettles ancient ruins (`!` -> `o` / `O`), extends roads, or updates lore.
 - **`delete_feature`:** Removes abandoned or razed encampments/bridges.
-- **`read_feature`:** Inspects registered features if verification is needed.
 
 ### 2. Semantic Terraforming & Dual-Grid Tools
 - **`expand_domain`:** Spreads farmlands (`:`) or blighted wastelands (`*`) around a city or dungeon. Automatically shields existing waterways (`~`) so rivers are never paved over. Supports optional `lore` describing the domain.

@@ -1248,7 +1248,6 @@ class Historian:
         )
         historian_tools = [
             self.snapshot.create_feature,
-            self.snapshot.read_feature,
             self.snapshot.update_feature,
             self.snapshot.delete_feature,
             self.snapshot.expand_domain,
