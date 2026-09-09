@@ -1433,9 +1433,9 @@ class WorldStateSnapshot:
             dam_lore: For dam: narrative lore describing the dam's construction, purpose, and majesty.
             river_lore: For dam: optional updated lore for the dammed river. If omitted, dam event is auto-appended to current river lore.
             downstream_coords: For dam: optional explicit downstream coordinates to mutate 50% to ';' (auto-detected if omitted).
-            waterway_name: For canal/flood: name of the canal or reservoir (e.g. 'King's Canal').
-            waterway_region_id: For canal/flood: single-character region ID for the water body.
-            waterway_lore: For canal/flood: optional narrative lore describing the constructed canal or flooded basin.
+            waterway_name: For canal/flood: name if establishing a NEW distinct waterway (e.g. 'King's Canal'). Omit if extending an existing water body.
+            waterway_region_id: For canal/flood: single-character region ID. If naming a NEW distinct canal/waterway, must be an UNUSED ID. If extending an EXISTING water body (e.g. river '6' or ocean '1'), pass its existing ID and leave waterway_name empty.
+            waterway_lore: For canal/flood: optional narrative lore describing the constructed canal or flooded basin (appended if extending an existing water body).
 
         Returns:
             Confirmation message detailing modified water/ground tiles, registered features, and updated regional biomes.
@@ -1573,21 +1573,52 @@ class WorldStateSnapshot:
 
         else:  # canal or flood (land -> water)
             w_id = waterway_region_id.strip()[:1] if waterway_region_id and waterway_region_id.strip() else "F"
-            w_name = str(waterway_name).strip() or "Constructed Canal"
+            w_name = str(waterway_name).strip()
             w_type = "river" if act == "canal" else "lake"
 
-            # Register water region
             regions_dict = self.data.setdefault("regions", {})
-            existing_reg = regions_dict.get(w_id, {}) if isinstance(regions_dict.get(w_id), dict) else {}
-            reg_entry = {
-                "name": w_name,
-                "type": w_type,
-            }
-            if waterway_lore and str(waterway_lore).strip():
-                reg_entry["lore"] = str(waterway_lore).strip()
-            elif "lore" in existing_reg:
-                reg_entry["lore"] = existing_reg["lore"]
-            regions_dict[w_id] = reg_entry
+            norm_coord_set = {(p[0], p[1]) for p in norm_coords}
+            existing_reg = regions_dict.get(w_id)
+
+            # Check if w_id is already occupied by an established region painted on the map
+            is_existing_biome = (
+                isinstance(existing_reg, dict)
+                and any(
+                    rg[y][x] == w_id
+                    for y in range(height)
+                    for x in range(width)
+                    if (x, y) not in norm_coord_set
+                )
+            )
+
+            if is_existing_biome:
+                existing_name = existing_reg.get("name", f"Region {w_id}")
+                # Case A: Extending existing water body (waterway_name omitted or matching)
+                if not w_name or w_name.lower() == existing_name.lower():
+                    if waterway_lore and str(waterway_lore).strip():
+                        curr_l = str(existing_reg.get("lore", "")).strip()
+                        new_l = str(waterway_lore).strip()
+                        if new_l not in curr_l:
+                            existing_reg["lore"] = f"{curr_l} {new_l}".strip() if curr_l else new_l
+                    w_name = existing_name
+                    w_type = existing_reg.get("type", w_type)
+                else:
+                    # Case B: Rejection - attempting to overwrite an established region with a new distinct waterway
+                    err = (
+                        f"[REJECTION] Region ID '{w_id}' is already occupied by established biome '{existing_name}' ({existing_reg.get('type')}). "
+                        f"To register '{w_name}' as a new distinct waterway, provide an UNUSED single-character region ID. "
+                        f"To extend '{existing_name}', omit waterway_name."
+                    )
+                    print(f"  -> {err}", flush=True)
+                    raise ToolRejectionError(err)
+            else:
+                reg_name = w_name or ("Constructed Canal" if act == "canal" else "Flooded Basin")
+                regions_dict[w_id] = {
+                    "name": reg_name,
+                    "type": w_type,
+                    "lore": str(waterway_lore).strip() if waterway_lore and str(waterway_lore).strip() else f"Constructed {act} waterway.",
+                }
+                w_name = reg_name
 
             for pt in norm_coords:
                 x, y = pt[0], pt[1]
