@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from dungeon_crawler_text.historian import (
     Historian,
     HistorianEpochResult,
+    ToolRejectionError,
     WorldStateSnapshot,
     calculate_cost,
     resolve_epoch_paths,
@@ -55,6 +56,7 @@ __all__ = [
     "HistorianEpochResult",
     "Loremaster",
     "DEFAULT_PRIMORDIAL_QUERY",
+    "ToolRejectionError",
     "WorldStateSnapshot",
     "build_viewer_html",
     "calculate_cost",

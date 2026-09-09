@@ -49,6 +49,12 @@ DEFAULT_SUBSEQUENT_EPOCH_QUERY = (
 )
 
 
+class ToolRejectionError(ValueError):
+    """Raised when a world map mutation tool validation check or parameter constraint fails."""
+    pass
+
+
+
 def _load_prompt(filename: str = "historian.md") -> str:
     """Loads a prompt file from the prompts directory."""
     prompt_path = Path(__file__).parent / "prompts" / filename
@@ -354,83 +360,18 @@ class WorldStateSnapshot:
         height = len(terrain)
         width = len(terrain[0]) if height > 0 else 32
 
-        # Character & Type Coherence Guardrails
+        # Character validation
+        VALID_FEATURE_CHARS = {"o", "O", "!", "+", "="}
         fchar_clean = str(fchar).strip()[0] if fchar and str(fchar).strip() else ""
-        ftype_clean = str(ftype).strip().lower()
-
-        SETTLEMENT_TYPES = {"settlement", "outpost", "village", "town", "hamlet"}
-        CITY_TYPES = {"major_city", "city", "metropolis", "capital"}
-        DUNGEON_TYPES = {"dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair"}
-        ROAD_TYPES = {"road", "highway", "trail", "path", "route"}
-        BRIDGE_TYPES = {"bridge", "viaduct"}
-
-        # 1. Dungeon char '!' vs settlement/city
-        if fchar_clean == "!" and (ftype_clean in SETTLEMENT_TYPES or ftype_clean in CITY_TYPES):
-            target = "settlement/outpost" if ftype_clean in SETTLEMENT_TYPES else "city/metropolis"
-            rec_char = "o" if ftype_clean in SETTLEMENT_TYPES else "O"
+        if not fchar_clean or fchar_clean not in VALID_FEATURE_CHARS:
             return (
-                f"[REJECTION] Feature '{fid}' has conflicting char='!' and feature_type='{ftype}'. "
-                f"The '!' symbol is strictly reserved for perilous dungeons, ruins, and strongholds. "
-                f"If reconsecrating or converting this feature into a {target}, set char='{rec_char}'."
-            )
-
-        # 2. Settlement char 'o' vs city/dungeon
-        if fchar_clean == "o" and ftype_clean in CITY_TYPES:
-            return (
-                f"[REJECTION] Feature '{fid}' has conflicting char='o' and feature_type='{ftype}'. "
-                f"Settlement character 'o' is for villages and outposts. "
-                f"For major cities and metropolises, promote the character to char='O'."
-            )
-        if fchar_clean == "o" and ftype_clean in DUNGEON_TYPES:
-            return (
-                f"[REJECTION] Feature '{fid}' has conflicting char='o' and feature_type='{ftype}'. "
-                f"Settlement character 'o' cannot be used for a dungeon or ruin. "
-                f"If this site has fallen into ruin, set char='!'."
-            )
-
-        # 3. City char 'O' vs settlement/dungeon
-        if fchar_clean == "O" and ftype_clean in SETTLEMENT_TYPES:
-            return (
-                f"[REJECTION] Feature '{fid}' has conflicting char='O' and feature_type='{ftype}'. "
-                f"City character 'O' is reserved for major cities and metropolises. "
-                f"For frontier outposts and villages, use char='o'."
-            )
-        if fchar_clean == "O" and ftype_clean in DUNGEON_TYPES:
-            return (
-                f"[REJECTION] Feature '{fid}' has conflicting char='O' and feature_type='{ftype}'. "
-                f"City character 'O' cannot be used for a dungeon or ruin. "
-                f"If this city has fallen into ruin, set char='!'."
-            )
-
-        # 4. Landmark char ('o', 'O', '!') vs Infrastructure type
-        if fchar_clean in ("o", "O", "!") and (ftype_clean in ROAD_TYPES or ftype_clean in BRIDGE_TYPES):
-            rec_c = "+" if ftype_clean in ROAD_TYPES else "="
-            return (
-                f"[REJECTION] Feature '{fid}' has conflicting landmark char='{fchar_clean}' and infrastructure type='{ftype}'. "
-                f"Use char='{rec_c}' for {ftype_clean} infrastructure."
-            )
-
-        # 5. Infrastructure char ('+', '=') vs Landmark type
-        if fchar_clean in ("+", "=") and (ftype_clean in SETTLEMENT_TYPES or ftype_clean in CITY_TYPES or ftype_clean in DUNGEON_TYPES):
-            return (
-                f"[REJECTION] Feature '{fid}' has conflicting infrastructure char='{fchar_clean}' and landmark type='{ftype}'. "
-                f"Infrastructure characters cannot represent settlements, cities, or dungeons."
-            )
-
-        # 6. Road char '+' vs Bridge type and vice-versa
-        if fchar_clean == "+" and ftype_clean in BRIDGE_TYPES:
-            return (
-                f"[REJECTION] Feature '{fid}' has road char='+' but bridge feature_type='{ftype}'. "
-                f"Use char='=' for bridges or viaducts."
-            )
-        if fchar_clean == "=" and ftype_clean in ROAD_TYPES:
-            return (
-                f"[REJECTION] Feature '{fid}' has bridge char='=' but road feature_type='{ftype}'. "
-                f"Use char='+' for roads and overland trails."
+                f"[REJECTION] Feature '{fid}' has invalid or missing char='{fchar}'. "
+                f"char is required and must be one of 'o' (outpost/village/fort), 'O' (city/citadel/fortress), "
+                f"'!' (hostile lair/dungeon/ruin), '+' (road), or '=' (bridge)."
             )
 
         # 1. Road Validation ('+')
-        if fchar == "+" or ftype.lower() in ("road", "highway", "trail", "path", "route"):
+        if fchar_clean == "+":
             water_coords: list[list[int]] = []
             chasm_coords: list[list[int]] = []
             peak_coords: list[list[int]] = []
@@ -501,9 +442,13 @@ class WorldStateSnapshot:
                 )
 
         # 2. Settlement Validation ('o', 'O')
-        elif fchar in ("o", "O") or ftype.lower() in (
-            "settlement", "outpost", "village", "major_city", "city", "metropolis", "town", "hamlet"
-        ):
+        elif fchar_clean in ("o", "O"):
+            existing_feat = features.get(fid, {})
+            existing_tiles = existing_feat.get("tiles", [])
+            is_reclaimed_or_existing = (
+                fid in features and all(pt in existing_tiles for pt in tiles)
+            )
+
             for pt in tiles:
                 x, y = pt[0], pt[1]
                 t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
@@ -513,19 +458,19 @@ class WorldStateSnapshot:
                         f"Settlements must be founded on dry land: fertile plains ('.'), sheltered coasts (';'), hills (','), or farmlands (':'). "
                         f"For coastal ports, place the settlement on an adjacent coast tile (';') or riverbank ('.')."
                     )
-                elif t_char == "/":
+                elif t_char == "/" and not is_reclaimed_or_existing:
                     return (
                         f"[REJECTION] Settlement '{fid}' cannot be placed in a sheer chasm/cliff '/' at [{x}, {y}]. "
                         f"Found settlements on stable, habitable terrain."
                     )
-                elif t_char == "^":
+                elif t_char == "^" and not is_reclaimed_or_existing:
                     return (
                         f"[REJECTION] Settlement '{fid}' cannot be placed atop an impassable mountain peak '^' at [{x}, {y}]. "
                         f"Place mountain outposts and mining camps in surrounding foothills (',') or valleys ('.')."
                     )
 
         # 3. Bridge Validation ('=')
-        elif fchar == "=" or ftype.lower() in ("bridge", "viaduct"):
+        elif fchar_clean == "=":
             # Check contiguity for multi-tile bridges
             for i in range(1, len(tiles)):
                 if max(abs(tiles[i][0] - tiles[i - 1][0]), abs(tiles[i][1] - tiles[i - 1][1])) > 1:
@@ -718,7 +663,7 @@ class WorldStateSnapshot:
                             )
 
         # 4. Dungeon / Landmark Validation ('!')
-        elif fchar == "!":
+        elif fchar_clean == "!":
             for pt in tiles:
                 x, y = pt[0], pt[1]
                 t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
@@ -747,15 +692,15 @@ class WorldStateSnapshot:
         tiles: list[list[int]],
         description: str = "",
     ) -> str:
-        """Creates a new feature (settlement, dungeon, outpost, city, road, bridge) on the world map.
+        """Creates a new feature (settlement, city, citadel, dungeon, ruin, road, bridge) on the world map.
 
         Args:
             feature_id: Unique slug identifier for the feature (e.g. 'oakhaven', 'highwatch', 'kings_highway').
             name: Evocative human-readable display name (e.g. 'Oakhaven', 'Highwatch Citadel').
-            char: Map character symbol representing the feature. 'o' for outpost/village, 'O' for major city,
-                '!' for dungeon/ruin/stronghold, '+' for road, '=' for bridge.
-            feature_type: Semantic category (e.g. 'outpost', 'settlement', 'major_city', 'dungeon', 'ruin',
-                'stronghold', 'road', 'bridge').
+            char: Map character symbol representing the feature. 'o' for civilized settlement/outpost/fort,
+                'O' for civilized city/metropolis/citadel, '!' for hostile lair/dungeon/ruin, '+' for road, '=' for bridge.
+            feature_type: Semantic category (e.g. 'settlement', 'outpost', 'fort', 'village', 'major_city',
+                'citadel', 'fortress', 'dungeon', 'ruin', 'lair', 'stronghold', 'road', 'bridge').
             tiles: List of [x, y] coordinates. Single-tile features use [[x, y]]. Multi-tile routes or bridges
                 use a sequence of coordinates [[x1, y1], [x2, y2], ...]. Coordinates must be in range 0..31.
             description: Optional lore, history, or context describing the founding and significance of this feature.
@@ -765,19 +710,25 @@ class WorldStateSnapshot:
         """
         fid = str(feature_id).strip().lower().replace(" ", "_")
         if not fid:
-            return "Error: feature_id cannot be empty."
+            err = "Error: feature_id cannot be empty."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         features = self.data.setdefault("features", {})
         if fid in features:
             existing = features[fid]
-            return (
+            err = (
                 f"Error: Feature '{fid}' already exists ('{existing.get('name')}'). "
                 "Use update_feature to modify it, or choose a unique feature_id."
             )
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         norm_tiles = _normalize_tiles(tiles)
         if not norm_tiles:
-            return "Error: tiles must contain at least one valid [x, y] coordinate."
+            err = "Error: tiles must contain at least one valid [x, y] coordinate."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         # Validate coordinate boundaries (32x32)
         terrain = self.data.get("terrain_grid", [])
@@ -786,46 +737,21 @@ class WorldStateSnapshot:
         for pt in norm_tiles:
             x, y = pt[0], pt[1]
             if not (0 <= x < width and 0 <= y < height):
-                return (
+                err = (
                     f"Error: Coordinate [{x}, {y}] is out of bounds. "
                     f"Valid map coordinates are X: 0..{width-1}, Y: 0..{height-1}."
                 )
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
 
-        passed_char = str(char).strip()[0] if char and str(char).strip() else None
-        passed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else None
-
-        if passed_type and not passed_char:
-            pt_lower = passed_type.lower()
-            if pt_lower in ("settlement", "outpost", "village", "town", "hamlet"):
-                fchar = "o"
-            elif pt_lower in ("major_city", "city", "metropolis", "capital"):
-                fchar = "O"
-            elif pt_lower in ("dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair"):
-                fchar = "!"
-            elif pt_lower in ("road", "highway", "trail", "path", "route"):
-                fchar = "+"
-            elif pt_lower in ("bridge", "viaduct"):
-                fchar = "="
-            else:
-                fchar = "o"
-            ftype = passed_type
-        elif passed_char and not passed_type:
-            fchar = passed_char
-            if fchar == "o":
-                ftype = "settlement"
-            elif fchar == "O":
-                ftype = "major_city"
-            elif fchar == "!":
-                ftype = "dungeon"
-            elif fchar == "+":
-                ftype = "road"
-            elif fchar == "=":
-                ftype = "bridge"
-            else:
-                ftype = "feature"
-        else:
-            fchar = passed_char or "o"
-            ftype = passed_type or "settlement"
+        fchar = str(char).strip()[0] if char and str(char).strip() else ""
+        if fchar not in ("o", "O", "!", "+", "="):
+            err = (
+                f"Error: char is required and must be one of 'o', 'O', '!', '+', '=' (got '{char}')."
+            )
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
+        ftype = str(feature_type).strip() if feature_type and str(feature_type).strip() else "feature"
         fname = str(name).strip() or fid
         fdesc = str(description).strip()
 
@@ -838,7 +764,7 @@ class WorldStateSnapshot:
         )
         if rejection:
             print(f"  -> {rejection}", flush=True)
-            return rejection
+            raise ToolRejectionError(rejection)
 
         features[fid] = {
             "name": fname,
@@ -910,20 +836,23 @@ class WorldStateSnapshot:
     def update_feature(
         self,
         feature_id: str,
+        char: str,
         name: str = "",
-        char: str = "",
         feature_type: str = "",
         tiles: list[list[int]] | None = None,
         description: str = "",
     ) -> str:
-        """Updates an existing feature on the world map (e.g. upgrade village to city, ruin a site, reclaim a ruin, extend road).
+        """Updates an existing feature on the world map.
 
         Args:
             feature_id: Unique identifier of the feature to update.
+            char: Required map character symbol representing the feature's status:
+                'o' (civilized outpost/village/fort), 'O' (civilized city/citadel/fortress),
+                '!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge).
+                Pass the new symbol to mutate state (e.g. '!' -> 'O' when reclaiming, 'o' -> 'O' when promoting, 'O' -> '!' when ruined),
+                or pass the current symbol if keeping the same status.
             name: New display name (leave empty to keep current name).
-            char: New map character symbol, e.g. 'O' when upgraded to major city, '!' when ruined,
-                or 'o' / 'O' when an ancient ruin is reclaimed and resettled.
-            feature_type: New semantic category, e.g. 'major_city', 'ruin', 'outpost', 'settlement' (leave empty to keep current).
+            feature_type: Optional descriptive category (e.g. 'citadel', 'outpost', 'ruin', 'dungeon', 'road').
             tiles: New list of [x, y] coordinates if position changed or road extended (leave empty to keep current).
             description: Updated description or chronicle note (leave empty to keep current).
 
@@ -940,10 +869,12 @@ class WorldStateSnapshot:
                 break
 
         if not match_key:
-            return (
+            err = (
                 f"Error: Feature '{feature_id}' not found. Cannot update non-existent feature. "
                 f"Registered features: {list(features.keys())}"
             )
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         feat = features[match_key]
         old_char = str(feat.get("char", "o"))
@@ -951,36 +882,16 @@ class WorldStateSnapshot:
         old_type = str(feat.get("type", "")).lower()
         changes: list[str] = []
 
-        passed_char = str(char).strip()[0] if char and str(char).strip() else None
-        passed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else None
+        proposed_char = str(char).strip()[:1] if char and str(char).strip() else ""
+        if proposed_char not in ("o", "O", "!", "+", "="):
+            err = (
+                f"Error: char is required when updating feature '{feature_id}'. "
+                f"Must be one of 'o', 'O', '!', '+', '=' (got '{char}')."
+            )
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
-        proposed_char = passed_char or feat.get("char", "o")
-        proposed_type = passed_type or feat.get("type", "feature")
-
-        # Auto-synchronize character and feature_type if one was updated and the other omitted
-        if passed_type and not passed_char:
-            pt_lower = passed_type.lower()
-            if pt_lower in ("settlement", "outpost", "village", "town", "hamlet") and proposed_char != "o":
-                proposed_char = "o"
-            elif pt_lower in ("major_city", "city", "metropolis", "capital") and proposed_char != "O":
-                proposed_char = "O"
-            elif pt_lower in ("dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair") and proposed_char != "!":
-                proposed_char = "!"
-            elif pt_lower in ("road", "highway", "trail", "path", "route") and proposed_char != "+":
-                proposed_char = "+"
-            elif pt_lower in ("bridge", "viaduct") and proposed_char != "=":
-                proposed_char = "="
-        elif passed_char and not passed_type:
-            if passed_char == "O" and proposed_type.lower() not in ("major_city", "city", "metropolis", "capital"):
-                proposed_type = "major_city"
-            elif passed_char == "o" and proposed_type.lower() not in ("settlement", "outpost", "village", "town", "hamlet"):
-                proposed_type = "settlement"
-            elif passed_char == "!" and proposed_type.lower() not in ("dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair"):
-                proposed_type = "dungeon"
-            elif passed_char == "+" and proposed_type.lower() not in ("road", "highway", "trail", "path", "route"):
-                proposed_type = "road"
-            elif passed_char == "=" and proposed_type.lower() not in ("bridge", "viaduct"):
-                proposed_type = "bridge"
+        proposed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else feat.get("type", "feature")
         proposed_tiles = feat.get("tiles", [])
 
         if tiles is not None and len(tiles) > 0:
@@ -990,10 +901,12 @@ class WorldStateSnapshot:
             width = len(terrain[0]) if height > 0 else 32
             for pt in norm_tiles:
                 if not (0 <= pt[0] < width and 0 <= pt[1] < height):
-                    return (
+                    err = (
                         f"Error: Coordinate [{pt[0]}, {pt[1]}] is out of bounds "
                         f"(X: 0..{width-1}, Y: 0..{height-1})."
                     )
+                    print(f"  -> {err}", flush=True)
+                    raise ToolRejectionError(err)
             proposed_tiles = norm_tiles
 
         # Validate updated feature placement against terrain
@@ -1005,7 +918,7 @@ class WorldStateSnapshot:
         )
         if rejection:
             print(f"  -> {rejection}", flush=True)
-            return rejection
+            raise ToolRejectionError(rejection)
 
         if name and str(name).strip():
             feat["name"] = str(name).strip()
@@ -1014,16 +927,10 @@ class WorldStateSnapshot:
         if proposed_char != old_char:
             feat["char"] = proposed_char
             changes.append(f"char='{old_char}' -> '{proposed_char}'")
-        elif passed_char:
-            feat["char"] = proposed_char
-            changes.append(f"char='{proposed_char}'")
 
-        if proposed_type.lower() != old_type.lower():
+        if feature_type and proposed_type.lower() != old_type:
             feat["type"] = proposed_type
             changes.append(f"type='{old_type}' -> '{proposed_type}'")
-        elif passed_type:
-            feat["type"] = proposed_type
-            changes.append(f"type='{proposed_type}'")
 
         if tiles is not None and len(tiles) > 0:
             feat["tiles"] = proposed_tiles
@@ -1109,10 +1016,12 @@ class WorldStateSnapshot:
                 break
 
         if not match_key:
-            return (
+            err = (
                 f"Error: Feature '{feature_id}' not found. Cannot delete non-existent feature. "
                 f"Registered features: {list(features.keys())}"
             )
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         deleted = features.pop(match_key)
         self.save()
@@ -1154,7 +1063,9 @@ class WorldStateSnapshot:
             Confirmation message detailing modified tiles and preserved water/landmarks.
         """
         if not center or len(center) < 2:
-            return "Error: center must be an [x, y] coordinate pair."
+            err = "Error: center must be an [x, y] coordinate pair."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
         cx, cy = int(center[0]), int(center[1])
         terrain = self.data.get("terrain_grid", [])
         region = self.data.get("region_grid", [])
@@ -1162,11 +1073,15 @@ class WorldStateSnapshot:
         width = len(terrain[0]) if height > 0 else 32
 
         if not (0 <= cx < width and 0 <= cy < height):
-            return f"Error: Center coordinate [{cx}, {cy}] is out of bounds."
+            err = f"Error: Center coordinate [{cx}, {cy}] is out of bounds."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         reg_key = str(region_id).strip()[:1]
         if not reg_key:
-            return "Error: region_id must be a non-empty single character."
+            err = "Error: region_id must be a non-empty single character."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         dtype = str(domain_type).strip().lower()
         if any(sub in dtype for sub in ("farm", "agrarian", "crop", "polder")):
@@ -1277,7 +1192,9 @@ class WorldStateSnapshot:
         """
         norm_coords = _normalize_tiles(coords)
         if not norm_coords:
-            return "Error: coords must contain at least one valid [x, y] coordinate."
+            err = "Error: coords must contain at least one valid [x, y] coordinate."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         terrain = self.data.get("terrain_grid", [])
         region = self.data.get("region_grid", [])
@@ -1289,15 +1206,19 @@ class WorldStateSnapshot:
         for pt in norm_coords:
             x, y = pt[0], pt[1]
             if not (0 <= x < width and 0 <= y < height):
-                return f"Error: Coordinate [{x}, {y}] is out of bounds."
+                err = f"Error: Coordinate [{x}, {y}] is out of bounds."
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
             if terrain[y][x] == "~":
                 water_tiles.append(pt)
 
         if water_tiles:
-            return (
+            rejection = (
                 f"[REJECTION] clear_land cannot be used on natural water tiles '~' at {water_tiles}.\n"
                 f"To dam, drain, or reclaim waterways into dry land, use engineer_waterworks(action='dam' or 'drain')."
             )
+            print(f"  -> {rejection}", flush=True)
+            raise ToolRejectionError(rejection)
 
         t_target = str(target_terrain).strip()[:1] if target_terrain and str(target_terrain).strip() in (".", ":", "*", ",") else "."
 
@@ -1373,11 +1294,15 @@ class WorldStateSnapshot:
         """
         norm_coords = _normalize_tiles(coords)
         if not norm_coords:
-            return "Error: coords must contain at least one valid [x, y] coordinate."
+            err = "Error: coords must contain at least one valid [x, y] coordinate."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         act = str(action).strip().lower()
         if act not in ("dam", "drain", "canal", "flood"):
-            return "Error: action must be one of 'dam', 'drain', 'canal', or 'flood'."
+            err = "Error: action must be one of 'dam', 'drain', 'canal', or 'flood'."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         terrain = self.data.get("terrain_grid", [])
         region = self.data.get("region_grid", [])
@@ -1388,7 +1313,9 @@ class WorldStateSnapshot:
         for pt in norm_coords:
             x, y = pt[0], pt[1]
             if not (0 <= x < width and 0 <= y < height):
-                return f"Error: Coordinate [{x}, {y}] is out of bounds."
+                err = f"Error: Coordinate [{x}, {y}] is out of bounds."
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
 
         tg = [list(row) for row in terrain]
         rg = [list(row) for row in region]
@@ -1477,7 +1404,9 @@ class WorldStateSnapshot:
             Confirmation message detailing reclaimed tiles and dissolved regions.
         """
         if not center or len(center) < 2:
-            return "Error: center must be an [x, y] coordinate pair."
+            err = "Error: center must be an [x, y] coordinate pair."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
         cx, cy = int(center[0]), int(center[1])
         terrain = self.data.get("terrain_grid", [])
         region = self.data.get("region_grid", [])
@@ -1485,7 +1414,9 @@ class WorldStateSnapshot:
         width = len(terrain[0]) if height > 0 else 32
 
         if not (0 <= cx < width and 0 <= cy < height):
-            return f"Error: Center coordinate [{cx}, {cy}] is out of bounds."
+            err = f"Error: Center coordinate [{cx}, {cy}] is out of bounds."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         r = max(1, min(int(radius), 8))
         t_revert = str(target_terrain).strip()[:1] if target_terrain and str(target_terrain).strip() in (".", "#", ",") else "."
@@ -1545,14 +1476,18 @@ class WorldStateSnapshot:
         """
         reg_key = str(region_id).strip()[:1]
         if not reg_key:
-            return "Error: region_id cannot be empty."
+            err = "Error: region_id cannot be empty."
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         regions = self.data.setdefault("regions", {})
         if reg_key not in regions or not isinstance(regions[reg_key], dict):
-            return (
+            err = (
                 f"Error: Region ID '{reg_key}' not found in registered regions. "
                 f"Available region IDs: {list(regions.keys())}"
             )
+            print(f"  -> {err}", flush=True)
+            raise ToolRejectionError(err)
 
         reg = regions[reg_key]
         changes: list[str] = []

@@ -58,9 +58,9 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - `:` **Farmland:** Cultivated agrarian plots, terraces, and rural peasant sustenance.
 
 ### Features (Overlaid on Terrain)
-- `'o'` **Settlement / Outpost / Village:** Sited on fertile plains (`.`), sheltered coasts (`;`), farmlands (`:`), or near riverbanks (`~`).
-- `'O'` **Major City / Metropolis:** Promoted from prosperous settlements (`'o'`) that acquired regional dominance, deep ports, or massive stone walls.
-- `'!'` **Dungeon / Ruin / Stronghold:** Sited in remote/perilous wilderness: deep forests (`&`, `#`), high peaks (`^`), wastelands (`*`), bogs (`%`), or chasms (`/`).
+- `'o'` **Civilized Settlement / Outpost / Fort:** Mortal villages, border garrisons, and pioneer havens. Sited on fertile plains (`.`), coasts (`;`), farmlands (`:`), or near rivers.
+- `'O'` **Civilized City / Metropolis / Citadel:** Sovereign capitals, urban centers, and major fortified citadels. Promoted from thriving settlements (`'o'`) or reclaimed strongholds.
+- `'!'` **Hostile Lair / Dungeon / Ruin:** Monster dens, perilous crypts, and enemy strongholds in remote wilderness (`&`, `#`, `^`, `*`, `%`, `/`). When cleansed or garrisoned by mortals, flip `'!'` -> `'o'` or `'O'`.
 - `'+'` **Road / Highway:** Contiguous sequence of coordinates connecting settlements across traversable ground (`.`, `,`, `:`, `#`).
 - `'='` **Bridge / Viaduct:** Strictly spans water (`~`) or chasms (`/`). Every bridge tile must be on a water/chasm tile from bank to bank; never extend bridge tiles onto dry land (use a road `+` for terrestrial paths between bridgeheads and inland settlements).
 
@@ -75,7 +75,7 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 
 ### 1. Feature CRUD
 - **`create_feature`:** Establishes a new landmark (`o`, `O`, `!`), road (`+`), or bridge (`=`).
-- **`update_feature`:** Upgrades settlements (`o` -> `O`), ruins fallen cities (`O` -> `!`), reclaims and resettles ancient ruins (`!` -> `o` / `O`), extends roads, or updates lore.
+- **`update_feature`:** Mutates or maintains a feature. Requires target `char` (`o`, `O`, `!`, `+`, `=`), e.g. promoting a settlement (`o` -> `O`), ruining a fallen city (`O` -> `!`), reclaiming an ancient ruin (`!` -> `o` / `O`), or retaining current character when extending routes or updating lore.
 - **`delete_feature`:** Removes abandoned or razed encampments/bridges.
 
 ### 2. Semantic Terraforming & Dual-Grid Tools
@@ -94,7 +94,7 @@ Your text response will be appended directly to the growing `# Timeline` in `wor
 ## Epoch <N>: <Evocative Title>
 
 - **<Feature Name> (<Char>) at [X, Y]:** Concrete geographical and historical reason for founding or discovery.
-- **<Feature Name> (<OldChar> -> <NewChar>):** Concrete historical rationale for upgrade, destruction, ruin, or reclamation.
+- **<Feature Name> (<OldChar> -> <NewChar>, e.g. '!' -> 'O', 'o' -> 'O', 'O' -> '!'):** Concrete historical rationale for upgrade, destruction, ruin, or reclamation.
 - **<Road Name> [X1, Y1] <-> [X2, Y2]:** Strategic purpose for connecting these settlements.
 - **<Domain/Territory Name> (Domain Expansion):** Strategic/historical reason for cultivating farmlands or blight spread.
 - **<Region Name> (Region Lore Mutation):** Concrete historical or environmental explanation for how and why the region's lore and reputation transformed.

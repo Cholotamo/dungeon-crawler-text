@@ -1166,9 +1166,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     };
 
     const FEATURE_STYLES = {
-      "o": { label: "Settlement / Outpost", badgeClass: "feat-settlement", fg: "#ffd166", bg: "rgba(255, 209, 102, 0.22)", border: "#ffd166" },
-      "O": { label: "Major City / Metropolis", badgeClass: "feat-city", fg: "#ff9f1c", bg: "rgba(255, 159, 28, 0.28)", border: "#ff9f1c" },
-      "!": { label: "Dungeon / Ruin / Stronghold", badgeClass: "feat-dungeon", fg: "#ff3860", bg: "rgba(255, 56, 96, 0.28)", border: "#ff3860" },
+      "o": { label: "Civilized Outpost / Village / Fort", badgeClass: "feat-settlement", fg: "#ffd166", bg: "rgba(255, 209, 102, 0.22)", border: "#ffd166" },
+      "O": { label: "Civilized City / Citadel / Fortress", badgeClass: "feat-city", fg: "#ff9f1c", bg: "rgba(255, 159, 28, 0.28)", border: "#ff9f1c" },
+      "!": { label: "Hostile Lair / Dungeon / Ruin", badgeClass: "feat-dungeon", fg: "#ff3860", bg: "rgba(255, 56, 96, 0.28)", border: "#ff3860" },
       "+": { label: "Road / Trade Route", badgeClass: "feat-road", fg: "#e5c093", bg: "rgba(229, 192, 147, 0.2)", border: "#e5c093" },
       "=": { label: "Bridge / Viaduct", badgeClass: "feat-bridge", fg: "#ffaf7a", bg: "rgba(255, 175, 122, 0.25)", border: "#ffaf7a" }
     };
