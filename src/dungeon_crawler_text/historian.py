@@ -354,6 +354,81 @@ class WorldStateSnapshot:
         height = len(terrain)
         width = len(terrain[0]) if height > 0 else 32
 
+        # Character & Type Coherence Guardrails
+        fchar_clean = str(fchar).strip()[0] if fchar and str(fchar).strip() else ""
+        ftype_clean = str(ftype).strip().lower()
+
+        SETTLEMENT_TYPES = {"settlement", "outpost", "village", "town", "hamlet"}
+        CITY_TYPES = {"major_city", "city", "metropolis", "capital"}
+        DUNGEON_TYPES = {"dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair"}
+        ROAD_TYPES = {"road", "highway", "trail", "path", "route"}
+        BRIDGE_TYPES = {"bridge", "viaduct"}
+
+        # 1. Dungeon char '!' vs settlement/city
+        if fchar_clean == "!" and (ftype_clean in SETTLEMENT_TYPES or ftype_clean in CITY_TYPES):
+            target = "settlement/outpost" if ftype_clean in SETTLEMENT_TYPES else "city/metropolis"
+            rec_char = "o" if ftype_clean in SETTLEMENT_TYPES else "O"
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting char='!' and feature_type='{ftype}'. "
+                f"The '!' symbol is strictly reserved for perilous dungeons, ruins, and strongholds. "
+                f"If reconsecrating or converting this feature into a {target}, set char='{rec_char}'."
+            )
+
+        # 2. Settlement char 'o' vs city/dungeon
+        if fchar_clean == "o" and ftype_clean in CITY_TYPES:
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting char='o' and feature_type='{ftype}'. "
+                f"Settlement character 'o' is for villages and outposts. "
+                f"For major cities and metropolises, promote the character to char='O'."
+            )
+        if fchar_clean == "o" and ftype_clean in DUNGEON_TYPES:
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting char='o' and feature_type='{ftype}'. "
+                f"Settlement character 'o' cannot be used for a dungeon or ruin. "
+                f"If this site has fallen into ruin, set char='!'."
+            )
+
+        # 3. City char 'O' vs settlement/dungeon
+        if fchar_clean == "O" and ftype_clean in SETTLEMENT_TYPES:
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting char='O' and feature_type='{ftype}'. "
+                f"City character 'O' is reserved for major cities and metropolises. "
+                f"For frontier outposts and villages, use char='o'."
+            )
+        if fchar_clean == "O" and ftype_clean in DUNGEON_TYPES:
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting char='O' and feature_type='{ftype}'. "
+                f"City character 'O' cannot be used for a dungeon or ruin. "
+                f"If this city has fallen into ruin, set char='!'."
+            )
+
+        # 4. Landmark char ('o', 'O', '!') vs Infrastructure type
+        if fchar_clean in ("o", "O", "!") and (ftype_clean in ROAD_TYPES or ftype_clean in BRIDGE_TYPES):
+            rec_c = "+" if ftype_clean in ROAD_TYPES else "="
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting landmark char='{fchar_clean}' and infrastructure type='{ftype}'. "
+                f"Use char='{rec_c}' for {ftype_clean} infrastructure."
+            )
+
+        # 5. Infrastructure char ('+', '=') vs Landmark type
+        if fchar_clean in ("+", "=") and (ftype_clean in SETTLEMENT_TYPES or ftype_clean in CITY_TYPES or ftype_clean in DUNGEON_TYPES):
+            return (
+                f"[REJECTION] Feature '{fid}' has conflicting infrastructure char='{fchar_clean}' and landmark type='{ftype}'. "
+                f"Infrastructure characters cannot represent settlements, cities, or dungeons."
+            )
+
+        # 6. Road char '+' vs Bridge type and vice-versa
+        if fchar_clean == "+" and ftype_clean in BRIDGE_TYPES:
+            return (
+                f"[REJECTION] Feature '{fid}' has road char='+' but bridge feature_type='{ftype}'. "
+                f"Use char='=' for bridges or viaducts."
+            )
+        if fchar_clean == "=" and ftype_clean in ROAD_TYPES:
+            return (
+                f"[REJECTION] Feature '{fid}' has bridge char='=' but road feature_type='{ftype}'. "
+                f"Use char='+' for roads and overland trails."
+            )
+
         # 1. Road Validation ('+')
         if fchar == "+" or ftype.lower() in ("road", "highway", "trail", "path", "route"):
             water_coords: list[list[int]] = []
@@ -459,20 +534,32 @@ class WorldStateSnapshot:
                         f"tile {tiles[i]} have a gap. Bridges must form an unbroken sequence of adjacent coordinates."
                     )
 
+            invalid_tiles = []
             barrier_tiles = []
             for pt in tiles:
                 x, y = pt[0], pt[1]
                 t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
-                if t_char in ("~", "/", "%"):
+                if t_char in ("~", "/"):
                     barrier_tiles.append(pt)
+                else:
+                    invalid_tiles.append((pt, t_char))
 
-            if not barrier_tiles:
-                ground_chars = [terrain[pt[1]][pt[0]] for pt in tiles if 0 <= pt[1] < height and 0 <= pt[0] < width]
-                return (
-                    f"[REJECTION] Bridge '{fid}' at {tiles} is situated entirely on dry land ({ground_chars}). "
-                    f"Bridges must span a natural water barrier ('~'), chasm ('/'), or wetland bottleneck ('%'). "
-                    f"Use a road ('+') for terrestrial overland routes."
-                )
+            if invalid_tiles:
+                pts = [lt[0] for lt in invalid_tiles]
+                chars = [lt[1] for lt in invalid_tiles]
+                if barrier_tiles:
+                    return (
+                        f"[REJECTION] Bridge '{fid}' at {tiles} extends past the barrier onto terrestrial land tile(s): {pts} ({chars}). "
+                        f"Bridge tiles ('=') must strictly span the natural barrier ('~' or '/'). "
+                        f"Constrain the bridge strictly to barrier tiles: tiles={barrier_tiles}. "
+                        f"For terrestrial approach paths between the bridgehead and inland settlements, use an overland road ('+')."
+                    )
+                else:
+                    return (
+                        f"[REJECTION] Bridge '{fid}' at {tiles} is situated entirely on dry land ({chars}). "
+                        f"Bridges must span a natural water barrier ('~') or chasm ('/'). "
+                        f"Use a road ('+') for terrestrial overland routes."
+                    )
 
             # Bank-to-bank reach validation for water and chasm barriers
             def _is_water(pt: list[int] | tuple[int, int]) -> bool:
@@ -704,8 +791,41 @@ class WorldStateSnapshot:
                     f"Valid map coordinates are X: 0..{width-1}, Y: 0..{height-1}."
                 )
 
-        fchar = str(char).strip()[0] if char else "o"
-        ftype = str(feature_type).strip() or "feature"
+        passed_char = str(char).strip()[0] if char and str(char).strip() else None
+        passed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else None
+
+        if passed_type and not passed_char:
+            pt_lower = passed_type.lower()
+            if pt_lower in ("settlement", "outpost", "village", "town", "hamlet"):
+                fchar = "o"
+            elif pt_lower in ("major_city", "city", "metropolis", "capital"):
+                fchar = "O"
+            elif pt_lower in ("dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair"):
+                fchar = "!"
+            elif pt_lower in ("road", "highway", "trail", "path", "route"):
+                fchar = "+"
+            elif pt_lower in ("bridge", "viaduct"):
+                fchar = "="
+            else:
+                fchar = "o"
+            ftype = passed_type
+        elif passed_char and not passed_type:
+            fchar = passed_char
+            if fchar == "o":
+                ftype = "settlement"
+            elif fchar == "O":
+                ftype = "major_city"
+            elif fchar == "!":
+                ftype = "dungeon"
+            elif fchar == "+":
+                ftype = "road"
+            elif fchar == "=":
+                ftype = "bridge"
+            else:
+                ftype = "feature"
+        else:
+            fchar = passed_char or "o"
+            ftype = passed_type or "settlement"
         fname = str(name).strip() or fid
         fdesc = str(description).strip()
 
@@ -831,8 +951,36 @@ class WorldStateSnapshot:
         old_type = str(feat.get("type", "")).lower()
         changes: list[str] = []
 
-        proposed_char = str(char).strip()[0] if char and str(char).strip() else feat.get("char", "o")
-        proposed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else feat.get("type", "feature")
+        passed_char = str(char).strip()[0] if char and str(char).strip() else None
+        passed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else None
+
+        proposed_char = passed_char or feat.get("char", "o")
+        proposed_type = passed_type or feat.get("type", "feature")
+
+        # Auto-synchronize character and feature_type if one was updated and the other omitted
+        if passed_type and not passed_char:
+            pt_lower = passed_type.lower()
+            if pt_lower in ("settlement", "outpost", "village", "town", "hamlet") and proposed_char != "o":
+                proposed_char = "o"
+            elif pt_lower in ("major_city", "city", "metropolis", "capital") and proposed_char != "O":
+                proposed_char = "O"
+            elif pt_lower in ("dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair") and proposed_char != "!":
+                proposed_char = "!"
+            elif pt_lower in ("road", "highway", "trail", "path", "route") and proposed_char != "+":
+                proposed_char = "+"
+            elif pt_lower in ("bridge", "viaduct") and proposed_char != "=":
+                proposed_char = "="
+        elif passed_char and not passed_type:
+            if passed_char == "O" and proposed_type.lower() not in ("major_city", "city", "metropolis", "capital"):
+                proposed_type = "major_city"
+            elif passed_char == "o" and proposed_type.lower() not in ("settlement", "outpost", "village", "town", "hamlet"):
+                proposed_type = "settlement"
+            elif passed_char == "!" and proposed_type.lower() not in ("dungeon", "ruin", "stronghold", "crypt", "vault", "tomb", "lair"):
+                proposed_type = "dungeon"
+            elif passed_char == "+" and proposed_type.lower() not in ("road", "highway", "trail", "path", "route"):
+                proposed_type = "road"
+            elif passed_char == "=" and proposed_type.lower() not in ("bridge", "viaduct"):
+                proposed_type = "bridge"
         proposed_tiles = feat.get("tiles", [])
 
         if tiles is not None and len(tiles) > 0:
@@ -863,11 +1011,17 @@ class WorldStateSnapshot:
             feat["name"] = str(name).strip()
             changes.append(f"name='{feat['name']}'")
 
-        if char and str(char).strip():
+        if proposed_char != old_char:
+            feat["char"] = proposed_char
+            changes.append(f"char='{old_char}' -> '{proposed_char}'")
+        elif passed_char:
             feat["char"] = proposed_char
             changes.append(f"char='{proposed_char}'")
 
-        if feature_type and str(feature_type).strip():
+        if proposed_type.lower() != old_type.lower():
+            feat["type"] = proposed_type
+            changes.append(f"type='{old_type}' -> '{proposed_type}'")
+        elif passed_type:
             feat["type"] = proposed_type
             changes.append(f"type='{proposed_type}'")
 
@@ -1459,7 +1613,7 @@ def calculate_cost(
     - gemini-*-pro (e.g., gemini-2.5-pro, gemini-3.5-pro):
         $1.25 per 1M prompt tokens ($1.25 / 1_000_000)
         $5.00 per 1M candidate tokens ($5.00 / 1_000_000)
-    - gemini-*-flash (default e.g., gemini-3.6-flash, gemini-2.5-flash):
+    - gemini-*-flash (default e.g., gemini-3.8-flash, gemini-3.6-flash, gemini-2.5-flash):
         $0.50 per 1M prompt tokens ($0.50 / 1_000_000)
         $3.00 per 1M candidate tokens ($3.00 / 1_000_000)
     """
@@ -1480,7 +1634,7 @@ def calculate_cost(
 class _UsageTracker:
     """Context manager that intercepts remote Gemini API calls to capture token usage across all AFC hops."""
 
-    def __init__(self, client: Any, model_name: str = "gemini-3.6-flash") -> None:
+    def __init__(self, client: Any, model_name: str = "gemini-3.8-flash") -> None:
         self.client = client
         self.model_name = model_name
         self.api_calls: int = 0
@@ -1581,8 +1735,8 @@ class Historian:
 
     def __init__(
         self,
-        model_name: str = "gemini-3.6-flash",
-        thinking_level: str = "MEDIUM",
+        model_name: str = "gemini-3.8-flash",
+        thinking_level: str = "HIGH",
         client: Optional[genai.Client] = None,
     ) -> None:
         self.model_name = model_name
@@ -1855,14 +2009,14 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-3.6-flash",
-        help="Gemini model to use (default: gemini-3.6-flash)",
+        default="gemini-3.8-flash",
+        help="Gemini model to use (default: gemini-3.8-flash)",
     )
     parser.add_argument(
         "--thinking",
         type=str,
-        default="MEDIUM",
-        help="Thinking level for Gemini models (default: MEDIUM)",
+        default="HIGH",
+        help="Thinking level for Gemini models (default: HIGH)",
     )
     parser.add_argument(
         "--interactive",

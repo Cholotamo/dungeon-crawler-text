@@ -15,8 +15,8 @@ DEFAULT_ARTIFACT_PATH = Path("artifacts/worldprose.md")
 
 
 def generate_primordial_landscape(
-    model_name: str = "gemini-3.6-flash",
-    thinking_level: str = "MEDIUM",
+    model_name: str = "gemini-3.8-flash",
+    thinking_level: str = "HIGH",
     query: str = DEFAULT_PRIMORDIAL_QUERY,
     output_path: Path | None = DEFAULT_ARTIFACT_PATH,
 ) -> str:
@@ -74,14 +74,14 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-3.6-flash",
-        help="Gemini model to use (default: gemini-3.6-flash)",
+        default="gemini-3.8-flash",
+        help="Gemini model to use (default: gemini-3.8-flash)",
     )
     parser.add_argument(
         "--thinking",
         type=str,
-        default="MEDIUM",
-        help="Thinking level for Gemini models (default: MEDIUM)",
+        default="HIGH",
+        help="Thinking level for Gemini models (default: HIGH)",
     )
     parser.add_argument(
         "--query",

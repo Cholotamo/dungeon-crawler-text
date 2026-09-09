@@ -30,8 +30,8 @@ class Loremaster:
 
     def __init__(
         self,
-        model_name: str = "gemini-3.6-flash",
-        thinking_level: str = "MEDIUM",
+        model_name: str = "gemini-3.8-flash",
+        thinking_level: str = "HIGH",
         client: Optional[genai.Client] = None,
     ) -> None:
         self.model_name = model_name

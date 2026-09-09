@@ -15,7 +15,7 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
                                  ▼
                     ┌─────────────────────────┐
                     │       Loremaster        │
-                    │  (gemini-3.6-flash)     │
+                    │  (gemini-3.8-flash)     │
                     └────────────┬────────────┘
                                  │
                                  ▼
@@ -93,8 +93,8 @@ uv run python -m dungeon_crawler_text.main
 
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
-| `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
+| `--model` | `str` | `gemini-3.8-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `HIGH` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
 | `--query` | `str` | *Default Primordial Query* | Custom prompt query to ask the Loremaster |
 | `--output`, `-o` | `str` | `artifacts/worldprose.md` | Path to save the output prose file |
 
@@ -126,8 +126,8 @@ uv run python -m dungeon_crawler_text.architect
 | :--- | :--- | :--- | :--- |
 | `--input`, `-i` | `str` | `artifacts/worldprose.md` | Path to input world prose markdown file |
 | `--output`, `-o` | `str` | `artifacts/worldmap.json` | Path to save output world map JSON file |
-| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
-| `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
+| `--model` | `str` | `gemini-3.8-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `HIGH` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
 
 **Examples:**
 ```bash
@@ -169,8 +169,8 @@ uv run python -m dungeon_crawler_text.historian
 | `--epochs`, `-n` | `int` | `1` | Number of sequential epochs to advance within the same conversation |
 | `--query`, `-q` | `str` | *Epoch Default* | Custom historical prompt or directive for the epoch |
 | `--interactive` | `flag` | `False` | Run interactively, prompting for epoch directives within the same conversation |
-| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
-| `--thinking` | `str` | `MEDIUM` | Thinking level for Gemini models (`HIGH`, `MEDIUM`, `LOW`) |
+| `--model` | `str` | `gemini-3.8-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `HIGH` | Thinking level for Gemini models (`HIGH`, `MEDIUM`, `LOW`) |
 
 **Examples:**
 ```bash
@@ -189,7 +189,7 @@ uv run dungeon-crawler-historian --query "A devastating civil war splits the rea
 
 ---
 
-### Step 4: Inspect Maps Interactively (HTML Map Viewer)
+## Step 4: Inspect Maps Interactively (HTML Map Viewer)
 
 Open the interactive HTML Map Viewer to inspect the composite world map with rich colors, customizable tile spacing, and full hover inspection:
 
@@ -222,16 +222,16 @@ All agents can be imported and executed programmatically:
 from dungeon_crawler_text import Architect, Historian, Loremaster
 
 # 1. Generate primordial narrative prose
-loremaster = Loremaster(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+loremaster = Loremaster(model_name="gemini-3.8-flash", thinking_level="HIGH")
 prose = loremaster.generate_primordial_world()
 
 # 2. Architect 32x32 world map from prose
-architect = Architect(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+architect = Architect(model_name="gemini-3.8-flash", thinking_level="HIGH")
 world_map = architect.generate_world_map(worldprose=prose)
 architect.save_world_map(world_map)
 
 # 3. Advance world history across epochs using the Historian
-historian = Historian(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+historian = Historian(model_name="gemini-3.8-flash", thinking_level="HIGH")
 
 # Run Epoch 1 (takes worldmap.md, creates worldmap_epoch_1.json and worldmap_epoch_1.md)
 res_epoch1 = historian.run_epoch()

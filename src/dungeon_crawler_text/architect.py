@@ -207,8 +207,8 @@ class Architect:
 
     def __init__(
         self,
-        model_name: str = "gemini-3.6-flash",
-        thinking_level: str = "MEDIUM",
+        model_name: str = "gemini-3.8-flash",
+        thinking_level: str = "HIGH",
         client: Optional[genai.Client] = None,
     ) -> None:
         self.model_name = model_name
@@ -332,14 +332,14 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-3.6-flash",
-        help="Gemini model to use (default: gemini-3.6-flash)",
+        default="gemini-3.8-flash",
+        help="Gemini model to use (default: gemini-3.8-flash)",
     )
     parser.add_argument(
         "--thinking",
         type=str,
-        default="MEDIUM",
-        help="Thinking level for Gemini models (default: MEDIUM)",
+        default="HIGH",
+        help="Thinking level for Gemini models (default: HIGH)",
     )
 
     args = parser.parse_args()
