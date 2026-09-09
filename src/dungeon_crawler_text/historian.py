@@ -219,8 +219,49 @@ class WorldStateSnapshot:
             encoding="utf-8",
         )
 
+    def synthesize_fallback_timeline_entry(self, epoch: int) -> str:
+        """Synthesizes an authoritative ## Epoch <N> timeline entry from mutations_log and active features."""
+        lines = [f"## Epoch {epoch}: The Unfolding Age\n"]
+        features = self.data.get("features", {})
+        created_lines = []
+
+        for log in self.mutations_log:
+            if "[SUCCESS] Created feature" in log:
+                m = re.search(r"Created feature '([^']+)'", log)
+                if m:
+                    fkey = m.group(1)
+                    feat = features.get(fkey, {})
+                    fname = feat.get("name", fkey)
+                    fchar = feat.get("char", "?")
+                    tiles = feat.get("tiles", [])
+                    pos_str = f"at {tiles[0]}" if len(tiles) == 1 else (f"{tiles[0]} <---> {tiles[-1]}" if len(tiles) > 1 else "")
+                    desc = feat.get("description", f"Established during Epoch {epoch}.")
+                    created_lines.append(f"- **{fname} ({fchar}) {pos_str}:** {desc}")
+            elif "[SUCCESS] Updated feature" in log:
+                m = re.search(r"Updated feature '([^']+)'", log)
+                if m:
+                    fkey = m.group(1)
+                    feat = features.get(fkey, {})
+                    fname = feat.get("name", fkey)
+                    fchar = feat.get("char", "?")
+                    desc = feat.get("description", f"Upgraded or transformed during Epoch {epoch}.")
+                    created_lines.append(f"- **{fname} ({fchar}):** {desc}")
+            elif any(sub in log for sub in ("[SUCCESS] Expanded domain", "[SUCCESS] Cleared", "[SUCCESS] Engineered waterworks", "[SUCCESS] Abandoned")):
+                clean_log = re.sub(r"^\[SUCCESS\]\s*", "", log).strip()
+                created_lines.append(f"- **Territorial Evolution:** {clean_log}")
+            elif "[SUCCESS] Updated Region" in log:
+                clean_log = re.sub(r"^\[SUCCESS\]\s*", "", log).strip()
+                created_lines.append(f"- **Region Lore Mutation:** {clean_log}")
+
+        if not created_lines:
+            lines.append("- *(Peaceful era with no territorial or landmark mutations)*")
+        else:
+            lines.extend(created_lines)
+
+        return "\n".join(lines)
+
     def append_timeline_entry(self, epoch: int, content: str) -> None:
-        """Appends an epoch entry to the growing chronological # Timeline."""
+        """Appends an epoch entry to the growing chronological # Timeline, deduplicating and sorting."""
         clean_content = content.strip()
         if not clean_content:
             return
@@ -236,13 +277,50 @@ class WorldStateSnapshot:
             timeline_list = [str(timeline_list)]
             self.data["timeline"] = timeline_list
 
-        timeline_list.append(clean_content)
+        # Deduplicate or replace if an entry for this epoch already exists
+        epoch_pat = rf"^##\s+Epoch\s+{epoch}\b"
+        replaced = False
+        for idx, item in enumerate(timeline_list):
+            if isinstance(item, str) and re.search(epoch_pat, item, re.MULTILINE | re.IGNORECASE):
+                timeline_list[idx] = clean_content
+                replaced = True
+                break
+
+        if not replaced:
+            timeline_list.append(clean_content)
+
+        # Keep timeline entries sorted by epoch number
+        def _get_epoch_key(entry: Any) -> int:
+            if isinstance(entry, dict):
+                return int(entry.get("epoch", 999999))
+            m = re.search(r"##\s+Epoch\s+(\d+)", str(entry), re.IGNORECASE)
+            return int(m.group(1)) if m else 999999
+
+        timeline_list.sort(key=_get_epoch_key)
         self.save()
+
+    def has_timeline_entry(self, epoch: int) -> bool:
+        """Checks if a timeline entry for the given epoch already exists in this snapshot."""
+        timeline_list = self.data.get("timeline", [])
+        if not isinstance(timeline_list, list):
+            return False
+        epoch_pat = rf"^##\s+Epoch\s+{epoch}\b"
+        for item in timeline_list:
+            if isinstance(item, str) and re.search(epoch_pat, item, re.MULTILINE | re.IGNORECASE):
+                return True
+            elif isinstance(item, dict) and item.get("epoch") == epoch:
+                return True
+        return False
 
     def render_and_save_md(self, md_path: Path, timeline_entry: Optional[str] = None) -> Path:
         """Renders the snapshot to LLM-readable Markdown companion with growing # Timeline and writes to disk."""
-        if timeline_entry is not None and str(timeline_entry).strip():
-            self.append_timeline_entry(epoch=self.epoch, content=str(timeline_entry))
+        entry_text = str(timeline_entry).strip() if timeline_entry is not None else ""
+        if not entry_text and self.mutations_log and not self.has_timeline_entry(self.epoch):
+            entry_text = self.synthesize_fallback_timeline_entry(epoch=self.epoch)
+
+        if entry_text:
+            self.append_timeline_entry(epoch=self.epoch, content=entry_text)
+
         md_file = Path(md_path)
         md_content = format_world_for_llm(self.data)
         md_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1132,6 +1210,119 @@ class HistorianEpochResult:
     features_count: int = 0
     token_usage: dict[str, int] = field(default_factory=dict)
     regions_history_path: Optional[Path] = None
+    api_calls: int = 0
+    estimated_cost_usd: float = 0.0
+    cumulative_token_usage: dict[str, int] = field(default_factory=dict)
+    cumulative_cost_usd: float = 0.0
+
+
+def calculate_cost(
+    model_name: str,
+    prompt_tokens: int,
+    candidates_tokens: int,
+) -> float:
+    """Estimates USD cost based on token counts and Gemini model pricing tiers.
+
+    Pricing reference:
+    - gemini-3.7-* / gemini-3.8-*:
+        $0.75 per 1M prompt tokens ($0.75 / 1_000_000)
+        $3.75 per 1M candidate tokens (including thoughts) ($3.75 / 1_000_000)
+    - gemini-*-pro (e.g., gemini-2.5-pro, gemini-3.5-pro):
+        $1.25 per 1M prompt tokens ($1.25 / 1_000_000)
+        $5.00 per 1M candidate tokens ($5.00 / 1_000_000)
+    - gemini-*-flash (default e.g., gemini-3.6-flash, gemini-2.5-flash):
+        $0.50 per 1M prompt tokens ($0.50 / 1_000_000)
+        $3.00 per 1M candidate tokens ($3.00 / 1_000_000)
+    """
+    model = (model_name or "").lower()
+    if any(m in model for m in ("3.7", "3.8")):
+        input_rate = 0.75 / 1_000_000
+        output_rate = 3.75 / 1_000_000
+    elif "pro" in model:
+        input_rate = 1.25 / 1_000_000
+        output_rate = 5.00 / 1_000_000
+    else:
+        input_rate = 0.50 / 1_000_000
+        output_rate = 3.00 / 1_000_000
+
+    return (prompt_tokens * input_rate) + (candidates_tokens * output_rate)
+
+
+class _UsageTracker:
+    """Context manager that intercepts remote Gemini API calls to capture token usage across all AFC hops."""
+
+    def __init__(self, client: Any, model_name: str = "gemini-3.6-flash") -> None:
+        self.client = client
+        self.model_name = model_name
+        self.api_calls: int = 0
+        self.prompt_tokens: int = 0
+        self.candidates_tokens: int = 0
+        self.thoughts_tokens: int = 0
+        self.total_tokens: int = 0
+        self._orig_method: Any = None
+        self._target_attr: Optional[str] = None
+
+    def __enter__(self) -> "_UsageTracker":
+        models = getattr(self.client, "models", None)
+        if models is not None:
+            # Prefer intercepting `_generate_content` which executes for every AFC hop in the SDK
+            if hasattr(models, "_generate_content") and callable(getattr(models, "_generate_content")):
+                self._target_attr = "_generate_content"
+            elif hasattr(models, "generate_content") and callable(getattr(models, "generate_content")):
+                self._target_attr = "generate_content"
+
+            if self._target_attr:
+                self._orig_method = getattr(models, self._target_attr)
+
+                def _hooked(*args: Any, **kwargs: Any) -> Any:
+                    res = self._orig_method(*args, **kwargs)
+                    self.record_response(res)
+                    return res
+
+                setattr(models, self._target_attr, _hooked)
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        models = getattr(self.client, "models", None)
+        if models is not None and self._target_attr and self._orig_method:
+            setattr(models, self._target_attr, self._orig_method)
+
+    def record_response(self, res: Any) -> None:
+        """Records token metrics from a response object or candidate metadata."""
+        self.api_calls += 1
+        meta = getattr(res, "usage_metadata", None)
+        if meta is not None:
+            p = getattr(meta, "prompt_token_count", 0)
+            c = getattr(meta, "candidates_token_count", 0)
+            th = getattr(meta, "thoughts_token_count", 0)
+            t = getattr(meta, "total_token_count", 0)
+
+            p_val = p if isinstance(p, int) else 0
+            c_val = c if isinstance(c, int) else 0
+            th_val = th if isinstance(th, int) else 0
+            t_val = t if isinstance(t, int) else (p_val + c_val)
+
+            self.prompt_tokens += p_val
+            self.candidates_tokens += c_val
+            self.thoughts_tokens += th_val
+            self.total_tokens += t_val
+
+    @property
+    def usage_dict(self) -> dict[str, int]:
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "candidates_tokens": self.candidates_tokens,
+            "thoughts_tokens": self.thoughts_tokens,
+            "total_tokens": self.total_tokens,
+        }
+
+    @property
+    def cost_usd(self) -> float:
+        return calculate_cost(
+            model_name=self.model_name,
+            prompt_tokens=self.prompt_tokens,
+            candidates_tokens=self.candidates_tokens,
+        )
 
 
 def _extract_response_text(response: Any) -> str:
@@ -1181,19 +1372,32 @@ class Historian:
             "total_tokens": 0,
             "thoughts_tokens": 0,
         }
+        self.cumulative_usage: dict[str, int] = self.token_usage
+        self.cumulative_api_calls: int = 0
+        self.cumulative_cost_usd: float = 0.0
+        self.last_epoch_usage: dict[str, int] = {}
+        self.last_epoch_api_calls: int = 0
+        self.last_epoch_cost_usd: float = 0.0
 
     def _track_usage(self, response: Any) -> None:
-        """Records token usage from response metadata."""
+        """Records token usage from response metadata into cumulative counters."""
         meta = getattr(response, "usage_metadata", None)
-        if meta:
-            p = getattr(meta, "prompt_token_count", 0) or 0
-            c = getattr(meta, "candidates_token_count", 0) or 0
-            t = getattr(meta, "total_token_count", 0) or (p + c)
-            th = getattr(meta, "thoughts_token_count", 0) or 0
-            self.token_usage["prompt_tokens"] += p
-            self.token_usage["candidates_tokens"] += c
-            self.token_usage["total_tokens"] += t
-            self.token_usage["thoughts_tokens"] += th
+        if meta is not None:
+            p = getattr(meta, "prompt_token_count", 0)
+            c = getattr(meta, "candidates_token_count", 0)
+            t = getattr(meta, "total_token_count", 0)
+            th = getattr(meta, "thoughts_token_count", 0)
+            p_val = p if isinstance(p, int) else 0
+            c_val = c if isinstance(c, int) else 0
+            th_val = th if isinstance(th, int) else 0
+            t_val = t if isinstance(t, int) else (p_val + c_val)
+
+            self.token_usage["prompt_tokens"] += p_val
+            self.token_usage["candidates_tokens"] += c_val
+            self.token_usage["total_tokens"] += t_val
+            self.token_usage["thoughts_tokens"] += th_val
+            self.cumulative_api_calls += 1
+            self.cumulative_cost_usd += calculate_cost(self.model_name, p_val, c_val)
 
     @retry_with_backoff(max_retries=4, initial_delay=2.0)
     def _execute_turn(self, chat_session: Any, message: str) -> Any:
@@ -1277,10 +1481,51 @@ class Historian:
             f"{epoch_directive}"
         )
 
-        response = self._execute_turn(turn_chat, user_prompt)
-        self._track_usage(response)
+        with _UsageTracker(self.client, model_name=self.model_name) as tracker:
+            response = self._execute_turn(turn_chat, user_prompt)
+            if tracker.api_calls == 0:
+                tracker.record_response(response)
 
-        narrative = _extract_response_text(response)
+            narrative = _extract_response_text(response)
+
+            # If LLM executed mutations but omitted narrative text, prompt once for the mandatory entry
+            if not narrative.strip() and self.snapshot.mutations_log:
+                followup = (
+                    f"You executed {len(self.snapshot.mutations_log)} map mutation(s), but did not output "
+                    f"the mandatory '## Epoch {epoch_num}' timeline entry. "
+                    f"Please output the concise '## Epoch {epoch_num}' Markdown timeline entry explaining the historical "
+                    f"rationale for these mutations now."
+                )
+                try:
+                    calls_before = tracker.api_calls
+                    followup_resp = self._execute_turn(turn_chat, followup)
+                    if tracker.api_calls == calls_before:
+                        tracker.record_response(followup_resp)
+                    followup_text = _extract_response_text(followup_resp)
+                    if followup_text.strip():
+                        narrative = followup_text.strip()
+                except Exception as e:
+                    logger.warning(f"Follow-up prompt for epoch narrative failed: {e}")
+
+        # Authoritative fallback: guarantee an epoch entry is always recorded when mutations occurred
+        if not narrative.strip() and self.snapshot.mutations_log:
+            narrative = self.snapshot.synthesize_fallback_timeline_entry(epoch=epoch_num)
+
+        # Record and accumulate epoch token metrics and dollar cost
+        epoch_usage = tracker.usage_dict
+        epoch_api_calls = tracker.api_calls
+        epoch_cost_usd = tracker.cost_usd
+
+        self.last_epoch_usage = epoch_usage
+        self.last_epoch_api_calls = epoch_api_calls
+        self.last_epoch_cost_usd = epoch_cost_usd
+
+        self.token_usage["prompt_tokens"] += epoch_usage["prompt_tokens"]
+        self.token_usage["candidates_tokens"] += epoch_usage["candidates_tokens"]
+        self.token_usage["thoughts_tokens"] += epoch_usage["thoughts_tokens"]
+        self.token_usage["total_tokens"] += epoch_usage["total_tokens"]
+        self.cumulative_api_calls += epoch_api_calls
+        self.cumulative_cost_usd += epoch_cost_usd
 
         # 5. Render and save the companion .md copy with growing # Timeline
         self.snapshot.render_and_save_md(rendered_md, timeline_entry=narrative)
@@ -1313,6 +1558,24 @@ class Historian:
         print(f"Rendered Markdown saved:       {rendered_md}")
         print(f"Regions History updated:       {reg_history_json}")
 
+        print("\n" + "-" * 80, flush=True)
+        print(f" EPOCH {epoch_num} TOKEN USAGE & COST BREAKDOWN", flush=True)
+        print("-" * 80, flush=True)
+        print(f"API Hops / Remote Calls: {epoch_api_calls}", flush=True)
+        print(f"Prompt Tokens:           {epoch_usage['prompt_tokens']:,}", flush=True)
+        print(f"Candidate Tokens:        {epoch_usage['candidates_tokens']:,}", flush=True)
+        if epoch_usage.get("thoughts_tokens"):
+            print(f"Thoughts Tokens:         {epoch_usage['thoughts_tokens']:,}", flush=True)
+        print(f"Total Epoch Tokens:      {epoch_usage['total_tokens']:,}", flush=True)
+        print(f"Estimated Epoch Cost:    ${epoch_cost_usd:.4f} USD", flush=True)
+        if epoch_num > 1 or self.cumulative_api_calls > epoch_api_calls:
+            print("-" * 80, flush=True)
+            print(f"Cumulative Usage (Epochs 1 - {epoch_num}):", flush=True)
+            print(f"  Total API Calls:       {self.cumulative_api_calls}", flush=True)
+            print(f"  Total Tokens:          {self.cumulative_usage['total_tokens']:,}", flush=True)
+            print(f"  Total Estimated Cost:  ${self.cumulative_cost_usd:.4f} USD", flush=True)
+        print("-" * 80, flush=True)
+
         return HistorianEpochResult(
             epoch=epoch_num,
             narrative=narrative,
@@ -1322,8 +1585,12 @@ class Historian:
             rendered_md_path=rendered_md,
             mutations=list(self.snapshot.mutations_log),
             features_count=features_count,
-            token_usage=dict(self.token_usage),
+            token_usage=dict(epoch_usage),
             regions_history_path=reg_history_json,
+            api_calls=epoch_api_calls,
+            estimated_cost_usd=epoch_cost_usd,
+            cumulative_token_usage=dict(self.cumulative_usage),
+            cumulative_cost_usd=self.cumulative_cost_usd,
         )
 
 
@@ -1418,14 +1685,16 @@ def main() -> None:
                 sys.exit(1)
 
     print("\n" + "=" * 80)
-    print(" TOKEN USAGE SUMMARY")
+    print(" HISTORIAN TOTAL TOKEN & COST SUMMARY")
     print("=" * 80)
-    usage = historian.token_usage
-    print(f"Prompt Tokens:     {usage['prompt_tokens']:,}")
-    print(f"Candidate Tokens:  {usage['candidates_tokens']:,}")
+    usage = historian.cumulative_usage
+    print(f"Total API Calls:      {historian.cumulative_api_calls}")
+    print(f"Prompt Tokens:        {usage['prompt_tokens']:,}")
+    print(f"Candidate Tokens:     {usage['candidates_tokens']:,}")
     if usage.get("thoughts_tokens"):
-        print(f"Thoughts Tokens:   {usage['thoughts_tokens']:,}")
-    print(f"Total Tokens:      {usage['total_tokens']:,}")
+        print(f"Thoughts Tokens:      {usage['thoughts_tokens']:,}")
+    print(f"Total Tokens:         {usage['total_tokens']:,}")
+    print(f"Total Estimated Cost: ${historian.cumulative_cost_usd:.4f} USD")
     print("=" * 80)
 
 

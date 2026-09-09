@@ -6,6 +6,7 @@ from dungeon_crawler_text.historian import (
     Historian,
     HistorianEpochResult,
     WorldStateSnapshot,
+    calculate_cost,
     resolve_epoch_paths,
 )
 from dungeon_crawler_text.loremaster import (
@@ -56,6 +57,7 @@ __all__ = [
     "DEFAULT_PRIMORDIAL_QUERY",
     "WorldStateSnapshot",
     "build_viewer_html",
+    "calculate_cost",
     "compile_regions_history",
     "format_world_for_llm",
     "generate_html_viewer",
