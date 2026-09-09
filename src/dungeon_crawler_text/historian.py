@@ -1738,11 +1738,13 @@ class Historian:
         model_name: str = "gemini-3.8-flash",
         thinking_level: str = "HIGH",
         client: Optional[genai.Client] = None,
+        max_afc_calls: int = 20,
     ) -> None:
         self.model_name = model_name
         self.thinking_level = thinking_level
         self.client = client or genai.Client()
         self.system_prompt = _load_prompt("historian.md")
+        self.max_afc_calls = max_afc_calls
 
         self.snapshot: Optional[WorldStateSnapshot] = None
         self.current_epoch: int = 0
@@ -1848,6 +1850,9 @@ class Historian:
             temperature=0.7,
             thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level),
             tools=historian_tools,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                maximum_remote_calls=self.max_afc_calls,
+            ),
         )
         turn_chat = self.client.chats.create(model=self.model_name, config=config)
 
@@ -2023,11 +2028,21 @@ def main() -> None:
         action="store_true",
         help="Run in interactive mode, prompting for epoch directives in the same conversation",
     )
+    parser.add_argument(
+        "--max-afc-calls",
+        type=int,
+        default=20,
+        help="Maximum number of remote calls for automatic function calling (default: 20)",
+    )
 
     args = parser.parse_args()
     load_dotenv()
 
-    historian = Historian(model_name=args.model, thinking_level=args.thinking)
+    historian = Historian(
+        model_name=args.model,
+        thinking_level=args.thinking,
+        max_afc_calls=args.max_afc_calls,
+    )
 
     if args.interactive:
         print("=" * 80)

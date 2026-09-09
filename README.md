@@ -171,6 +171,7 @@ uv run python -m dungeon_crawler_text.historian
 | `--interactive` | `flag` | `False` | Run interactively, prompting for epoch directives within the same conversation |
 | `--model` | `str` | `gemini-3.8-flash` | Gemini model to use for the agent |
 | `--thinking` | `str` | `HIGH` | Thinking level for Gemini models (`HIGH`, `MEDIUM`, `LOW`) |
+| `--max-afc-calls` | `int` | `20` | Maximum number of remote calls for automatic function calling (AFC) |
 
 **Examples:**
 ```bash
