@@ -61,8 +61,9 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - `'o'` **Civilized Settlement / Outpost / Fort:** Mortal villages, border garrisons, and pioneer havens. Sited on fertile plains (`.`), coasts (`;`), farmlands (`:`), or near rivers.
 - `'O'` **Civilized City / Metropolis / Citadel:** Sovereign capitals, urban centers, and major fortified citadels. Promoted from thriving settlements (`'o'`) or reclaimed strongholds.
 - `'!'` **Hostile Lair / Dungeon / Ruin:** Monster dens, perilous crypts, and enemy strongholds in remote wilderness (`&`, `#`, `^`, `*`, `%`, `/`). When cleansed or garrisoned by mortals, flip `'!'` -> `'o'` or `'O'`.
-- `'+'` **Road / Highway:** Contiguous sequence of coordinates connecting settlements across traversable ground (`.`, `,`, `:`, `#`).
-- `'='` **Bridge / Viaduct:** Strictly spans water (`~`) or chasms (`/`). Every bridge tile must be on a water/chasm tile from bank to bank; never extend bridge tiles onto dry land (use a road `+` for terrestrial paths between bridgeheads and inland settlements).
+- `'+'` **Road / Highway:** Contiguous sequence of coordinates connecting settlements across traversable ground (`.`, `,`, `:`, `#`, `;`).
+- `'='` **Bridge / Viaduct:** Strictly spans water (`~`), shallows (`;`), or chasms (`/`). Every bridge tile must be on a water/shallows/chasm tile from bank to bank; never extend bridge tiles onto dry land (use a road `+` for terrestrial paths between bridgeheads and inland settlements).
+- `'*'` **Masonry Dam / Civil Barrier:** Heavy stone barrage impounding river waterways.
 
 ### Region Grid (Biome Context)
 - In the side-by-side inspection view, the right grid contains single-character alphanumeric Region IDs.
@@ -74,14 +75,14 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 # Available Tools
 
 ### 1. Feature CRUD
-- **`create_feature`:** Establishes a new landmark (`o`, `O`, `!`), road (`+`), or bridge (`=`).
-- **`update_feature`:** Mutates or maintains a feature. Requires target `char` (`o`, `O`, `!`, `+`, `=`), e.g. promoting a settlement (`o` -> `O`), ruining a fallen city (`O` -> `!`), reclaiming an ancient ruin (`!` -> `o` / `O`), or retaining current character when extending routes or updating lore.
+- **`create_feature`:** Establishes a new landmark (`o`, `O`, `!`, `*`), road (`+`), or bridge (`=`).
+- **`update_feature`:** Mutates or maintains a feature. Requires target `char` (`o`, `O`, `!`, `+`, `=`, `*`), e.g. promoting a settlement (`o` -> `O`), ruining a fallen city (`O` -> `!`), reclaiming an ancient ruin (`!` -> `o` / `O`), or retaining current character when extending routes or updating lore.
 - **`delete_feature`:** Removes abandoned or razed encampments/bridges.
 
 ### 2. Semantic Terraforming & Dual-Grid Tools
 - **`expand_domain`:** Spreads farmlands (`:`) or blighted wastelands (`*`) around a city or dungeon. Automatically shields existing waterways (`~`) so rivers are never paved over. Supports optional `lore` describing the domain.
 - **`clear_land`:** Converts forest/bog tiles into plains (`.`) or farmlands (`:`). Can expand an existing farm domain or register a new one (with optional `new_domain_lore`).
-- **`engineer_waterworks`:** The dedicated tool for water alterations. Converts water to ground (`action="dam"` or `"drain"`) with automatic land region remapping, or carves canals/reservoirs (`action="canal"` or `"flood"`) with optional `waterway_lore`.
+- **`engineer_waterworks`:** Alters waterways: converts river water to a dam barrier (`*`) with `dam_name` and `dam_lore`, drains wetlands, or carves canals.
 - **`abandon_domain`:** Dissolves abandoned farmlands or cleared wastelands back to wild grasslands (`.`) and wilderness region `'0'`.
 - **`update_region`:** Mutates the lore, display name, or classification of an existing regional biome as history evolves its ecology, atmosphere, dangers, or reputation (e.g. updating the lore of an ancient forest that fell under an arcane blight, or a mountain range colonized by mining guilds).
 

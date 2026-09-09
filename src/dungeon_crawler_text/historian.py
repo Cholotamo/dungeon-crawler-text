@@ -484,7 +484,7 @@ class WorldStateSnapshot:
             for pt in tiles:
                 x, y = pt[0], pt[1]
                 t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
-                if t_char in ("~", "/"):
+                if t_char in ("~", "/", ";"):
                     barrier_tiles.append(pt)
                 else:
                     invalid_tiles.append((pt, t_char))
@@ -495,25 +495,25 @@ class WorldStateSnapshot:
                 if barrier_tiles:
                     return (
                         f"[REJECTION] Bridge '{fid}' at {tiles} extends past the barrier onto terrestrial land tile(s): {pts} ({chars}). "
-                        f"Bridge tiles ('=') must strictly span the natural barrier ('~' or '/'). "
+                        f"Bridge tiles ('=') must strictly span the natural barrier ('~', ';', or '/'). "
                         f"Constrain the bridge strictly to barrier tiles: tiles={barrier_tiles}. "
                         f"For terrestrial approach paths between the bridgehead and inland settlements, use an overland road ('+')."
                     )
                 else:
                     return (
                         f"[REJECTION] Bridge '{fid}' at {tiles} is situated entirely on dry land ({chars}). "
-                        f"Bridges must span a natural water barrier ('~') or chasm ('/'). "
+                        f"Bridges must span a natural water barrier ('~', ';') or chasm ('/'). "
                         f"Use a road ('+') for terrestrial overland routes."
                     )
 
-            # Bank-to-bank reach validation for water and chasm barriers
+            # Bank-to-bank reach validation for water, shallows, and chasm barriers
             def _is_water(pt: list[int] | tuple[int, int]) -> bool:
                 px, py = pt[0], pt[1]
-                return 0 <= py < height and 0 <= px < width and terrain[py][px] == "~"
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] in ("~", ";")
 
             def _is_non_water(pt: list[int] | tuple[int, int]) -> bool:
                 px, py = pt[0], pt[1]
-                return 0 <= py < height and 0 <= px < width and terrain[py][px] != "~"
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] not in ("~", ";")
 
             def _is_chasm(pt: list[int] | tuple[int, int]) -> bool:
                 px, py = pt[0], pt[1]
@@ -521,7 +521,7 @@ class WorldStateSnapshot:
 
             def _is_non_chasm(pt: list[int] | tuple[int, int]) -> bool:
                 px, py = pt[0], pt[1]
-                return 0 <= py < height and 0 <= px < width and terrain[py][px] not in ("/", "~")
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] not in ("/", "~", ";")
 
             water_pts = [pt for pt in tiles if _is_water(pt)]
             if water_pts:
@@ -549,12 +549,12 @@ class WorldStateSnapshot:
                                         cy += dcy
                                     return (
                                         f"[REJECTION] Bridge '{fid}' at {tiles} does not reach the opposite bank! "
-                                        f"Anchored on the {back_name} bank at [{bx + dbx}, {by + dby}], but terminates in open water to the {fwd_name} at [{bx + dcx}, {by + dcy}]. "
-                                        f"To span this river, define the bridge across all water tiles: tiles={needed} reaching the {fwd_name} bank at [{cx}, {cy}]."
+                                        f"Anchored on the {back_name} bank at [{bx + dbx}, {by + dby}], but terminates in open water or shallows to the {fwd_name} at [{bx + dcx}, {by + dcy}]. "
+                                        f"To span this waterway, define the bridge across all water/shallows tiles: tiles={needed} reaching the {fwd_name} bank at [{cx}, {cy}]."
                                     )
                             return (
-                                f"[REJECTION] Bridge '{fid}' at {tiles} is situated on water tile '~' but does not span between two opposing land banks. "
-                                f"Bridges must reach from bank to bank across the water."
+                                f"[REJECTION] Bridge '{fid}' at {tiles} is situated on water/shallows but does not span between two opposing land banks. "
+                                f"Bridges must reach from bank to bank across the water or shallows."
                             )
                 else:
                     p_start = tiles[0]
@@ -573,8 +573,8 @@ class WorldStateSnapshot:
                                 cx += v_end[0]
                                 cy += v_end[1]
                             return (
-                                f"[REJECTION] Bridge '{fid}' endpoint {p_end} terminates in open water! "
-                                f"The river continues to [{p_end[0] + v_end[0]}, {p_end[1] + v_end[1]}]. "
+                                f"[REJECTION] Bridge '{fid}' endpoint {p_end} terminates in open water or shallows! "
+                                f"The waterway continues to [{p_end[0] + v_end[0]}, {p_end[1] + v_end[1]}]. "
                                 f"Extend the bridge to tiles={needed} to reach the opposite bank at [{cx}, {cy}]."
                             )
 
@@ -590,8 +590,8 @@ class WorldStateSnapshot:
                                 cy += v_start[1]
                             needed = list(reversed(needed_rev)) + list(tiles)
                             return (
-                                f"[REJECTION] Bridge '{fid}' start {p_start} terminates in open water! "
-                                f"The river continues to [{p_start[0] + v_start[0]}, {p_start[1] + v_start[1]}]. "
+                                f"[REJECTION] Bridge '{fid}' start {p_start} terminates in open water or shallows! "
+                                f"The waterway continues to [{p_start[0] + v_start[0]}, {p_start[1] + v_start[1]}]. "
                                 f"Extend the bridge to tiles={needed} to reach the near bank at [{cx}, {cy}]."
                             )
 
@@ -677,6 +677,17 @@ class WorldStateSnapshot:
                         f"place dungeons on land: deep forests ('&', '#'), peaks ('^'), bogs ('%'), wastelands ('*'), or cliffs ('/')."
                     )
 
+        # 5. Dam / Barrier Validation ('*')
+        elif fchar_clean == "*":
+            for pt in tiles:
+                x, y = pt[0], pt[1]
+                t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
+                if t_char not in ("*", "~", ";", "."):
+                    return (
+                        f"[REJECTION] Dam/barrier feature '{fid}' at [{x}, {y}] is placed on invalid terrain '{t_char}'. "
+                        f"Dams and masonry barriers must be situated on masonry ('*') or waterways ('~', ';')."
+                    )
+
         return None
 
     # =========================================================================
@@ -692,15 +703,16 @@ class WorldStateSnapshot:
         tiles: list[list[int]],
         description: str = "",
     ) -> str:
-        """Creates a new feature (settlement, city, citadel, dungeon, ruin, road, bridge) on the world map.
+        """Creates a new feature (settlement, city, citadel, dungeon, ruin, road, bridge, dam) on the world map.
 
         Args:
-            feature_id: Unique slug identifier for the feature (e.g. 'oakhaven', 'highwatch', 'kings_highway').
-            name: Evocative human-readable display name (e.g. 'Oakhaven', 'Highwatch Citadel').
+            feature_id: Unique slug identifier for the feature (e.g. 'oakhaven', 'highwatch', 'kings_highway', 'iron_gorge_dam').
+            name: Evocative human-readable display name (e.g. 'Oakhaven', 'Highwatch Citadel', 'Iron Gorge Dam').
             char: Map character symbol representing the feature. 'o' for civilized settlement/outpost/fort,
-                'O' for civilized city/metropolis/citadel, '!' for hostile lair/dungeon/ruin, '+' for road, '=' for bridge.
+                'O' for civilized city/metropolis/citadel, '!' for hostile lair/dungeon/ruin, '+' for road, '=' for bridge,
+                '*' for masonry dam/barrier.
             feature_type: Semantic category (e.g. 'settlement', 'outpost', 'fort', 'village', 'major_city',
-                'citadel', 'fortress', 'dungeon', 'ruin', 'lair', 'stronghold', 'road', 'bridge').
+                'citadel', 'fortress', 'dungeon', 'ruin', 'lair', 'stronghold', 'road', 'bridge', 'dam').
             tiles: List of [x, y] coordinates. Single-tile features use [[x, y]]. Multi-tile routes or bridges
                 use a sequence of coordinates [[x1, y1], [x2, y2], ...]. Coordinates must be in range 0..31.
             description: Optional lore, history, or context describing the founding and significance of this feature.
@@ -745,9 +757,9 @@ class WorldStateSnapshot:
                 raise ToolRejectionError(err)
 
         fchar = str(char).strip()[0] if char and str(char).strip() else ""
-        if fchar not in ("o", "O", "!", "+", "="):
+        if fchar not in ("o", "O", "!", "+", "=", "*"):
             err = (
-                f"Error: char is required and must be one of 'o', 'O', '!', '+', '=' (got '{char}')."
+                f"Error: char is required and must be one of 'o', 'O', '!', '+', '=', '*' (got '{char}')."
             )
             print(f"  -> {err}", flush=True)
             raise ToolRejectionError(err)
@@ -848,7 +860,7 @@ class WorldStateSnapshot:
             feature_id: Unique identifier of the feature to update.
             char: Required map character symbol representing the feature's status:
                 'o' (civilized outpost/village/fort), 'O' (civilized city/citadel/fortress),
-                '!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge).
+                '!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge), '*' (masonry dam/barrier).
                 Pass the new symbol to mutate state (e.g. '!' -> 'O' when reclaiming, 'o' -> 'O' when promoting, 'O' -> '!' when ruined),
                 or pass the current symbol if keeping the same status.
             name: New display name (leave empty to keep current name).
@@ -883,10 +895,10 @@ class WorldStateSnapshot:
         changes: list[str] = []
 
         proposed_char = str(char).strip()[:1] if char and str(char).strip() else ""
-        if proposed_char not in ("o", "O", "!", "+", "="):
+        if proposed_char not in ("o", "O", "!", "+", "=", "*"):
             err = (
                 f"Error: char is required when updating feature '{feature_id}'. "
-                f"Must be one of 'o', 'O', '!', '+', '=' (got '{char}')."
+                f"Must be one of 'o', 'O', '!', '+', '=', '*' (got '{char}')."
             )
             print(f"  -> {err}", flush=True)
             raise ToolRejectionError(err)
@@ -1263,12 +1275,137 @@ class WorldStateSnapshot:
         print(f"  -> {msg}", flush=True)
         return msg
 
+    def _detect_downstream_tiles(
+        self,
+        dam_coords: list[list[int]],
+        river_reg_id: str,
+        explicit_downstream: Optional[list[list[int]]] = None,
+    ) -> list[list[int]]:
+        """Detects and returns downstream river tiles from a dam.
+
+        Traces connected river tiles belonging to river_reg_id outward from dam_coords.
+        Identifies the downstream branch flowing toward the ocean, bay, coast, swamp,
+        or lowlands, and returns the tiles ordered sequentially from dam to mouth.
+        """
+        if explicit_downstream:
+            return _normalize_tiles(explicit_downstream)
+
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        regions = self.data.get("regions", {})
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        dam_set = {(p[0], p[1]) for p in dam_coords}
+
+        # 1. Collect all river/waterway tiles matching this region
+        river_tiles = set()
+        for y in range(height):
+            for x in range(width):
+                if region[y][x] == river_reg_id and terrain[y][x] in ("~", ";"):
+                    river_tiles.add((x, y))
+
+        remaining = river_tiles - dam_set
+        if not remaining:
+            return []
+
+        # 2. Find adjacent river neighbors of the dam
+        neighbors: list[tuple[int, int]] = []
+        for bx, by in dam_set:
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = bx + dx, by + dy
+                if (nx, ny) in remaining and (nx, ny) not in neighbors:
+                    neighbors.append((nx, ny))
+
+        if not neighbors:
+            return []
+
+        # 3. Explore connected components for each neighbor
+        def score_component(comp: set[tuple[int, int]]) -> float:
+            score = 0.0
+            for cx, cy in comp:
+                for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    ax, ay = cx + ddx, cy + ddy
+                    if 0 <= ax < width and 0 <= ay < height:
+                        adj_t = terrain[ay][ax]
+                        adj_r = region[ay][ax]
+                        adj_rtype = regions.get(adj_r, {}).get("type", "").lower()
+                        if adj_rtype in ("ocean", "bay") or (adj_t == "~" and adj_r != river_reg_id):
+                            score += 50.0
+                        elif adj_rtype == "swamp" or adj_t == "%":
+                            score += 25.0
+                        elif adj_t == ";":
+                            score += 15.0
+                        elif adj_rtype == "mountains" or adj_t == "^":
+                            score -= 30.0
+                        elif adj_t == "/":
+                            score -= 15.0
+                        elif adj_t == ".":
+                            score += 5.0
+                if cx == 0 or cx == width - 1 or cy == 0 or cy == height - 1:
+                    score += 20.0
+                # In typical fantasy maps, rivers flow south/downward toward lower basin
+                score += cy * 0.5
+            return score
+
+        components: list[tuple[tuple[int, int], set[tuple[int, int]], float]] = []
+        visited_global: set[tuple[int, int]] = set()
+
+        for start_node in neighbors:
+            if start_node in visited_global:
+                continue
+            comp: set[tuple[int, int]] = set()
+            queue = [start_node]
+            comp.add(start_node)
+            visited_global.add(start_node)
+
+            while queue:
+                curr = queue.pop(0)
+                cx, cy = curr
+                for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = cx + ddx, cy + ddy
+                    if (nx, ny) in remaining and (nx, ny) not in comp:
+                        comp.add((nx, ny))
+                        visited_global.add((nx, ny))
+                        queue.append((nx, ny))
+
+            s = score_component(comp)
+            components.append((start_node, comp, s))
+
+        if not components:
+            return []
+
+        # Highest score indicates downstream towards ocean/lowlands
+        components.sort(key=lambda x: x[2], reverse=True)
+        best_start, best_comp, _ = components[0]
+
+        # 4. BFS from best_start to order tiles from near-dam to far-mouth
+        ordered_downstream: list[list[int]] = []
+        bfs_visited = {best_start}
+        bfs_queue = [best_start]
+
+        while bfs_queue:
+            curr = bfs_queue.pop(0)
+            ordered_downstream.append([curr[0], curr[1]])
+            cx, cy = curr
+            for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + ddx, cy + ddy
+                if (nx, ny) in best_comp and (nx, ny) not in bfs_visited:
+                    bfs_visited.add((nx, ny))
+                    bfs_queue.append((nx, ny))
+
+        return ordered_downstream
+
     def engineer_waterworks(
         self,
         coords: list[list[int]],
         action: str,
         target_terrain: str = "",
         target_region_id: str = "",
+        dam_name: str = "",
+        dam_lore: str = "",
+        river_lore: str = "",
+        downstream_coords: Optional[list[list[int]]] = None,
         waterway_name: str = "",
         waterway_region_id: str = "",
         waterway_lore: str = "",
@@ -1276,21 +1413,29 @@ class WorldStateSnapshot:
         """Modifies waterways, dams, canals, and reclaimed polders while guaranteeing dual-grid synchronization.
 
         Actions:
-        - 'dam' / 'drain': Converts water ('~') into ground ('.' plains, ':' farmlands, '*' masonry dam).
-          Automatically reassigns region away from the water body to the target land region or ambient wilderness ('0').
+        - 'dam': Converts river water ('~') into masonry dam barrier ('*').
+          Keeps the river's existing regional identity, updates the river's lore with the damming event,
+          automatically registers a '*' feature of type 'dam' with lore, and mutates 50% of the downstream
+          river tiles into shallow sandbanks (';').
+        - 'drain': Converts water ('~') into ground ('.' plains, ':' farmlands).
+          Reassigns region away from the water body to target land region or ambient wilderness ('0').
         - 'canal' / 'flood': Converts land into water ('~') and registers/assigns a designated water region ('river'/'lake').
 
         Args:
             coords: List of [x, y] coordinates to modify.
             action: 'dam', 'drain', 'canal', or 'flood'.
-            target_terrain: For dam/drain: ground type to convert into ('.' for plains, ':' for farmland, '*' for masonry dam).
-            target_region_id: For dam/drain: land region ID to assign (defaults to ambient wilderness '0').
+            target_terrain: Ground type to convert into ('*' for masonry dam, '.' for plains, ':' for farmland).
+            target_region_id: For drain: land region ID to assign. For dam: optional override region ID (defaults to retaining the river region).
+            dam_name: For dam: display name of the dam (e.g. 'Highwall Dam', 'Serpentine Barrage').
+            dam_lore: For dam: narrative lore describing the dam's construction, purpose, and majesty.
+            river_lore: For dam: optional updated lore for the dammed river. If omitted, dam event is auto-appended to current river lore.
+            downstream_coords: For dam: optional explicit downstream coordinates to mutate 50% to ';' (auto-detected if omitted).
             waterway_name: For canal/flood: name of the canal or reservoir (e.g. 'King's Canal').
             waterway_region_id: For canal/flood: single-character region ID for the water body.
-            waterway_lore: Optional narrative lore describing the constructed canal or flooded basin.
+            waterway_lore: For canal/flood: optional narrative lore describing the constructed canal or flooded basin.
 
         Returns:
-            Confirmation message detailing modified water/ground tiles and updated regional biomes.
+            Confirmation message detailing modified water/ground tiles, registered features, and updated regional biomes.
         """
         norm_coords = _normalize_tiles(coords)
         if not norm_coords:
@@ -1320,8 +1465,83 @@ class WorldStateSnapshot:
         tg = [list(row) for row in terrain]
         rg = [list(row) for row in region]
 
-        if act in ("dam", "drain"):
-            # Converting water -> dry land / dam masonry
+        if act == "dam":
+            # 1. Identify river region at the dam coordinates
+            first_x, first_y = norm_coords[0][0], norm_coords[0][1]
+            river_reg_id = rg[first_y][first_x]
+            river_info = regions.get(river_reg_id, {})
+            river_name = river_info.get("name", f"Region {river_reg_id}")
+
+            # Keep the region the same (river_reg_id) unless explicit target_region_id override provided
+            land_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else river_reg_id
+            t_ground = target_terrain.strip()[:1] if target_terrain and target_terrain.strip() in (".", ":", "*", ",") else "*"
+
+            for pt in norm_coords:
+                x, y = pt[0], pt[1]
+                tg[y][x] = t_ground
+                rg[y][x] = land_reg
+
+            # 2. Register Feature of type 'dam' with char '*'
+            d_name = dam_name.strip() if dam_name and dam_name.strip() else f"{river_name} Dam"
+            d_lore = dam_lore.strip() if dam_lore and dam_lore.strip() else f"An engineered heavy stone masonry dam impounding the {river_name}."
+
+            fid = re.sub(r'[^a-z0-9_]', '', d_name.lower().replace(" ", "_").replace("'", "").replace("-", "_"))
+            if not fid:
+                fid = f"dam_{first_x}_{first_y}"
+
+            features_dict = self.data.setdefault("features", {})
+            if fid in features_dict and features_dict[fid].get("tiles") != norm_coords:
+                fid = f"{fid}_{first_x}_{first_y}"
+
+            features_dict[fid] = {
+                "name": d_name,
+                "char": "*",
+                "type": "dam",
+                "tiles": norm_coords,
+                "description": d_lore,
+            }
+
+            # 3. Update the lore of the river being dammed
+            dam_notice = f"Dammed by {d_name} at coordinates {norm_coords}, significantly reducing downstream flow into shallow flats and sandbanks."
+            if river_reg_id in regions:
+                curr_lore = regions[river_reg_id].get("lore", "").strip()
+                if river_lore and river_lore.strip():
+                    regions[river_reg_id]["lore"] = river_lore.strip()
+                else:
+                    if dam_notice not in curr_lore:
+                        regions[river_reg_id]["lore"] = f"{curr_lore} {dam_notice}".strip() if curr_lore else dam_notice
+
+            # 4. Mutate 50% of the tiles downstream into ';'
+            downstream_tiles = self._detect_downstream_tiles(
+                dam_coords=norm_coords,
+                river_reg_id=river_reg_id,
+                explicit_downstream=downstream_coords,
+            )
+            mutated_downstream = []
+            for i, pt in enumerate(downstream_tiles):
+                if i % 2 == 0:  # 50% alternating along flow
+                    dx, dy = pt[0], pt[1]
+                    if tg[dy][dx] == "~":
+                        tg[dy][dx] = ";"
+                        mutated_downstream.append(pt)
+
+            self.data["terrain_grid"] = ["".join(row) for row in tg]
+            self.data["region_grid"] = ["".join(row) for row in rg]
+            self.save()
+
+            msg = (
+                f"[SUCCESS] Engineered waterworks (dam): erected '{d_name}' ['*'] across {len(norm_coords)} tile(s) "
+                f"at {norm_coords} in region '{land_reg}' ({river_name}). "
+                f"Registered dam feature and updated river lore. "
+                f"Downstream flow reduced: mutated {len(mutated_downstream)}/{len(downstream_tiles)} "
+                f"downstream water tile(s) into shallow sandbanks (';')."
+            )
+            self.mutations_log.append(msg)
+            print(f"  -> {msg}", flush=True)
+            return msg
+
+        elif act == "drain":
+            # Converting water -> dry land / reclaimed polders
             t_ground = target_terrain.strip()[:1] if target_terrain and target_terrain.strip() in (".", ":", "*", ",") else "."
             land_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else "0"
 
@@ -1341,7 +1561,7 @@ class WorldStateSnapshot:
 
             reg_name = regions.get(land_reg, {}).get("name", "Unnamed Wilderness")
             msg = (
-                f"[SUCCESS] Engineered waterworks ({act}): converted {len(norm_coords)} water tile(s) to "
+                f"[SUCCESS] Engineered waterworks (drain): converted {len(norm_coords)} water tile(s) to "
                 f"dry ground '{t_ground}' assigned to land region '{land_reg}' ({reg_name})."
             )
             self.mutations_log.append(msg)

@@ -504,6 +504,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       100% { box-shadow: 0 0 4px #ff3860; }
     }
 
+    .feat-bridge {
+      box-shadow: 0 0 6px #ffaf7a;
+      border: 1px solid #ffaf7a;
+    }
+
+    .feat-dam {
+      box-shadow: 0 0 8px #60a5fa, inset 0 0 0 1px #3b82f6;
+      border: 1px solid #60a5fa;
+    }
+
     /* Sidebar Inspector & Details */
     .sidebar-panel {
       width: 440px;
@@ -1165,12 +1175,31 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       border: "#30363d"
     };
 
+    function getTerrainDef(cell) {
+      if (!cell) return DEFAULT_TERRAIN;
+      if (cell.terrainChar === "*") {
+        const isDam = (cell.topFeature && (cell.topFeature.type === "dam" || cell.topFeature.type === "barrage" || cell.topFeature.char === "*" || (cell.topFeature.name && cell.topFeature.name.toLowerCase().includes("dam")))) ||
+                      (cell.regionType === "river" || cell.regionType === "dam" || (cell.regionName && cell.regionName.toLowerCase().includes("dam")));
+        if (isDam) {
+          return {
+            name: "Masonry Dam / River Barrier",
+            desc: "Engineered heavy stone masonry barrage impounding river waters",
+            bg: "#202d3d",
+            fg: "#93c5fd",
+            border: "#3b82f6"
+          };
+        }
+      }
+      return TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+    }
+
     const FEATURE_STYLES = {
       "o": { label: "Civilized Outpost / Village / Fort", badgeClass: "feat-settlement", fg: "#ffd166", bg: "rgba(255, 209, 102, 0.22)", border: "#ffd166" },
       "O": { label: "Civilized City / Citadel / Fortress", badgeClass: "feat-city", fg: "#ff9f1c", bg: "rgba(255, 159, 28, 0.28)", border: "#ff9f1c" },
       "!": { label: "Hostile Lair / Dungeon / Ruin", badgeClass: "feat-dungeon", fg: "#ff3860", bg: "rgba(255, 56, 96, 0.28)", border: "#ff3860" },
       "+": { label: "Road / Trade Route", badgeClass: "feat-road", fg: "#e5c093", bg: "rgba(229, 192, 147, 0.2)", border: "#e5c093" },
-      "=": { label: "Bridge / Viaduct", badgeClass: "feat-bridge", fg: "#ffaf7a", bg: "rgba(255, 175, 122, 0.25)", border: "#ffaf7a" }
+      "=": { label: "Bridge / Viaduct", badgeClass: "feat-bridge", fg: "#ffaf7a", bg: "rgba(255, 175, 122, 0.25)", border: "#ffaf7a" },
+      "*": { label: "Masonry Dam / Barrier", badgeClass: "feat-dam", fg: "#93c5fd", bg: "rgba(59, 130, 246, 0.25)", border: "#3b82f6" }
     };
 
     // Canonical Region Biome Color Palette
@@ -1430,7 +1459,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           let fgColor = "#fff";
           let borderColor = "transparent";
 
-          const tDef = TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+          const tDef = getTerrainDef(cell);
 
           if (mode === "composite") {
             glyph = cell.compositeChar;
@@ -1551,7 +1580,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     }
 
     function updateTooltip(cell) {
-      const tDef = TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+      const tDef = getTerrainDef(cell);
 
       document.getElementById("ttCoord").textContent = `X: ${String(cell.x).padStart(2, "0")}, Y: ${String(cell.y).padStart(2, "0")}`;
       const ttGlyph = document.getElementById("ttGlyph");
@@ -1608,7 +1637,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     function inspectTile(x, y, pinned) {
       if (!currentMatrix || y >= currentMatrix.length || x >= currentMatrix[0].length) return;
       const cell = currentMatrix[y][x];
-      const tDef = TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+      const tDef = getTerrainDef(cell);
 
       // Pin indicator
       const pinBadge = document.getElementById("pinIndicator");
