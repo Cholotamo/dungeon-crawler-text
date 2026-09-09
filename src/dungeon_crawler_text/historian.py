@@ -5,6 +5,7 @@ using feature CRUD tools via Gemini Automatic Function Calling (AFC).
 """
 
 import argparse
+from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
 import heapq
@@ -1527,6 +1528,142 @@ class WorldStateSnapshot:
             f"or landmarks, or exceeds maximum length of {max_length} tiles."
         )
 
+    def _find_bridge_for_severed_road(
+        self,
+        road_tiles_original: list[list[int]],
+        cut_coords: list[list[int]],
+    ) -> Optional[list[list[int]]]:
+        """Finds a validated bridge span ('=') to reconnect a severed road across the canal.
+
+        Evaluates multiple strategies:
+        1. Direct span using the exact cut tiles (in original or reversed order).
+        2. Single-tile bridge at any cut tile, prioritized by proximity to the road banks.
+        3. Straight-line bank-to-bank span originating from the remaining road bank endpoints.
+        4. Perpendicular canal crossings centered at the cut tiles.
+        5. BFS shortest water path between adjacent banks of bank_a and bank_b.
+        All candidates are verified against _validate_feature_terrain to guarantee compliance.
+        """
+        terrain = self.data.get("terrain_grid", [])
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+
+        def _is_water(pt: list[int] | tuple[int, int]) -> bool:
+            px, py = pt[0], pt[1]
+            return 0 <= py < height and 0 <= px < width and terrain[py][px] in ("~", ";")
+
+        def _is_land(pt: list[int] | tuple[int, int]) -> bool:
+            px, py = pt[0], pt[1]
+            return 0 <= py < height and 0 <= px < width and terrain[py][px] not in ("~", ";", "/")
+
+        cut_set = {(p[0], p[1]) for p in cut_coords}
+
+        # Identify contiguous runs of cut tiles in original road sequence
+        runs: list[list[list[int]]] = []
+        current_run: list[list[int]] = []
+        for pt in road_tiles_original:
+            if (pt[0], pt[1]) in cut_set:
+                current_run.append(pt)
+            else:
+                if current_run:
+                    runs.append(current_run)
+                    current_run = []
+        if current_run:
+            runs.append(current_run)
+
+        for run in runs:
+            # 1. Try exact cut run (original or reversed order)
+            for candidate in [run, list(reversed(run))]:
+                if self._validate_feature_terrain("test_bridge", "=", "bridge", candidate) is None:
+                    return candidate
+
+            # Locate road banks right before and after the cut
+            first_idx = road_tiles_original.index(run[0])
+            last_idx = road_tiles_original.index(run[-1])
+            bank_a = road_tiles_original[first_idx - 1] if first_idx > 0 else None
+            bank_b = road_tiles_original[last_idx + 1] if last_idx + 1 < len(road_tiles_original) else None
+
+            # 2. Try single-tile bridge at cut tiles, prioritized by proximity to road banks
+            run_sorted = sorted(
+                run,
+                key=lambda pt: min(
+                    abs(pt[0] - (bank_a[0] if bank_a else pt[0])) + abs(pt[1] - (bank_a[1] if bank_a else pt[1])),
+                    abs(pt[0] - (bank_b[0] if bank_b else pt[0])) + abs(pt[1] - (bank_b[1] if bank_b else pt[1])),
+                ),
+            )
+            for pt in run_sorted:
+                candidate = [pt]
+                if self._validate_feature_terrain("test_bridge", "=", "bridge", candidate) is None:
+                    return candidate
+
+            # 3. Try straight-line bank-to-bank crossings from bank_a or bank_b
+            banks_to_try = [b for b in (bank_a, bank_b) if b and _is_land(b)]
+            for b in banks_to_try:
+                bx, by = b[0], b[1]
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = bx + dx, by + dy
+                    if _is_water((nx, ny)):
+                        span = []
+                        cx, cy = nx, ny
+                        while _is_water((cx, cy)):
+                            span.append([cx, cy])
+                            cx += dx
+                            cy += dy
+                        if span and _is_land((cx, cy)):
+                            if self._validate_feature_terrain("test_bridge", "=", "bridge", span) is None:
+                                return span
+                            rev_span = list(reversed(span))
+                            if self._validate_feature_terrain("test_bridge", "=", "bridge", rev_span) is None:
+                                return rev_span
+
+            # 4. Perpendicular crossing across the canal from cut tiles
+            for pt in run:
+                px, py = pt[0], pt[1]
+                for (dx1, dy1), (dx2, dy2) in [((0, -1), (0, 1)), ((-1, 0), (1, 0))]:
+                    span = [pt]
+                    cx, cy = px + dx1, py + dy1
+                    while _is_water((cx, cy)):
+                        span.insert(0, [cx, cy])
+                        cx += dx1
+                        cy += dy1
+                    cx, cy = px + dx2, py + dy2
+                    while _is_water((cx, cy)):
+                        span.append([cx, cy])
+                        cx += dx2
+                        cy += dy2
+                    if self._validate_feature_terrain("test_bridge", "=", "bridge", span) is None:
+                        return span
+
+            # 5. BFS shortest water path between adjacent banks of bank_a and bank_b
+            if bank_a and bank_b and _is_land(bank_a) and _is_land(bank_b):
+                target_set = {
+                    (bank_b[0] + dx, bank_b[1] + dy)
+                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]
+                    if _is_water((bank_b[0] + dx, bank_b[1] + dy))
+                }
+                start_points = [
+                    (bank_a[0] + dx, bank_a[1] + dy)
+                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]
+                    if _is_water((bank_a[0] + dx, bank_a[1] + dy))
+                ]
+                for sp in start_points:
+                    queue = deque([(sp, [[sp[0], sp[1]]])])
+                    visited = {sp}
+                    while queue:
+                        curr, path = queue.popleft()
+                        if curr in target_set:
+                            for cand in [path, list(reversed(path))]:
+                                if self._validate_feature_terrain("test_bridge", "=", "bridge", cand) is None:
+                                    return cand
+                        if len(path) >= 8:
+                            continue
+                        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]:
+                            nxt = (curr[0] + dx, curr[1] + dy)
+                            if nxt not in visited and _is_water(nxt):
+                                visited.add(nxt)
+                                queue.append((nxt, path + [[nxt[0], nxt[1]]]))
+
+        return None
+
     def engineer_waterworks(
         self,
         coords: Optional[list[list[int]]] = None,
@@ -1548,6 +1685,8 @@ class WorldStateSnapshot:
         Actions:
         - 'canal': Automatically carves a navigable water channel ('~') between 'destination' and 'source' using
           pathfinding that curves around settlements ('o', 'O'), dungeons ('!'), and mountains ('^').
+          Overland roads ('+') are severed by the excavation and halted at the banks; the tool returns a note
+          with validated bridge ('=') coordinates to reconnect the road across the canal.
         - 'dam': Converts river water ('~') at 'coords' into a masonry barrage ('*'), auto-updates river lore,
           and reduces 50% of downstream river tiles to shallow sandbanks (';').
         - 'drain': Converts water ('~') at 'coords' into dry ground ('.' plains, ':' farmlands).
@@ -1784,6 +1923,67 @@ class WorldStateSnapshot:
 
             self.data["terrain_grid"] = ["".join(row) for row in tg]
             self.data["region_grid"] = ["".join(row) for row in rg]
+
+            # Detect and handle road features severed by the excavated water
+            severed_road_notes = []
+            features_dict = self.data.setdefault("features", {})
+            norm_coord_set = {(p[0], p[1]) for p in norm_coords}
+
+            for r_id, r_feat in list(features_dict.items()):
+                if not isinstance(r_feat, dict):
+                    continue
+                r_char = str(r_feat.get("char", ""))
+                r_type = str(r_feat.get("type", "")).lower()
+                if r_char != "+" and r_type not in ("road", "highway", "trail", "path"):
+                    continue
+
+                r_tiles = r_feat.get("tiles", [])
+                cut_tiles = [pt for pt in r_tiles if (pt[0], pt[1]) in norm_coord_set]
+                if not cut_tiles:
+                    continue
+
+                r_name = str(r_feat.get("name", r_id))
+                orig_tiles = [list(pt) for pt in r_tiles]
+
+                # Prune cut water tiles from road feature so it halts cleanly at the banks
+                remaining_tiles = [pt for pt in r_tiles if (pt[0], pt[1]) not in norm_coord_set]
+                r_feat["tiles"] = remaining_tiles
+
+                bridge_tiles = self._find_bridge_for_severed_road(
+                    road_tiles_original=orig_tiles,
+                    cut_coords=cut_tiles,
+                )
+
+                bridge_id = re.sub(r'[^a-z0-9_]', '', f"{r_id}_canal_bridge")
+                if not bridge_id:
+                    bridge_id = f"bridge_{cut_tiles[0][0]}_{cut_tiles[0][1]}"
+                if bridge_id in features_dict:
+                    bridge_id = f"{bridge_id}_{cut_tiles[0][0]}_{cut_tiles[0][1]}"
+                bridge_name = f"{r_name} Canal Bridge"
+
+                if bridge_tiles:
+                    bridge_tiles_str = str(bridge_tiles)
+                    note = (
+                        f"[NOTE] Water excavation severed road '{r_name}' ('{r_id}') at {cut_tiles}. "
+                        f"The cut water tile(s) were removed from '{r_id}' so the road halts cleanly at the banks. "
+                        f"To reconnect overland trade across the {w_name}, call create_feature with an engineered bridge ('='):\n"
+                        f"  -> create_feature(\n"
+                        f"         feature_id='{bridge_id}',\n"
+                        f"         name='{bridge_name}',\n"
+                        f"         char='=',\n"
+                        f"         feature_type='bridge',\n"
+                        f"         tiles={bridge_tiles_str},\n"
+                        f"         description='A stone bridge spanning the {w_name} to reconnect the {r_name}.'\n"
+                        f"     )"
+                    )
+                else:
+                    note = (
+                        f"[NOTE] Water excavation severed road '{r_name}' ('{r_id}') at {cut_tiles}. "
+                        f"The cut water tile(s) were removed from '{r_id}' so the road halts cleanly at the banks. "
+                        f"Please call create_feature with char='=' to construct a bridge across the water and restore connectivity."
+                    )
+                severed_road_notes.append(note)
+
             self.save()
 
             if act == "canal" and norm_dest and norm_src:
@@ -1797,6 +1997,9 @@ class WorldStateSnapshot:
                     f"[SUCCESS] Engineered waterworks ({act}): carved {len(norm_coords)} water tile(s) ('~') "
                     f"registered to water region '{w_id}' ('{w_name}', type: '{w_type}')."
                 )
+            if severed_road_notes:
+                msg += "\n" + "\n".join(severed_road_notes)
+
             self.mutations_log.append(msg)
             print(f"  -> {msg}", flush=True)
             return msg
