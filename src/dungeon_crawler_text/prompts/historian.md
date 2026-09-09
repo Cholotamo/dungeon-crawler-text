@@ -62,7 +62,7 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - `'O'` **Major City / Metropolis:** Promoted from prosperous settlements (`'o'`) that acquired regional dominance, deep ports, or massive stone walls.
 - `'!'` **Dungeon / Ruin / Stronghold:** Sited in remote/perilous wilderness: deep forests (`&`, `#`), high peaks (`^`), wastelands (`*`), bogs (`%`), or chasms (`/`).
 - `'+'` **Road / Highway:** Contiguous sequence of coordinates connecting settlements across traversable ground (`.`, `,`, `:`, `#`).
-- `'='` **Bridge / Viaduct:** Spans water (`~`) or chasms (`/`). Roads crossing rivers or chasms MUST have an explicit bridge feature anchored on the water/chasm tile.
+- `'='` **Bridge / Viaduct:** Spans water (`~`) or chasms (`/`). Roads crossing rivers or chasms MUST have an explicit bridge feature spanning all contiguous water/chasm tiles from bank to bank (`[[x1, y1], [x2, y2], ...]`).
 
 ### Region Grid (Biome Context)
 - In the side-by-side inspection view, the right grid contains single-character alphanumeric Region IDs.

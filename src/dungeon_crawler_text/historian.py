@@ -389,22 +389,34 @@ class WorldStateSnapshot:
 
             if water_coords:
                 first_water = water_coords[0]
+                last_water = water_coords[-1]
+                bridge_str = (
+                    f"spanning all water tiles {water_coords}"
+                    if len(water_coords) > 1
+                    else f"across water tile {first_water}"
+                )
                 return (
                     f"[REJECTION] Road '{fid}' attempts to cross water tile(s) '~' without a bridge at {water_coords}.\n"
                     f"Actionable 3-Step Remedy:\n"
                     f"1. Terminate this road at the near bank (before coordinate {first_water}).\n"
-                    f"2. Call create_feature to anchor an explicit bridge ('=') across water tile {first_water}.\n"
-                    f"3. Call create_feature to continue the road from the opposite bank."
+                    f"2. Call create_feature to anchor an explicit bridge ('=') {bridge_str}.\n"
+                    f"3. Call create_feature to continue the road from the opposite bank (starting after coordinate {last_water})."
                 )
 
             if chasm_coords:
                 first_chasm = chasm_coords[0]
+                last_chasm = chasm_coords[-1]
+                bridge_str = (
+                    f"spanning all chasm tiles {chasm_coords}"
+                    if len(chasm_coords) > 1
+                    else f"across chasm tile {first_chasm}"
+                )
                 return (
                     f"[REJECTION] Road '{fid}' attempts to cross sheer chasm/cliff tile(s) '/' without a bridge at {chasm_coords}.\n"
                     f"Actionable 3-Step Remedy:\n"
                     f"1. Terminate this road at the near cliff edge (before coordinate {first_chasm}).\n"
-                    f"2. Call create_feature to anchor a stone bridge/viaduct ('=') across chasm tile {first_chasm}.\n"
-                    f"3. Call create_feature to continue the road from the opposite edge."
+                    f"2. Call create_feature to anchor a stone bridge/viaduct ('=') {bridge_str}.\n"
+                    f"3. Call create_feature to continue the road from the opposite edge (starting after coordinate {last_chasm})."
                 )
 
             if peak_coords:
@@ -439,6 +451,14 @@ class WorldStateSnapshot:
 
         # 3. Bridge Validation ('=')
         elif fchar == "=" or ftype.lower() in ("bridge", "viaduct"):
+            # Check contiguity for multi-tile bridges
+            for i in range(1, len(tiles)):
+                if max(abs(tiles[i][0] - tiles[i - 1][0]), abs(tiles[i][1] - tiles[i - 1][1])) > 1:
+                    return (
+                        f"[REJECTION] Bridge '{fid}' coordinates are not contiguous: tile {tiles[i - 1]} and "
+                        f"tile {tiles[i]} have a gap. Bridges must form an unbroken sequence of adjacent coordinates."
+                    )
+
             barrier_tiles = []
             for pt in tiles:
                 x, y = pt[0], pt[1]
@@ -453,6 +473,162 @@ class WorldStateSnapshot:
                     f"Bridges must span a natural water barrier ('~'), chasm ('/'), or wetland bottleneck ('%'). "
                     f"Use a road ('+') for terrestrial overland routes."
                 )
+
+            # Bank-to-bank reach validation for water and chasm barriers
+            def _is_water(pt: list[int] | tuple[int, int]) -> bool:
+                px, py = pt[0], pt[1]
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] == "~"
+
+            def _is_non_water(pt: list[int] | tuple[int, int]) -> bool:
+                px, py = pt[0], pt[1]
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] != "~"
+
+            def _is_chasm(pt: list[int] | tuple[int, int]) -> bool:
+                px, py = pt[0], pt[1]
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] == "/"
+
+            def _is_non_chasm(pt: list[int] | tuple[int, int]) -> bool:
+                px, py = pt[0], pt[1]
+                return 0 <= py < height and 0 <= px < width and terrain[py][px] not in ("/", "~")
+
+            water_pts = [pt for pt in tiles if _is_water(pt)]
+            if water_pts:
+                tile_set = {(p[0], p[1]) for p in tiles}
+                if len(tiles) == 1:
+                    bx, by = tiles[0][0], tiles[0][1]
+                    if _is_water((bx, by)):
+                        w_land, e_land = _is_non_water((bx - 1, by)), _is_non_water((bx + 1, by))
+                        n_land, s_land = _is_non_water((bx, by - 1)), _is_non_water((bx, by + 1))
+                        # Single-tile bridge must connect two opposing non-water banks
+                        if not ((w_land and e_land) or (n_land and s_land)):
+                            cardinals = [
+                                ((-1, 0), (1, 0), "East", "West"),
+                                ((1, 0), (-1, 0), "West", "East"),
+                                ((0, -1), (0, 1), "South", "North"),
+                                ((0, 1), (0, -1), "North", "South"),
+                            ]
+                            for (dbx, dby), (dcx, dcy), fwd_name, back_name in cardinals:
+                                if _is_non_water((bx + dbx, by + dby)) and _is_water((bx + dcx, by + dcy)):
+                                    needed = [[bx, by]]
+                                    cx, cy = bx + dcx, by + dcy
+                                    while _is_water((cx, cy)):
+                                        needed.append([cx, cy])
+                                        cx += dcx
+                                        cy += dcy
+                                    return (
+                                        f"[REJECTION] Bridge '{fid}' at {tiles} does not reach the opposite bank! "
+                                        f"Anchored on the {back_name} bank at [{bx + dbx}, {by + dby}], but terminates in open water to the {fwd_name} at [{bx + dcx}, {by + dcy}]. "
+                                        f"To span this river, define the bridge across all water tiles: tiles={needed} reaching the {fwd_name} bank at [{cx}, {cy}]."
+                                    )
+                            return (
+                                f"[REJECTION] Bridge '{fid}' at {tiles} is situated on water tile '~' but does not span between two opposing land banks. "
+                                f"Bridges must reach from bank to bank across the water."
+                            )
+                else:
+                    p_start = tiles[0]
+                    p_end = tiles[-1]
+                    v_start = (tiles[0][0] - tiles[1][0], tiles[0][1] - tiles[1][1])
+                    v_end = (tiles[-1][0] - tiles[-2][0], tiles[-1][1] - tiles[-2][1])
+
+                    # Check forward endpoint
+                    if _is_water(p_end):
+                        next_pt = (p_end[0] + v_end[0], p_end[1] + v_end[1])
+                        if _is_water(next_pt) and next_pt not in tile_set:
+                            needed = list(tiles)
+                            cx, cy = next_pt
+                            while _is_water((cx, cy)):
+                                needed.append([cx, cy])
+                                cx += v_end[0]
+                                cy += v_end[1]
+                            return (
+                                f"[REJECTION] Bridge '{fid}' endpoint {p_end} terminates in open water! "
+                                f"The river continues to [{p_end[0] + v_end[0]}, {p_end[1] + v_end[1]}]. "
+                                f"Extend the bridge to tiles={needed} to reach the opposite bank at [{cx}, {cy}]."
+                            )
+
+                    # Check backward start endpoint
+                    if _is_water(p_start):
+                        prev_pt = (p_start[0] + v_start[0], p_start[1] + v_start[1])
+                        if _is_water(prev_pt) and prev_pt not in tile_set:
+                            needed_rev = []
+                            cx, cy = prev_pt
+                            while _is_water((cx, cy)):
+                                needed_rev.append([cx, cy])
+                                cx += v_start[0]
+                                cy += v_start[1]
+                            needed = list(reversed(needed_rev)) + list(tiles)
+                            return (
+                                f"[REJECTION] Bridge '{fid}' start {p_start} terminates in open water! "
+                                f"The river continues to [{p_start[0] + v_start[0]}, {p_start[1] + v_start[1]}]. "
+                                f"Extend the bridge to tiles={needed} to reach the near bank at [{cx}, {cy}]."
+                            )
+
+            chasm_pts = [pt for pt in tiles if _is_chasm(pt)]
+            if chasm_pts and not water_pts:
+                tile_set = {(p[0], p[1]) for p in tiles}
+                if len(tiles) == 1:
+                    bx, by = tiles[0][0], tiles[0][1]
+                    if _is_chasm((bx, by)):
+                        w_land, e_land = _is_non_chasm((bx - 1, by)), _is_non_chasm((bx + 1, by))
+                        n_land, s_land = _is_non_chasm((bx, by - 1)), _is_non_chasm((bx, by + 1))
+                        if not ((w_land and e_land) or (n_land and s_land)):
+                            cardinals = [
+                                ((-1, 0), (1, 0), "East", "West"),
+                                ((1, 0), (-1, 0), "West", "East"),
+                                ((0, -1), (0, 1), "South", "North"),
+                                ((0, 1), (0, -1), "North", "South"),
+                            ]
+                            for (dbx, dby), (dcx, dcy), fwd_name, back_name in cardinals:
+                                if _is_non_chasm((bx + dbx, by + dby)) and _is_chasm((bx + dcx, by + dcy)):
+                                    needed = [[bx, by]]
+                                    cx, cy = bx + dcx, by + dcy
+                                    while _is_chasm((cx, cy)):
+                                        needed.append([cx, cy])
+                                        cx += dcx
+                                        cy += dcy
+                                    return (
+                                        f"[REJECTION] Viaduct '{fid}' at {tiles} does not reach the opposite cliff edge! "
+                                        f"Anchored on the {back_name} cliff at [{bx + dbx}, {by + dby}], but terminates in a sheer chasm to the {fwd_name} at [{bx + dcx}, {by + dcy}]. "
+                                        f"To span this chasm, define the viaduct across all chasm tiles: tiles={needed} reaching the {fwd_name} edge at [{cx}, {cy}]."
+                                    )
+                else:
+                    p_start = tiles[0]
+                    p_end = tiles[-1]
+                    v_start = (tiles[0][0] - tiles[1][0], tiles[0][1] - tiles[1][1])
+                    v_end = (tiles[-1][0] - tiles[-2][0], tiles[-1][1] - tiles[-2][1])
+
+                    # Check forward endpoint
+                    if _is_chasm(p_end):
+                        next_pt = (p_end[0] + v_end[0], p_end[1] + v_end[1])
+                        if _is_chasm(next_pt) and next_pt not in tile_set:
+                            needed = list(tiles)
+                            cx, cy = next_pt
+                            while _is_chasm((cx, cy)):
+                                needed.append([cx, cy])
+                                cx += v_end[0]
+                                cy += v_end[1]
+                            return (
+                                f"[REJECTION] Viaduct '{fid}' endpoint {p_end} terminates in a sheer chasm! "
+                                f"The chasm continues to [{p_end[0] + v_end[0]}, {p_end[1] + v_end[1]}]. "
+                                f"Extend the viaduct to tiles={needed} to reach the opposite edge at [{cx}, {cy}]."
+                            )
+
+                    # Check backward start endpoint
+                    if _is_chasm(p_start):
+                        prev_pt = (p_start[0] + v_start[0], p_start[1] + v_start[1])
+                        if _is_chasm(prev_pt) and prev_pt not in tile_set:
+                            needed_rev = []
+                            cx, cy = prev_pt
+                            while _is_chasm((cx, cy)):
+                                needed_rev.append([cx, cy])
+                                cx += v_start[0]
+                                cy += v_start[1]
+                            needed = list(reversed(needed_rev)) + list(tiles)
+                            return (
+                                f"[REJECTION] Viaduct '{fid}' start {p_start} terminates in a sheer chasm! "
+                                f"The chasm continues to [{p_start[0] + v_start[0]}, {p_start[1] + v_start[1]}]. "
+                                f"Extend the viaduct to tiles={needed} to reach the near edge at [{cx}, {cy}]."
+                            )
 
         # 4. Dungeon / Landmark Validation ('!')
         elif fchar == "!":
@@ -650,6 +826,9 @@ class WorldStateSnapshot:
             )
 
         feat = features[match_key]
+        old_char = str(feat.get("char", "o"))
+        old_name = str(feat.get("name", match_key))
+        old_type = str(feat.get("type", "")).lower()
         changes: list[str] = []
 
         proposed_char = str(char).strip()[0] if char and str(char).strip() else feat.get("char", "o")
@@ -703,6 +882,56 @@ class WorldStateSnapshot:
         self.save()
         change_summary = ", ".join(changes) if changes else "no fields modified"
         msg = f"[SUCCESS] Updated feature '{match_key}': {change_summary}."
+
+        # Proactive Road Lore Synchronization Note
+        # If a landmark underwent a status transition (dungeon <-> settlement/city),
+        # detect connected roads/bridges whose descriptions still reflect previous lore.
+        status_transition = (
+            (old_char == "!" and proposed_char in ("o", "O"))
+            or (old_char in ("o", "O") and proposed_char == "!")
+        )
+        if status_transition:
+            target_tiles = feat.get("tiles", proposed_tiles)
+            target_coords = [(t[0], t[1]) for t in target_tiles if isinstance(t, (list, tuple))]
+
+            unupdated_roads = []
+            for r_id, r_feat in features.items():
+                if r_id == match_key or not isinstance(r_feat, dict):
+                    continue
+                r_char = str(r_feat.get("char", ""))
+                r_type = str(r_feat.get("type", "")).lower()
+                if r_char not in ("+", "=") and r_type not in (
+                    "road", "bridge", "highway", "trail", "path", "viaduct"
+                ):
+                    continue
+                r_tiles = [(t[0], t[1]) for t in r_feat.get("tiles", []) if isinstance(t, (list, tuple))]
+                if not r_tiles:
+                    continue
+                endpoints = [r_tiles[0], r_tiles[-1]]
+                if any(
+                    any(max(abs(ep[0] - tc[0]), abs(ep[1] - tc[1])) <= 1 for tc in target_coords)
+                    for ep in endpoints
+                ):
+                    r_desc = str(r_feat.get("description", ""))
+                    r_name = str(r_feat.get("name", r_id))
+                    if (feat["name"].lower() not in r_desc.lower()) or (old_name.lower() in r_desc.lower()):
+                        unupdated_roads.append((r_id, r_name))
+
+            if unupdated_roads:
+                road_hints = ", ".join(f"'{rid}' ({rname})" for rid, rname in unupdated_roads)
+                if proposed_char in ("o", "O"):
+                    action_desc = f"reconsecrated/settled (from dungeon '{old_name}' to settlement '{feat['name']}')"
+                    tone_desc = "safe trade, pilgrim, or travel highway to the new settlement"
+                else:
+                    action_desc = f"fallen into ruin/dungeon (from settlement '{old_name}' to ruin '{feat['name']}')"
+                    tone_desc = "perilous, abandoned, or ominous trail leading to the ruins"
+
+                msg += (
+                    f"\n[NOTE] Landmark was {action_desc}. "
+                    f"Connected road/bridge infrastructure [{road_hints}] still reflects previous lore. "
+                    f"Please call update_feature on connected road(s) to update their description ({tone_desc})!"
+                )
+
         self.mutations_log.append(msg)
         print(f"  -> {msg}", flush=True)
         return msg
