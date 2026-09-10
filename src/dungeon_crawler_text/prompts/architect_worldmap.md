@@ -46,9 +46,34 @@ Generate a JSON object matching this schema:
 4. **Features:** Must be an empty dictionary `{}`.
 5. **Organic & Natural Landforms:** Terrain and biomes must be shaped organically—strictly avoid unnatural straight lines, rigid rectangles, or blocky vertical/horizontal bands. Coastlines, mountain ridges, and forests should feature irregular curves, natural meanders, and organic clumping (e.g., using distance fields, cellular smoothing, or jittered edge offsets in your Python generation script).
 
-# Code Execution
-Use Python code execution to procedurally generate and validate the 32x32 grids and build the `regions` dictionary with names, types, and rich lore extracted from the prose. At the end of your script, serialize and print the world map dictionary:
-```python
-print(json.dumps(world_map))
-```
-Do not repeat the JSON or grids in your text response.
+# Code Execution & Self-Validation
+You must write and execute **exactly ONE self-contained Python script** in a **single execution**.
+Do NOT run exploratory fragments, interactive tests, or multi-turn REPL loops.
+
+Your script must handle procedural generation, internal self-validation, auto-repair, and output end-to-end:
+
+1. **Procedural Generation:**
+   - Procedurally build the 32x32 `terrain_grid` and `region_grid` according to the biomes, watercourses, and terrain described in the prose.
+   - Extract and populate rich lore, types, and names for every region in the `regions` dictionary.
+
+2. **Internal Self-Validation & Auto-Repair (within the script):**
+   - **Dimensions:** Ensure both `terrain_grid` and `region_grid` contain exactly 32 rows of 32 characters.
+   - **Hydrology Auto-Repair:** Programmatically check for diagonal-only water connections (`~`) and bridge them orthogonally to guarantee strict 4-way cardinal connectivity:
+     ```python
+     # Auto-repair diagonal water leaks to guarantee orthogonal connectivity
+     for r in range(31):
+         for c in range(31):
+             if grid[r][c] == "~" and grid[r+1][c+1] == "~" and grid[r+1][c] != "~" and grid[r][c+1] != "~":
+                 grid[r+1][c] = "~"
+             if grid[r+1][c] == "~" and grid[r][c+1] == "~" and grid[r][c] != "~" and grid[r+1][c+1] != "~":
+                 grid[r][c] = "~"
+     ```
+   - **Registry Completeness:** Verify every character appearing in `region_grid` exists as a key in `regions` (with `"0"` present).
+   - **Valid Legend:** Verify every character in `terrain_grid` belongs to the Map Legend.
+
+3. **Output:**
+   At the very end of your script, serialize and print the world map:
+   ```python
+   print(json.dumps(world_map))
+   ```
+   Do not print intermediate debug statements to stdout, and do not repeat the JSON or grids in your text response.
