@@ -8,6 +8,7 @@ from typing import Any, Union
 FEATURE_PRIORITY: dict[str, int] = {
     "+": 10,  # Active Road / Trade Route
     "=": 20,  # Bridge / River Crossing
+    "*": 25,  # Masonry Dam / Civil Barrier
     "o": 30,  # Civilized Outpost / Village / Fort
     "O": 40,  # Civilized City / Metropolis / Citadel
     "!": 50,  # Hostile Lair / Dungeon / Ruin

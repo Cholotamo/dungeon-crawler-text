@@ -76,6 +76,7 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 
 ### 1. Feature CRUD
 - **`create_feature`:** Establishes a new landmark (`o`, `O`, `!`, `*`), road (`+`), or bridge (`=`).
+- **`read_feature`:** Reads details or coordinates of an existing landmark, road, or bridge, or lists all registered features.
 - **`update_feature`:** Mutates or maintains a feature. Requires target `char` (`o`, `O`, `!`, `+`, `=`, `*`), e.g. promoting a settlement (`o` -> `O`), ruining a fallen city (`O` -> `!`), reclaiming an ancient ruin (`!` -> `o` / `O`), or retaining current character when extending routes or updating lore.
 - **`delete_feature`:** Removes abandoned or razed encampments/bridges.
 

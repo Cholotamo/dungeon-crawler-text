@@ -97,7 +97,13 @@ def _normalize_tiles(tiles: Any) -> list[list[int]]:
     elif isinstance(tiles, dict) and "x" in tiles and "y" in tiles:
         normalized.append([int(tiles["x"]), int(tiles["y"])])
 
-    return normalized
+    # Deduplicate consecutive identical coordinates to prevent zero-distance loops
+    deduped: list[list[int]] = []
+    for pt in normalized:
+        if not deduped or pt != deduped[-1]:
+            deduped.append(pt)
+
+    return deduped
 
 
 def resolve_epoch_paths(
@@ -366,13 +372,13 @@ class WorldStateSnapshot:
         width = len(terrain[0]) if height > 0 else 32
 
         # Character validation
-        VALID_FEATURE_CHARS = {"o", "O", "!", "+", "="}
+        VALID_FEATURE_CHARS = {"o", "O", "!", "+", "=", "*"}
         fchar_clean = str(fchar).strip()[0] if fchar and str(fchar).strip() else ""
         if not fchar_clean or fchar_clean not in VALID_FEATURE_CHARS:
             return (
                 f"[REJECTION] Feature '{fid}' has invalid or missing char='{fchar}'. "
                 f"char is required and must be one of 'o' (outpost/village/fort), 'O' (city/citadel/fortress), "
-                f"'!' (hostile lair/dungeon/ruin), '+' (road), or '=' (bridge)."
+                f"'!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge), or '*' (masonry dam/barrier)."
             )
 
         # 1. Road Validation ('+')
@@ -568,7 +574,7 @@ class WorldStateSnapshot:
                     v_end = (tiles[-1][0] - tiles[-2][0], tiles[-1][1] - tiles[-2][1])
 
                     # Check forward endpoint
-                    if _is_water(p_end):
+                    if _is_water(p_end) and v_end != (0, 0):
                         next_pt = (p_end[0] + v_end[0], p_end[1] + v_end[1])
                         if _is_water(next_pt) and next_pt not in tile_set:
                             needed = list(tiles)
@@ -584,7 +590,7 @@ class WorldStateSnapshot:
                             )
 
                     # Check backward start endpoint
-                    if _is_water(p_start):
+                    if _is_water(p_start) and v_start != (0, 0):
                         prev_pt = (p_start[0] + v_start[0], p_start[1] + v_start[1])
                         if _is_water(prev_pt) and prev_pt not in tile_set:
                             needed_rev = []
@@ -635,7 +641,7 @@ class WorldStateSnapshot:
                     v_end = (tiles[-1][0] - tiles[-2][0], tiles[-1][1] - tiles[-2][1])
 
                     # Check forward endpoint
-                    if _is_chasm(p_end):
+                    if _is_chasm(p_end) and v_end != (0, 0):
                         next_pt = (p_end[0] + v_end[0], p_end[1] + v_end[1])
                         if _is_chasm(next_pt) and next_pt not in tile_set:
                             needed = list(tiles)
@@ -651,7 +657,7 @@ class WorldStateSnapshot:
                             )
 
                     # Check backward start endpoint
-                    if _is_chasm(p_start):
+                    if _is_chasm(p_start) and v_start != (0, 0):
                         prev_pt = (p_start[0] + v_start[0], p_start[1] + v_start[1])
                         if _is_chasm(prev_pt) and prev_pt not in tile_set:
                             needed_rev = []
@@ -909,7 +915,7 @@ class WorldStateSnapshot:
             raise ToolRejectionError(err)
 
         proposed_type = str(feature_type).strip() if feature_type and str(feature_type).strip() else feat.get("type", "feature")
-        proposed_tiles = feat.get("tiles", [])
+        proposed_tiles = feat.get("tiles") or ([feat["pos"]] if "pos" in feat else [])
 
         if tiles is not None and len(tiles) > 0:
             norm_tiles = _normalize_tiles(tiles)
@@ -1115,9 +1121,47 @@ class WorldStateSnapshot:
             reg_type = dtype or "domain"
 
         # Register or update region in regions dict
-        r_name = str(region_name).strip() or f"Domain {reg_key}"
+        r_name = str(region_name).strip()
         regions_dict = self.data.setdefault("regions", {})
         existing_reg = regions_dict.get(reg_key, {}) if isinstance(regions_dict.get(reg_key), dict) else {}
+        is_existing_biome = (
+            bool(existing_reg)
+            and any(
+                region[y][x] == reg_key
+                for y in range(height)
+                for x in range(width)
+            )
+        )
+
+        if is_existing_biome:
+            existing_name = existing_reg.get("name", f"Region {reg_key}")
+            existing_type = existing_reg.get("type", "wilderness").lower()
+            # Valid expansion if:
+            # - region_name matches existing_name (case-insensitive) or region_name is omitted
+            # - OR existing_type is already a domain type compatible with this expansion
+            # - OR existing_type matches reg_type
+            is_valid_expansion = (
+                (not r_name or r_name.lower() == existing_name.lower())
+                or (existing_type in ("farmland", "wasteland", "forest", "domain") and reg_type in ("farmland", "wasteland", "forest", "domain"))
+                or (existing_type == reg_type)
+            )
+            if not is_valid_expansion:
+                err = (
+                    f"[REJECTION] Region ID '{reg_key}' is already occupied by established biome '{existing_name}' ({existing_type}). "
+                    f"To register '{r_name or f'Domain {reg_key}'}' as a new distinct domain, provide an UNUSED single-character region ID. "
+                    f"To expand an existing domain, pass its matching name or omit region_name."
+                )
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
+
+            if not r_name:
+                r_name = existing_name
+            if existing_type in ("farmland", "wasteland", "forest", "domain"):
+                reg_type = existing_type
+        else:
+            if not r_name:
+                r_name = f"Domain {reg_key}"
+
         reg_entry = {
             "name": r_name,
             "type": reg_type,
@@ -1153,15 +1197,15 @@ class WorldStateSnapshot:
                     continue
 
                 curr_t = tg[ny][nx]
-                # River Shield: Never overwrite natural water tiles
-                if curr_t == "~":
+                # River Shield: Never overwrite natural water tiles or coastal shallows
+                if curr_t in ("~", ";"):
                     preserved_water.append([nx, ny])
                     continue
                 # Shield bridges
                 if (nx, ny) in bridge_coords:
                     continue
-                # Shield alpine peaks from farming
-                if curr_t == "^" and target_char == ":":
+                # Shield alpine peaks and sheer chasms/cliffs from farming
+                if target_char == ":" and curr_t in ("^", "/"):
                     continue
 
                 tg[ny][nx] = target_char
@@ -1218,26 +1262,50 @@ class WorldStateSnapshot:
         height = len(terrain)
         width = len(terrain[0]) if height > 0 else 32
 
-        # Check bounds and reject water tiles
+        t_target = str(target_terrain).strip()[:1] if target_terrain and str(target_terrain).strip() in (".", ":", "*", ",") else "."
+
+        # Check bounds and terrain validity
         water_tiles = []
+        impassable_tiles = []
+        redundant_tiles = []
         for pt in norm_coords:
             x, y = pt[0], pt[1]
             if not (0 <= x < width and 0 <= y < height):
                 err = f"Error: Coordinate [{x}, {y}] is out of bounds."
                 print(f"  -> {err}", flush=True)
                 raise ToolRejectionError(err)
-            if terrain[y][x] == "~":
+            curr_t = terrain[y][x]
+            if curr_t in ("~", ";"):
                 water_tiles.append(pt)
+            elif curr_t in ("^", "/"):
+                impassable_tiles.append((pt, curr_t))
+            elif curr_t == "." and t_target != ":":
+                redundant_tiles.append(pt)
 
         if water_tiles:
             rejection = (
-                f"[REJECTION] clear_land cannot be used on natural water tiles '~' at {water_tiles}.\n"
+                f"[REJECTION] clear_land cannot be used on natural water tiles ('~' or ';') at {water_tiles}.\n"
                 f"To dam, drain, or reclaim waterways into dry land, use engineer_waterworks(action='dam' or 'drain')."
             )
             print(f"  -> {rejection}", flush=True)
             raise ToolRejectionError(rejection)
 
-        t_target = str(target_terrain).strip()[:1] if target_terrain and str(target_terrain).strip() in (".", ":", "*", ",") else "."
+        if impassable_tiles:
+            rejection = (
+                f"[REJECTION] clear_land cannot be used on impassable mountain peaks ('^') or sheer chasms/cliffs ('/') at "
+                f"{[pt for pt, _ in impassable_tiles]}. Clearable terrain includes forests ('#'), dense forests ('&'), "
+                f"wetlands ('%'), and scrublands (',') (or open plains ('.') when converting to farmland (':'))."
+            )
+            print(f"  -> {rejection}", flush=True)
+            raise ToolRejectionError(rejection)
+
+        if redundant_tiles:
+            rejection = (
+                f"[REJECTION] clear_land called on open plains ('.') at {redundant_tiles} with target_terrain='{t_target}'. "
+                f"Clearing open plains to open plains is redundant. Open plains ('.') may only be cleared when target_terrain=':' (farmland)."
+            )
+            print(f"  -> {rejection}", flush=True)
+            raise ToolRejectionError(rejection)
 
         # Determine target region
         reg_key = "0"
@@ -1245,9 +1313,42 @@ class WorldStateSnapshot:
             reg_key = str(new_domain_id).strip()[:1]
             regions_dict = self.data.setdefault("regions", {})
             existing_reg = regions_dict.get(reg_key, {}) if isinstance(regions_dict.get(reg_key), dict) else {}
+            is_existing_biome = (
+                bool(existing_reg)
+                and any(
+                    region[y][x] == reg_key
+                    for y in range(height)
+                    for x in range(width)
+                )
+            )
+            r_name = str(new_domain_name).strip()
+            reg_type = "farmland" if t_target == ":" else "cleared_land"
+
+            if is_existing_biome:
+                existing_name = existing_reg.get("name", f"Region {reg_key}")
+                existing_type = existing_reg.get("type", "wilderness").lower()
+                is_valid_expansion = (
+                    (not r_name or r_name.lower() == existing_name.lower())
+                    or (existing_type in ("farmland", "wasteland", "forest", "domain", "cleared_land") and reg_type in ("farmland", "wasteland", "forest", "domain", "cleared_land"))
+                    or (existing_type == reg_type)
+                )
+                if not is_valid_expansion:
+                    err = (
+                        f"[REJECTION] Region ID '{reg_key}' is already occupied by established biome '{existing_name}' ({existing_type}). "
+                        f"To clear land for '{r_name or f'Domain {reg_key}'}' as a new distinct domain, provide an UNUSED single-character region ID. "
+                        f"To expand an existing domain, pass its matching name or use domain_region_id."
+                    )
+                    print(f"  -> {err}", flush=True)
+                    raise ToolRejectionError(err)
+
+                if not r_name:
+                    r_name = existing_name
+                if existing_type in ("farmland", "wasteland", "forest", "domain", "cleared_land"):
+                    reg_type = existing_type
+
             reg_entry = {
-                "name": str(new_domain_name).strip(),
-                "type": "farmland" if t_target == ":" else "cleared_land",
+                "name": r_name,
+                "type": reg_type,
             }
             if new_domain_lore and str(new_domain_lore).strip():
                 reg_entry["lore"] = str(new_domain_lore).strip()
@@ -1405,7 +1506,7 @@ class WorldStateSnapshot:
         self,
         destination: list[int],
         source: list[int],
-        max_length: int = 25,
+        max_length: int = 50,
     ) -> list[list[int]]:
         """Finds an optimal 4-cardinal path carving from destination to a source waterbody using A* pathfinding.
 
@@ -1765,25 +1866,45 @@ class WorldStateSnapshot:
         rg = [list(row) for row in region]
 
         if act == "dam":
-            # 1. Identify river region at the dam coordinates
-            first_x, first_y = norm_coords[0][0], norm_coords[0][1]
-            river_reg_id = rg[first_y][first_x]
+            water_coords = [pt for pt in norm_coords if tg[pt[1]][pt[0]] in ("~", ";")]
+            if not water_coords:
+                err = (
+                    f"[REJECTION] engineer_waterworks(action='dam') must cross at least one waterway tile ('~' or ';'). "
+                    f"Coordinates {norm_coords} contain only dry land terrain."
+                )
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
+
+            # 1. Identify primary river region from the water coordinates (not dry land banks)
+            water_reg_candidates = [rg[pt[1]][pt[0]] for pt in water_coords]
+            river_reg_id = water_reg_candidates[0]
+            for r_id in water_reg_candidates:
+                r_type = regions.get(r_id, {}).get("type", "").lower()
+                if r_type in ("river", "water", "lake", "bay", "ocean") or r_id != "0":
+                    river_reg_id = r_id
+                    break
+
             river_info = regions.get(river_reg_id, {})
             river_name = river_info.get("name", f"Region {river_reg_id}")
 
-            # Keep the region the same (river_reg_id) unless explicit target_region_id override provided
-            land_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else river_reg_id
             t_ground = target_terrain.strip()[:1] if target_terrain and target_terrain.strip() in (".", ":", "*", ",") else "*"
 
+            water_coords_set = {(pt[0], pt[1]) for pt in water_coords}
             for pt in norm_coords:
                 x, y = pt[0], pt[1]
                 tg[y][x] = t_ground
-                rg[y][x] = land_reg
+                if target_region_id and target_region_id.strip():
+                    rg[y][x] = target_region_id.strip()[:1]
+                else:
+                    if (x, y) in water_coords_set:
+                        rg[y][x] = river_reg_id
+                    # Dry land banks retain their existing region rg[y][x]
 
             # 2. Register Feature of type 'dam' with char '*'
             d_name = dam_name.strip() if dam_name and dam_name.strip() else f"{river_name} Dam"
             d_lore = dam_lore.strip() if dam_lore and dam_lore.strip() else f"An engineered heavy stone masonry dam impounding the {river_name}."
 
+            first_x, first_y = norm_coords[0][0], norm_coords[0][1]
             fid = re.sub(r'[^a-z0-9_]', '', d_name.lower().replace(" ", "_").replace("'", "").replace("-", "_"))
             if not fid:
                 fid = f"dam_{first_x}_{first_y}"
@@ -1828,9 +1949,10 @@ class WorldStateSnapshot:
             self.data["region_grid"] = ["".join(row) for row in rg]
             self.save()
 
+            assigned_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else river_reg_id
             msg = (
                 f"[SUCCESS] Engineered waterworks (dam): erected '{d_name}' ['*'] across {len(norm_coords)} tile(s) "
-                f"at {norm_coords} in region '{land_reg}' ({river_name}). "
+                f"at {norm_coords} in region '{assigned_reg}' ({river_name}). "
                 f"Registered dam feature and updated river lore. "
                 f"Downstream flow reduced: mutated {len(mutated_downstream)}/{len(downstream_tiles)} "
                 f"downstream water tile(s) into shallow sandbanks (';')."
@@ -1840,6 +1962,17 @@ class WorldStateSnapshot:
             return msg
 
         elif act == "drain":
+            # Validate that target coordinates are actually water or wetland
+            invalid_drain = [pt for pt in norm_coords if tg[pt[1]][pt[0]] not in ("~", ";", "%")]
+            if invalid_drain:
+                err = (
+                    f"[REJECTION] engineer_waterworks(action='drain') can only be applied to water ('~'), "
+                    f"shallows (';'), or wetland ('%') tiles. Non-water tiles at {invalid_drain} cannot be drained. "
+                    f"To clear overland vegetation, use clear_land."
+                )
+                print(f"  -> {err}", flush=True)
+                raise ToolRejectionError(err)
+
             # Converting water -> dry land / reclaimed polders
             t_ground = target_terrain.strip()[:1] if target_terrain and target_terrain.strip() in (".", ":", "*", ",") else "."
             land_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else "0"
@@ -2045,6 +2178,14 @@ class WorldStateSnapshot:
         tg = [list(row) for row in terrain]
         rg = [list(row) for row in region]
 
+        # Collect coordinates of registered features to protect them from being dissolved (e.g. dams, outposts, bridges)
+        protected_feature_coords = set()
+        for f in self.data.get("features", {}).values():
+            if isinstance(f, dict):
+                f_tiles = f.get("tiles") or ([f["pos"]] if "pos" in f else [])
+                for pt in f_tiles:
+                    protected_feature_coords.add((pt[0], pt[1]))
+
         reclaimed_coords = []
         for dy in range(-r, r + 1):
             for dx in range(-r, r + 1):
@@ -2054,8 +2195,11 @@ class WorldStateSnapshot:
                 if not (0 <= nx < width and 0 <= ny < height):
                     continue
 
+                if (nx, ny) in protected_feature_coords:
+                    continue
+
                 curr_t = tg[ny][nx]
-                # Only dissolve farmlands (:) or wastelands (*)
+                # Only dissolve farmlands (:) or unfeatured wastelands (*)
                 if curr_t in (":", "*"):
                     tg[ny][nx] = t_revert
                     rg[ny][nx] = "0"
@@ -2079,6 +2223,7 @@ class WorldStateSnapshot:
         lore: str = "",
         name: str = "",
         region_type: str = "",
+        description: str = "",
     ) -> str:
         """Updates an existing regional biome's lore, name, or classification as history transforms the realm.
 
@@ -2091,6 +2236,7 @@ class WorldStateSnapshot:
             lore: Updated or expanded narrative lore describing the region's current state, history, threats, or ecology.
             name: Optional new display name for the region if renamed.
             region_type: Optional updated semantic category (e.g. 'forest', 'wasteland', 'mountains', 'wilderness', 'farmland').
+            description: Optional alias for 'lore' to support standard tool calling conventions.
 
         Returns:
             A confirmation string detailing the region updates.
@@ -2121,8 +2267,9 @@ class WorldStateSnapshot:
             reg["type"] = str(region_type).strip().lower()
             changes.append(f"type='{reg['type']}'")
 
-        if lore and str(lore).strip():
-            reg["lore"] = str(lore).strip()
+        effective_lore = str(lore).strip() if lore and str(lore).strip() else str(description).strip()
+        if effective_lore:
+            reg["lore"] = effective_lore
             changes.append("lore updated")
 
         if not changes:
@@ -2393,6 +2540,7 @@ class Historian:
         )
         historian_tools = [
             self.snapshot.create_feature,
+            self.snapshot.read_feature,
             self.snapshot.update_feature,
             self.snapshot.delete_feature,
             self.snapshot.expand_domain,
