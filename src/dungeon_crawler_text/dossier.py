@@ -459,6 +459,7 @@ def harvest_landmark_keyframes(
         f_char = str(feat.get("char", "o"))
         f_name = str(feat.get("name", feature_id))
         f_type = str(feat.get("type", "landmark"))
+        f_desc = str(feat.get("description") or feat.get("lore", "")).strip()
         elevation_label = TERRAIN_LABELS.get(t_char, "plains")
 
         # Local slices (default 3x3 for scan_radius=1)
@@ -525,6 +526,7 @@ def harvest_landmark_keyframes(
             "char": f_char,
             "name": f_name,
             "type": f_type,
+            "description": f_desc,
             "is_keyframe": len(triggers) > 0,
             "keyframe_triggers": triggers,
             "environment": {
@@ -614,7 +616,9 @@ def harvest_all_dossiers(
         if dossier:
             all_dossiers[fid] = dossier
             if output_dir:
-                file_out = Path(output_dir) / f"{fid}_dossier.json"
+                locale_dir = Path(output_dir) / fid
+                locale_dir.mkdir(parents=True, exist_ok=True)
+                file_out = locale_dir / "dossier.json"
                 file_out.write_text(json.dumps(dossier, indent=2, ensure_ascii=False), encoding="utf-8")
                 logger.info(f"Wrote dossier for '{fid}' to {file_out}")
 
@@ -627,7 +631,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Harvest deterministic vector dossiers for settlements and dungeons.")
     parser.add_argument("--feature", "-f", type=str, default="", help="Feature ID to extract (default: all landmarks)")
     parser.add_argument("--artifacts", "-a", type=str, default="artifacts", help="Artifacts directory path")
-    parser.add_argument("--output", "-o", type=str, default="artifacts/dossiers", help="Output directory to save JSON dossiers")
+    parser.add_argument("--output", "-o", type=str, default="artifacts/locales", help="Output directory to save locale dossiers")
     parser.add_argument("--radius", "-r", type=int, default=1, help="Environmental scan radius (default: 1 for 3x3)")
     args = parser.parse_args()
 
@@ -638,8 +642,9 @@ def main() -> None:
         res = harvest_landmark_keyframes(args.feature, artifacts_dir=artifacts_p, scan_radius=args.radius)
         if res:
             if out_p:
-                out_p.mkdir(parents=True, exist_ok=True)
-                target = out_p / f"{args.feature}_dossier.json"
+                target_dir = out_p / args.feature
+                target_dir.mkdir(parents=True, exist_ok=True)
+                target = target_dir / "dossier.json"
                 target.write_text(json.dumps(res, indent=2, ensure_ascii=False), encoding="utf-8")
                 print(f"Saved dossier for '{args.feature}' to {target}")
             print(json.dumps(res, indent=2, ensure_ascii=False))

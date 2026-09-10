@@ -18,6 +18,7 @@ dungeon-crawler-text = "dungeon_crawler_text.main:main"
 dungeon-crawler-historian = "dungeon_crawler_text.historian:main"
 dungeon-crawler-viewer = "dungeon_crawler_text.viewer:main"
 dungeon-crawler-dossier = "dungeon_crawler_text.dossier:main"
+dungeon-crawler-seed = "dungeon_crawler_text.seed:main"
 
 [dependency-groups]
 dev = [

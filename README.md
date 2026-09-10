@@ -1,11 +1,12 @@
 # Dungeon Crawler Text: Primordial World-Building Pipeline
 
-A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in four coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map and rich landmark vector dossiers:
+A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in five coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map, rich landmark vector dossiers, and deterministic locale generation seeds:
 
 1. **The Loremaster:** Synthesizes evocative, mythic narrative prose describing the untouched primordial landscape and raw physical geography of a realm at the dawn of creation.
 2. **The Architect:** Translates the primordial world prose into a structured 32x32 ASCII and JSON world map using Gemini with **Python Code Execution**, enforcing organic biome geography and strict hydrological rules.
 3. **The Historian:** Chronicles the passage of historical epochs, translating narrative developments into physical changes on the map using fine-grained **Feature CRUD Tools** via Gemini Automatic Function Calling (AFC).
-4. **The Dossier Harvester:** Extracts deterministic spatial, geographic, and infrastructural vector dossiers across epochs for settlements, cities, and dungeons, tracking keyframe mutations, local terrain/biome slices, and cardinal road/gate approaches for downstream subarchitect models.
+4. **The Dossier Harvester:** Extracts deterministic spatial, geographic, and infrastructural vector dossiers across epochs for settlements, cities, and dungeons, tracking keyframe mutations, local terrain/biome slices, and cardinal road/gate approaches.
+5. **The Seed Synthesizer:** Compiles vector dossiers into clean, prompt-ready **Locale Generation Seeds** (`{id}_epoch_{n}_seed.md`), feeding downstream Subarchitect models with deterministic perimeter edge constraints, road access alignments, and scale footprints.
 
 ```
                     ┌─────────────────────────┐
@@ -58,8 +59,20 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
                                  │
                                  ▼
                     ┌─────────────────────────┐
-                    │ artifacts/dossiers/     │
-                    │   {id}_dossier.json     │
+                    │ artifacts/locales/{id}/ │
+                    │   dossier.json          │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │     Seed Synthesizer    │
+                    │   (Locale Seeds)        │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/locales/{id}/ │
+                    │   seed.md               │
                     └─────────────────────────┘
 ```
 
@@ -223,19 +236,19 @@ uv run python -m dungeon_crawler_text.dossier
 | :--- | :--- | :--- | :--- |
 | `--feature`, `-f` | `str` | `""` (all landmarks) | Specific Feature ID to harvest (harvests all landmarks if omitted) |
 | `--artifacts`, `-a` | `str` | `artifacts` | Directory containing epoch files (`worldmap_epoch_*.json`) |
-| `--output`, `-o` | `str` | `artifacts/dossiers` | Output directory to save JSON dossier files |
+| `--output`, `-o` | `str` | `artifacts/locales` | Output directory to save locale dossiers |
 | `--radius`, `-r` | `int` | `1` | Environmental scan radius (`1` yields 3x3 local slice, `2` yields 5x5) |
 
 **Examples:**
 ```bash
-# Harvest dossiers for all landmarks across all epochs into artifacts/dossiers/
+# Harvest dossiers for all landmarks across all epochs into artifacts/locales/{id}/dossier.json
 uv run dungeon-crawler-dossier
 
 # Harvest and inspect a specific landmark dossier (saves file & prints JSON to stdout)
 uv run dungeon-crawler-dossier --feature eldermere
 
 # Custom artifacts directory and output destination
-uv run dungeon-crawler-dossier --artifacts artifacts --output custom_dossiers
+uv run dungeon-crawler-dossier --artifacts artifacts --output custom_locales
 
 # Expand environmental scan radius to 2 (5x5 neighborhood slice)
 uv run dungeon-crawler-dossier --radius 2
@@ -243,8 +256,9 @@ uv run dungeon-crawler-dossier --radius 2
 
 #### What Dossier Vectors Contain
 
-Each landmark dossier (`{feature_id}_dossier.json`) provides a complete, deterministic multi-epoch profile:
+Each landmark dossier (`artifacts/locales/{feature_id}/dossier.json`) provides a complete, deterministic multi-epoch profile:
 - **Spatial Positioning:** Fixed grid coordinates `[X, Y]`, founding epoch (`first_seen_epoch`), and latest active epoch.
+- **Landmark Identity & Lore:** Epoch-specific names, character glyphs, landmark types, and narrative descriptions (`description`).
 - **Keyframe Evolution & Triggers:** Chronological snapshots flagged by state changes: `genesis`, `char_mutation` (e.g. outpost `'o'` -> city `'O'`), `name_mutation`, `domain_mutation` (host region shifts), `terrain_mutation`, and `new_roads`.
 - **Local Environmental Context:** Local `(2r+1) x (2r+1)` ASCII terrain and region grid slices centered on the landmark, alongside host region lore and detected neighboring biomes with cardinal boundary positions (e.g., `"WEST BORDER (3 tiles)"`).
 - **Infrastructural Network & Gate Approaches:** Connected roads (`+`) and bridges (`=`), including computed entry orientations (`NORTH`, `SOUTH`, `EAST`, `WEST`, `NORTH_EAST`, etc.) and linked destination landmarks.
@@ -266,6 +280,7 @@ Each landmark dossier (`{feature_id}_dossier.json`) provides a complete, determi
       "char": "o",
       "name": "Eldermere",
       "type": "settlement",
+      "description": "The first mortal haven founded on the eastern strand of the Inland Sea...",
       "is_keyframe": true,
       "keyframe_triggers": ["genesis"],
       "environment": {
@@ -322,7 +337,44 @@ Each landmark dossier (`{feature_id}_dossier.json`) provides a complete, determi
 
 ---
 
-### Step 5: Inspect Maps Interactively (HTML Map Viewer)
+### Step 5: Synthesize Locale Generation Seeds (Seed Generator)
+
+Translate landmark vector dossiers into deterministic, context-driven **Locale Generation Seeds** (`artifacts/locales/{feature_id}/seed.md`) to guide the downstream Subarchitect model without distracting world coordinates or premature tile legends:
+
+```bash
+uv run dungeon-crawler-seed
+```
+
+Or invoke the module directly:
+
+```bash
+uv run python -m dungeon_crawler_text.seed
+```
+
+#### Seed Generator CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--feature`, `-f` | `str` | `""` (all landmarks) | Specific Feature ID to synthesize seed for |
+| `--dossiers`, `-d` | `str` | `artifacts/locales` | Directory containing locale dossier folders |
+| `--output`, `-o` | `str` | `artifacts/locales` | Output directory to save `seed.md` into each locale folder |
+| `--keyframe`, `-k` | `int` | `0` | Keyframe index to extract (`0` = founding epoch / genesis) |
+
+**Examples:**
+```bash
+# Synthesize seeds for all landmarks into artifacts/locales/{id}/seed.md
+uv run dungeon-crawler-seed
+
+# Synthesize and inspect a specific landmark seed
+uv run dungeon-crawler-seed --feature eldermere
+
+# Synthesize for a later epoch keyframe (e.g. keyframe 1)
+uv run dungeon-crawler-seed --feature eldermere --keyframe 1
+```
+
+---
+
+### Step 6: Inspect Maps Interactively (HTML Map Viewer)
 
 Open the interactive HTML Map Viewer to inspect the composite world map with rich colors, customizable tile spacing, and full hover inspection:
 
@@ -358,6 +410,8 @@ from dungeon_crawler_text import (
     Loremaster,
     harvest_all_dossiers,
     harvest_landmark_keyframes,
+    generate_all_locale_seeds,
+    generate_locale_seed,
 )
 
 # 1. Generate primordial narrative prose
@@ -378,18 +432,18 @@ res_epoch1 = historian.run_epoch()
 # Run Epoch 2 in the same conversation (takes worldmap_epoch_1.md, creates worldmap_epoch_2.json and worldmap_epoch_2.md)
 res_epoch2 = historian.run_epoch()
 
-# 4. Harvest deterministic vector dossiers across all epochs
+# 4. Harvest deterministic vector dossiers across all epochs into artifacts/locales/{id}/dossier.json
 all_dossiers = harvest_all_dossiers(
     artifacts_dir="artifacts",
-    output_dir="artifacts/dossiers",
+    output_dir="artifacts/locales",
     scan_radius=1,
 )
 
-# Or extract a single landmark dossier
-eldermere_dossier = harvest_landmark_keyframes(
-    feature_id="eldermere",
-    artifacts_dir="artifacts",
-    scan_radius=1,
+# 5. Synthesize deterministic locale generation seeds into artifacts/locales/{id}/seed.md
+all_seeds = generate_all_locale_seeds(
+    dossiers_dir="artifacts/locales",
+    output_dir="artifacts/locales",
+    keyframe_index=0,
 )
 ```
 

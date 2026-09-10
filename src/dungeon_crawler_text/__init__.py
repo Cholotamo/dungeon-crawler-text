@@ -45,6 +45,10 @@ def __getattr__(name: str) -> Any:
         from dungeon_crawler_text import dossier
 
         return getattr(dossier, name)
+    if name in ("generate_locale_seed", "generate_all_locale_seeds"):
+        from dungeon_crawler_text import seed
+
+        return getattr(seed, name)
     if name in ("build_viewer_html", "generate_html_viewer", "open_viewer", "serve_viewer"):
         from dungeon_crawler_text import viewer
 
@@ -67,7 +71,9 @@ __all__ = [
     "build_viewer_html",
     "calculate_cost",
     "format_world_for_llm",
+    "generate_all_locale_seeds",
     "generate_html_viewer",
+    "generate_locale_seed",
     "harvest_all_dossiers",
     "harvest_landmark_keyframes",
     "open_viewer",
