@@ -714,22 +714,18 @@ class WorldStateSnapshot:
         tiles: list[list[int]],
         description: str = "",
     ) -> str:
-        """Creates a new feature (settlement, city, citadel, dungeon, ruin, road, bridge, dam) on the world map.
+        """Creates a new landmark, road, bridge, or dam on the world map.
 
         Args:
-            feature_id: Unique slug identifier for the feature (e.g. 'oakhaven', 'highwatch', 'kings_highway', 'iron_gorge_dam').
-            name: Evocative human-readable display name (e.g. 'Oakhaven', 'Highwatch Citadel', 'Iron Gorge Dam').
-            char: Map character symbol representing the feature. 'o' for civilized settlement/outpost/fort,
-                'O' for civilized city/metropolis/citadel, '!' for hostile lair/dungeon/ruin, '+' for road, '=' for bridge,
-                '*' for masonry dam/barrier.
-            feature_type: Semantic category (e.g. 'settlement', 'outpost', 'fort', 'village', 'major_city',
-                'citadel', 'fortress', 'dungeon', 'ruin', 'lair', 'stronghold', 'road', 'bridge', 'dam').
-            tiles: List of [x, y] coordinates. Single-tile features use [[x, y]]. Multi-tile routes or bridges
-                use a sequence of coordinates [[x1, y1], [x2, y2], ...]. Coordinates must be in range 0..31.
-            description: Optional lore, history, or context describing the founding and significance of this feature.
+            feature_id: Unique slug identifier (e.g. 'oakhaven', 'kings_road', 'high_dam').
+            name: Display name (e.g. 'Oakhaven', "King's Road", 'High Dam').
+            char: Symbol: 'o' (outpost/fort), 'O' (city/citadel), '!' (lair/dungeon), '+' (road), '=' (bridge), '*' (dam/barrier).
+            feature_type: Semantic category (e.g. 'settlement', 'city', 'citadel', 'dungeon', 'road', 'bridge', 'dam').
+            tiles: List of [x, y] coordinates (0..31). Single-tile features use [[x, y]], routes use [[x1, y1], [x2, y2], ...].
+            description: Optional lore, founding history, or significance.
 
         Returns:
-            A confirmation string detailing the created feature and underlying terrain.
+            Confirmation string detailing created feature and underlying terrain.
         """
         fid = str(feature_id).strip().lower().replace(" ", "_")
         if not fid:
@@ -814,13 +810,13 @@ class WorldStateSnapshot:
         return msg
 
     def read_feature(self, feature_id: str = "") -> str:
-        """Reads information about a registered feature, or lists all registered features in the snapshot.
+        """Reads details for a registered feature, or lists all registered features.
 
         Args:
-            feature_id: Unique identifier of the feature to inspect. Pass '' or 'all' to list all features.
+            feature_id: Feature identifier to inspect, or ''/'all' to list all features.
 
         Returns:
-            JSON or formatted string with feature details, coordinates, and underlying geography.
+            Feature details, coordinates, and geography, or feature listing.
         """
         features = self.data.get("features", {})
         fid = str(feature_id).strip().lower().replace(" ", "_") if feature_id else ""
@@ -869,18 +865,14 @@ class WorldStateSnapshot:
 
         Args:
             feature_id: Unique identifier of the feature to update.
-            char: Required map character symbol representing the feature's status:
-                'o' (civilized outpost/village/fort), 'O' (civilized city/citadel/fortress),
-                '!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge), '*' (masonry dam/barrier).
-                Pass the new symbol to mutate state (e.g. '!' -> 'O' when reclaiming, 'o' -> 'O' when promoting, 'O' -> '!' when ruined),
-                or pass the current symbol if keeping the same status.
-            name: New display name (leave empty to keep current name).
-            feature_type: Optional descriptive category (e.g. 'citadel', 'outpost', 'ruin', 'dungeon', 'road').
+            char: Target symbol ('o', 'O', '!', '+', '=', '*'). Pass new symbol to alter state (e.g. ruin or promote), or current symbol to keep unchanged.
+            name: New display name (leave empty to keep current).
+            feature_type: Optional updated category (e.g. 'city', 'outpost', 'ruin', 'road', 'dam').
             tiles: New list of [x, y] coordinates if position changed or road extended (leave empty to keep current).
-            description: Updated description or chronicle note (leave empty to keep current).
+            description: Updated chronicle note or description (leave empty to keep current).
 
         Returns:
-            A confirmation string detailing the changes made.
+            Confirmation string detailing changes made.
         """
         features = self.data.setdefault("features", {})
         fid = str(feature_id).strip().lower().replace(" ", "_")
@@ -1069,21 +1061,20 @@ class WorldStateSnapshot:
         region_id: str,
         lore: str = "",
     ) -> str:
-        """Expands a territorial domain (farmlands, blighted wastelands, or forest canopy) around a center point.
+        """Expands a territorial domain (farmland, wasteland, forest) around a center point.
 
-        Automatically synchronizes terrain_grid and region_grid, registers the region, and shields natural waterways:
-        existing water tiles ('~') and bridges ('=') within the radius are strictly preserved and never paved over.
+        Waterways ('~', ';') and chasms ('/') are automatically shielded and preserved.
 
         Args:
-            center: [x, y] center coordinate (e.g. location of a settlement, city, or ruin).
-            radius: Tile radius of expansion (1 to 5).
-            domain_type: Category of domain ('farmland' -> ':' tiles, 'wasteland' -> '*' tiles, 'forest' -> '#' tiles).
-            region_name: Display name of the domain (e.g. 'Oakhaven Farmlands', 'The Ashen Blight').
-            region_id: Single alphanumeric character identifier for region_grid (e.g. 'h', 'w').
-            lore: Optional narrative lore describing the atmosphere, history, or ecological nature of this domain.
+            center: [x, y] epicenter coordinate (e.g. settlement or ruin).
+            radius: Expansion radius in tiles (1 to 5).
+            domain_type: Domain type ('farmland' -> ':', 'wasteland' -> '*', 'forest' -> '#').
+            region_name: Display name of the domain (e.g. 'Oakhaven Farmlands').
+            region_id: Single-character ID for region_grid (e.g. 'h', 'w').
+            lore: Optional narrative lore describing this domain.
 
         Returns:
-            Confirmation message detailing modified tiles and preserved water/landmarks.
+            Confirmation message detailing modified tiles and preserved terrain.
         """
         if not center or len(center) < 2:
             err = "Error: center must be an [x, y] coordinate pair."
@@ -1234,22 +1225,20 @@ class WorldStateSnapshot:
         new_domain_id: str = "",
         new_domain_lore: str = "",
     ) -> str:
-        """Clears natural obstacles (deforestation, fen drainage, stone quarrying) into usable plains or farmland.
+        """Clears vegetation or obstacles into usable plains ('.') or farmlands (':').
 
-        Converts woods ('#', '&') or bogs ('%') into open plains ('.') or farmlands (':').
-        If converted to farmland, can extend an existing domain region or register a new one.
-        Strictly rejects execution on water tiles ('~').
+        Converts woods ('#', '&'), bogs ('%'), or scrub (',') to plains or farms. Plains ('.') may be cleared to farmland (':'). Water ('~', ';') and peaks ('^', '/') are rejected.
 
         Args:
             coords: List of [x, y] coordinates to clear.
-            target_terrain: Ground type after clearing: '.' for open plains/pasture, ':' for farmland, '*' for quarry.
-            domain_region_id: Optional existing region ID (e.g. 'h') to assign these cleared tiles to.
-            new_domain_name: Optional name if founding a new agricultural domain (e.g. 'Greenwood Grange').
-            new_domain_id: Single character ID if founding a new domain.
-            new_domain_lore: Optional narrative lore describing the newly cleared and settled land.
+            target_terrain: Ground type after clearing: '.' for open plains, ':' for farmland.
+            domain_region_id: Optional existing region ID (e.g. 'h') to assign cleared tiles to.
+            new_domain_name: Optional name if establishing a new domain.
+            new_domain_id: Single-character ID if establishing a new domain.
+            new_domain_lore: Optional narrative lore for the cleared territory.
 
         Returns:
-            Confirmation message or actionable rejection if water tiles were targeted.
+            Confirmation message detailing cleared tiles and assigned region.
         """
         norm_coords = _normalize_tiles(coords)
         if not norm_coords:
@@ -1781,49 +1770,31 @@ class WorldStateSnapshot:
         target_region_id: str = "",
         downstream_coords: Optional[list[list[int]]] = None,
     ) -> str:
-        """Alters waterways, carves canals, builds dams, or drains wetlands with automatic dual-grid synchronization.
+        """Alters waterways: carves canals, builds river dams, drains wetlands, or floods reservoirs.
 
         Actions:
-        - 'canal': Automatically carves a navigable water channel ('~') between 'destination' and 'source' using
-          pathfinding that curves around settlements ('o', 'O'), dungeons ('!'), and mountains ('^').
-          Overland roads ('+') are severed by the excavation and halted at the banks; the tool returns a note
-          with validated bridge ('=') coordinates to reconnect the road across the canal.
-        - 'dam': Converts river water ('~') at 'coords' into a masonry barrage ('*'), auto-updates river lore,
-          and reduces 50% of downstream river tiles to shallow sandbanks (';').
-        - 'drain': Converts water ('~') at 'coords' into dry ground ('.' plains, ':' farmlands).
-        - 'flood': Expands an existing water body or creates a new reservoir across 'coords'.
+        - 'canal': Carves water channel ('~') connecting inland 'destination' to waterbody 'source'.
+        - 'dam': Erects masonry barrage ('*') across river 'coords' and reduces downstream flow.
+        - 'drain': Reclaims water/wetland at 'coords' into dry ground ('.' plains, ':' farmlands).
+        - 'flood': Expands water body or reservoir across 'coords'.
 
         Args:
             action: One of 'canal', 'dam', 'drain', or 'flood'.
-
-            # --- Canal Pathfinding Parameters (action='canal') ---
-            destination: [X, Y] coordinate for the inland start of the canal (e.g. city quays or fortress).
-                Do NOT provide manual intermediate tiles; pathfinding automatically excavates the optimal route.
-            source: [X, Y] coordinate on the target waterbody (ocean '~', river '~', or lake '~') to connect to.
-                Pathfinding will terminate as soon as it reaches this tile or any contiguous tile of its water region.
-
-            # --- Canal / Waterway Identity & Naming (action='canal' or 'flood') ---
-            waterway_name: Display name for a NEW distinct civil engineering project (e.g. 'King's Canal').
-                Leave empty if this canal is simply an unnamed extension/inlet of the source water body.
-            waterway_region_id: Single-character region ID for the canal:
-                - If 'waterway_name' is provided: MUST be a fresh, UNUSED single character (e.g. an unassigned letter).
-                  Do NOT reuse established biome IDs (e.g. do not pass '1' for ocean or '6' for river).
-                - If 'waterway_name' is empty: Pass the existing source water body ID to extend its biome.
-            waterway_lore: Narrative lore describing the canal's construction, trade role, and engineering feats.
-
-            # --- Dam Parameters (action='dam') ---
-            coords: List of [X, Y] coordinates for the dam barrier (e.g. [[23, 7], [24, 7]]).
-            dam_name: Display name of the dam landmark (e.g. 'Highwall Barrage').
-            dam_lore: Narrative lore describing the dam and reservoir.
-            river_lore: Optional updated lore for the dammed river. If omitted, dam event is appended automatically.
+            destination: [x, y] inland start coordinate for 'canal'.
+            source: [x, y] target waterbody coordinate for 'canal'.
+            coords: List of [x, y] tiles for 'dam', 'drain', or 'flood'. Dams must cross water.
+            waterway_name: Display name for new canal/waterway (leave empty to extend source biome).
+            waterway_region_id: Unused 1-char ID for named canal, or existing source ID if extending.
+            waterway_lore: Narrative lore for the canal or reservoir.
+            dam_name: Display name of the dam (e.g. 'Highwall Barrage').
+            dam_lore: Narrative lore describing the dam barrier.
+            river_lore: Optional updated lore for the dammed river.
+            target_terrain: Ground type for drain or dam ('.' plains, ':' farmland, '*' masonry).
+            target_region_id: Land region ID for reclaimed tiles (defaults to '0' wilderness).
             downstream_coords: Optional explicit downstream tiles to mutate to ';' (auto-detected if omitted).
 
-            # --- Drain Parameters (action='drain') ---
-            target_terrain: Ground type to convert into ('.' for plains, ':' for farmland).
-            target_region_id: Established land region ID to assign to reclaimed tiles (defaults to '0' wilderness).
-
         Returns:
-            Confirmation message detailing modified water/ground tiles, registered features, and updated regional biomes.
+            Confirmation message detailing modified tiles, features, and updated regions.
         """
         act = str(action).strip().lower()
         if act not in ("dam", "drain", "canal", "flood"):
@@ -2145,14 +2116,12 @@ class WorldStateSnapshot:
     ) -> str:
         """Simulates nature reclaiming fallen civilizations or cleansed blights.
 
-        Reverts abandoned farmlands (':') or wastelands ('*') back to wild grasslands ('.') or light woods ('#'),
-        and dissolves the domain by reassigning tiles to ambient wilderness ('0').
-        Waterways ('~') and mountain peaks ('^') are preserved.
+        Reverts farmlands (':') or wastelands ('*') to plains ('.') or woods ('#') in Wilderness '0'. Registered features (dams, outposts) and water are preserved.
 
         Args:
-            center: [x, y] coordinate of the abandoned settlement, ruin, or epicenter.
-            radius: Tile radius to dissolve (1 to 5).
-            target_terrain: Ground type to revert to ('.' for wild plains, '#' for overgrown woods).
+            center: [x, y] coordinate of the abandoned site or epicenter.
+            radius: Radius in tiles to dissolve (1 to 5).
+            target_terrain: Ground type to revert to ('.' for plains, '#' for woods).
 
         Returns:
             Confirmation message detailing reclaimed tiles and dissolved regions.
@@ -2225,21 +2194,17 @@ class WorldStateSnapshot:
         region_type: str = "",
         description: str = "",
     ) -> str:
-        """Updates an existing regional biome's lore, name, or classification as history transforms the realm.
-
-        Use this tool when a region's ecology, atmosphere, dangers, or reputation evolves across epochs
-        (e.g., an ancient primeval forest becomes blighted, corrupted, or logged; a mountain range becomes haunted
-        by dragons or excavated for iron mines; a desolate wasteland is cleansed; or uncharted wilderness is settled).
+        """Updates an existing regional biome's lore, name, or classification.
 
         Args:
             region_id: Single-character alphanumeric ID of the region to update (e.g. 'I', 'D', '0', 'K').
-            lore: Updated or expanded narrative lore describing the region's current state, history, threats, or ecology.
-            name: Optional new display name for the region if renamed.
-            region_type: Optional updated semantic category (e.g. 'forest', 'wasteland', 'mountains', 'wilderness', 'farmland').
-            description: Optional alias for 'lore' to support standard tool calling conventions.
+            lore: Updated narrative lore describing the region's current state, threats, or ecology.
+            name: Optional new display name if renamed.
+            region_type: Optional updated category (e.g. 'forest', 'wasteland', 'mountains', 'wilderness', 'farmland').
+            description: Optional alias for 'lore'.
 
         Returns:
-            A confirmation string detailing the region updates.
+            Confirmation string detailing the region updates.
         """
         reg_key = str(region_id).strip()[:1]
         if not reg_key:

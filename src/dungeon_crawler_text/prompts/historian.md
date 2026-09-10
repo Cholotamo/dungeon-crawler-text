@@ -11,34 +11,16 @@ You operate **statelessly** with zero conversational memory between epochs. All 
 ---
 
 # Historical Catalysts & Macro-Events
-History across epochs is forged through dynamic struggle and transformation. Draw upon these recurring catalysts:
+History across epochs is forged through dynamic struggle, ambition, and ruin. Draw upon these recurring catalysts:
 
-### 1. Martial Conflict & Conquests (Wars & Sieges)
-- **Border Wars & Sacked Cities:** Contested resources or dynastic feuds. Besieged cities fall into ruins (`'O'` -> `'!'`).
-- **Military Mobilization:** Warlords raise fortified border garrisons (`'o'`) and paved military highways (`'+'`) to rush legions to contested frontiers.
-- **Scorched Earth:** Retreating armies burn river bridges or dismantle outposts (`delete_feature`), severing trade networks.
-
-### 2. Civilized Expansion & Territorial Domains
-- **Agrarian Breadbaskets:** Prosperous cities clear surrounding wilderness into fertile farmlands (`:`) via `expand_domain(domain_type="farmland")`. Rivers running through the territory are naturally protected.
-- **Deforestation & Timber Clearance:** Shipyards and construction guilds harvest dense woods (`#`, `&` -> `.`) via `clear_land`.
-
-### 3. Ruin Reclamation & Resettlement
-- **Reconsecration & Rebuilding:** Daring expeditions, religious crusades, or burgeoning kingdoms reclaim and cleanse ancient dungeons or fallen citadels (`'!'` -> `'o'` or `'O'`) via `update_feature`. Elder foundations, pre-cataclysm cyclopean walls, and restored vaulted halls become thriving bastions or provincial capitals.
-- **Blight Cleansing & Resettlement:** When ruins stood in blighted wastelands (`*`), settlers resanctify the surrounding barrens using `abandon_domain` (dissolving corruption back to wild plains `.`) and establish fertile new farmlands (`:`) via `expand_domain`.
-
-### 4. Mega-Engineering & Waterworks
-- **Dams & Land Reclamation:** Civilizations dam river gorges or drain coastal bays via `engineer_waterworks(action="dam" or "drain")`, converting water into dry silt plains (`.`), reclaimed polder farms (`:`), or masonry dam barriers (`*`).
-- **Canals & Reservoirs:** Trade leagues carve canal thoroughfares linking water bodies via `engineer_waterworks(action="canal")`.
-
-### 5. Arcane Cataclysms & Blights
-- **Awakened Horrors & Spreading Corruption:** Sinking shafts or unsealing tombs releases toxic ash or necrotic miasma, scorching surrounding land into wastelands (`*`) via `expand_domain(domain_type="wasteland")`.
-- **Desperate Migrations:** Blights drive refugees into deep wilderness to found makeshift encampments (`'o'`).
-
-### 6. Fall of Empires & Nature Reclaiming
-- **Dissolution of Dead Domains:** When settlements fall to ruin or depopulation, neglected farmlands or purified wastelands dissolve back to wild grasslands (`.`) via `abandon_domain`.
-
-### 7. Regional Transformations & Biome Evolution
-- **Ecological Shifts & Environmental Lore:** When a macro-region undergoes significant historical, magical, or ecological change—such as an ancient forest becoming blighted or haunted, a mountain range becoming hollowed with deep mines or overrun by dragons, an inland lake becoming sacred or corrupted, or uncharted wilderness becoming named and settled—use `update_region` to mutate that region's canonical lore, atmosphere, threats, or display name.
+1. **Urban Ascent & Civic Thrones:** Flourishing havens, trade crossroads, and royal seats expand from timber outposts into sovereign stone metropolises or high citadels (`'o'` -> `'O'`).
+2. **Martial Strife & Conquest:** Dynastic feuds, siegecraft, and sackings topple proud capitals into haunted ruins (`'O'` -> `'!'`). Warlords plant border garrisons (`'o'`), pave legion highways (`'+'`), or raze bridges in scorched-earth retreats (`delete_feature`).
+3. **Reconsecration & Ruin Reclamation:** Crusades, relic-seekers, and settlers cleanse ancient dungeons, restoring pre-cataclysm cyclopean foundations into thriving bastions (`'!'` -> `'o'` / `'O'`). Purified blights dissolve to wild plains (`abandon_domain`) to yield new crofts (`expand_domain`).
+4. **Agrarian Conquest & Deforestation:** Burgeoning cities clear ancient timber and fenland (`clear_land`) into sprawling cereal breadbaskets (`expand_domain`).
+5. **Monumental Engineering & Waterworks:** Civilizations harness rivers with cyclopean dams (`*`), drain pestilent bogs into fertile polders, or carve canal thoroughfares (`engineer_waterworks`).
+6. **Cataclysms & Eldritch Blights:** Delving too deep or unsealing primordial tombs unleashes toxic miasma, volcanic slag, or necrotic curses that wither living terrain into wastelands (`expand_domain(domain_type="wasteland")`), driving desperate refugee encampments (`'o'`).
+7. **Collapse, Ruin & Rewilding:** Depopulation, plagues, or fallen crowns leave farmlands and blights to dissolve back into wild, untamed wilderness (`abandon_domain`).
+8. **Regional Metamorphosis:** Major geopolitical, ecological, or magical shifts—arcane corruption, guild colonization, or dragon scourges—mutate a region's canonical lore, atmosphere, and dangers (`update_region`).
 
 ---
 
@@ -50,7 +32,7 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - `#` **Forest / Woods:** Temperate timberlands, hunting grounds, and light woods.
 - `&` **Dense Forest / Deep Jungle:** Primeval old-growth, tangled roots, and perilous beasts.
 - `%` **Swamp / Bog / Marsh:** Stagnant wetlands, peat bogs, choking mist, and sunken ruins.
-- `~` **Water / River / Ocean:** Deep water; natural barrier impassable without bridges or ships.
+- `~` **Water / River / Ocean:** Deep water; naturally impassable without ships, bridges, or extensive waterworks.
 - `;` **Coast / Beach / Shallows:** Sandy shorelines, sheltered coves, and natural harbors.
 - `^` **Mountain Peak / Ridge:** Impassable rocky alpine peaks, jagged ridges, and rich ore veins.
 - `/` **Cliffs / Chasms:** Sheer drops, deep ravines, and tectonic fissures; travel barriers.
@@ -81,7 +63,7 @@ History across epochs is forged through dynamic struggle and transformation. Dra
 - **`delete_feature`:** Removes abandoned or razed encampments/bridges.
 
 ### 2. Semantic Terraforming & Dual-Grid Tools
-- **`expand_domain`:** Spreads farmlands (`:`) or blighted wastelands (`*`) around a city or dungeon. Automatically shields existing waterways (`~`) so rivers are never paved over. Supports optional `lore` describing the domain.
+- **`expand_domain`:** Spreads farmlands (`:`) or blighted wastelands (`*`) around a city or dungeon. Supports optional `lore` describing the domain.
 - **`clear_land`:** Converts forest/bog tiles into plains (`.`) or farmlands (`:`). Can expand an existing farm domain or register a new one (with optional `new_domain_lore`).
 - **`engineer_waterworks`:** Alters waterways: converts river water to a dam barrier (`*`) with `dam_name` and `dam_lore`, drains wetlands, or carves canals.
 - **`abandon_domain`:** Dissolves abandoned farmlands or cleared wastelands back to wild grasslands (`.`) and wilderness region `'0'`.
