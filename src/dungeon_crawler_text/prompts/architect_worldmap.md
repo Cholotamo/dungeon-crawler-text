@@ -6,14 +6,13 @@ Use only these characters in `terrain_grid`:
 - `.` : Open Plains / Wilderness
 - `,` : Hills / Slopes
 - `#` : Forest / Woods
-- `&` : Dense Forest / Deep Jungle
+- `&` : Dense Forest / Overgrowth
 - `%` : Swamp / Bog / Marsh
 - `~` : Water / River / Ocean
-- `;` : Coast / Beach / Shallows
+- `;` : Shorelines / Shallow Fords
 - `^` : Mountain Peak / Ridge
 - `/` : Cliffs / Edges / Chasms
 - `*` : Wastelands
-- `:` : Farmland
 
 # Map Structure & Rules
 Generate a JSON object matching this schema:

@@ -16,7 +16,7 @@ History across epochs is forged through dynamic struggle, ambition, and ruin. Dr
 1. **Urban Ascent & Civic Thrones:** Flourishing havens, trade crossroads, and royal seats expand from timber outposts into sovereign stone metropolises or high citadels (`'o'` -> `'O'`).
 2. **Martial Strife, Conquest & Siege Engineering:** Dynastic feuds and sackings topple proud capitals into haunted ruins (`'O'` -> `'!'`). Warlords plant border garrisons (`'o'`), pave legion highways (`'+'`), raze bridges in scorched retreats (`delete_feature`), or weaponize waterworks with naval assault canals, moats, and breached dams (`engineer_waterworks`).
 3. **Reconsecration & Ruin Reclamation:** Crusades, relic-seekers, and settlers cleanse ancient dungeons, restoring pre-cataclysm cyclopean foundations into thriving bastions (`'!'` -> `'o'` / `'O'`). Purified blights dissolve to wild plains (`abandon_domain`) to yield new crofts (`expand_domain`).
-4. **Hydraulic Agriculture & Agrarian Conquest:** Burgeoning realms clear timber and fenland (`clear_land`) to cultivate sprawling breadbaskets (`expand_domain`). Because crops demand reliable freshwater to thrive and resist droughts, civilizations carve arterial irrigation canals (`engineer_waterworks(action='canal')`) from lakes or rivers into arid interiors, drain pestilent marshes into rich polders (`action='drain'`), or dam rivers into calm irrigation reservoirs (`action='dam'`).
+4. **Hydraulic Agriculture & Agrarian Conquest:** Burgeoning realms clear land (`clear_land`) and irrigate fields through canals (`engineer_waterworks(action='canal')`), drained marshes (`action='drain'`), or dams (`action='dam'`) to support rich breadbaskets (`expand_domain`). Crops require adjacent water or marsh.
 5. **Cataclysms & Eldritch Blights:** Delving too deep or unsealing primordial tombs unleashes toxic miasma, volcanic slag, or necrotic curses that wither living terrain into wastelands (`expand_domain(domain_type="wasteland")`), driving desperate refugee encampments (`'o'`).
 6. **Collapse, Ruin & Rewilding:** Depopulation, plagues, or fallen crowns leave farmlands and blights to dissolve back into wild, untamed wilderness (`abandon_domain`).
 7. **Regional Metamorphosis:** Major geopolitical, ecological, or magical shifts—arcane corruption, guild colonization, or dragon scourges—mutate a region's canonical lore, atmosphere, and dangers (`update_region`).
@@ -32,7 +32,7 @@ History across epochs is forged through dynamic struggle, ambition, and ruin. Dr
 - `&` **Dense Forest / Deep Jungle:** Primeval old-growth, tangled roots, and perilous beasts.
 - `%` **Swamp / Bog / Marsh:** Stagnant wetlands, peat bogs, choking mist, and sunken ruins.
 - `~` **Water / River / Ocean:** Deep water; naturally impassable without ships, bridges, or extensive waterworks.
-- `;` **Coast / Beach / Shallows:** Sandy shorelines, sheltered coves, and natural harbors.
+- `;` **Coast / Beach / Shallow Waters:** Shorelines, tidal flats, river banks, and shallow fords.
 - `^` **Mountain Peak / Ridge:** Impassable rocky alpine peaks, jagged ridges, and rich ore veins.
 - `/` **Cliffs / Chasms:** Sheer drops, deep ravines, and tectonic fissures; travel barriers.
 - `*` **Wastelands / Barrier / Dam:** Blasted volcanic ash, toxic flats, cursed barrens, or artificial heavy stone/masonry blockages (dams, barrages, sea dykes).
