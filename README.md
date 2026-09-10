@@ -1,10 +1,11 @@
 # Dungeon Crawler Text: Primordial World-Building Pipeline
 
-A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in two coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map:
+A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in four coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map and rich landmark vector dossiers:
 
 1. **The Loremaster:** Synthesizes evocative, mythic narrative prose describing the untouched primordial landscape and raw physical geography of a realm at the dawn of creation.
 2. **The Architect:** Translates the primordial world prose into a structured 32x32 ASCII and JSON world map using Gemini with **Python Code Execution**, enforcing organic biome geography and strict hydrological rules.
 3. **The Historian:** Chronicles the passage of historical epochs, translating narrative developments into physical changes on the map using fine-grained **Feature CRUD Tools** via Gemini Automatic Function Calling (AFC).
+4. **The Dossier Harvester:** Extracts deterministic spatial, geographic, and infrastructural vector dossiers across epochs for settlements, cities, and dungeons, tracking keyframe mutations, local terrain/biome slices, and cardinal road/gate approaches for downstream subarchitect models.
 
 ```
                     ┌─────────────────────────┐
@@ -47,6 +48,18 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
                     │   worldmap_epoch_1.json │
                     │   worldmap_epoch_1.md   │
                     │   worldmap_epoch_n...   │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │    Dossier Harvester    │
+                    │  (Vector Extraction)    │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/dossiers/     │
+                    │   {id}_dossier.json     │
                     └─────────────────────────┘
 ```
 
@@ -190,7 +203,126 @@ uv run dungeon-crawler-historian --query "A devastating civil war splits the rea
 
 ---
 
-## Step 4: Inspect Maps Interactively (HTML Map Viewer)
+### Step 4: Harvest Landmark Vector Dossiers (Dossier Generator)
+
+Extract deterministic spatial, geographic, and infrastructural vector dossiers for all settlements, cities, and dungeons across historical epochs (`worldmap_epoch_*.json`) to feed downstream Subarchitect generation models:
+
+```bash
+uv run dungeon-crawler-dossier
+```
+
+Or invoke the module directly:
+
+```bash
+uv run python -m dungeon_crawler_text.dossier
+```
+
+#### Dossier Harvester CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--feature`, `-f` | `str` | `""` (all landmarks) | Specific Feature ID to harvest (harvests all landmarks if omitted) |
+| `--artifacts`, `-a` | `str` | `artifacts` | Directory containing epoch files (`worldmap_epoch_*.json`) |
+| `--output`, `-o` | `str` | `artifacts/dossiers` | Output directory to save JSON dossier files |
+| `--radius`, `-r` | `int` | `1` | Environmental scan radius (`1` yields 3x3 local slice, `2` yields 5x5) |
+
+**Examples:**
+```bash
+# Harvest dossiers for all landmarks across all epochs into artifacts/dossiers/
+uv run dungeon-crawler-dossier
+
+# Harvest and inspect a specific landmark dossier (saves file & prints JSON to stdout)
+uv run dungeon-crawler-dossier --feature eldermere
+
+# Custom artifacts directory and output destination
+uv run dungeon-crawler-dossier --artifacts artifacts --output custom_dossiers
+
+# Expand environmental scan radius to 2 (5x5 neighborhood slice)
+uv run dungeon-crawler-dossier --radius 2
+```
+
+#### What Dossier Vectors Contain
+
+Each landmark dossier (`{feature_id}_dossier.json`) provides a complete, deterministic multi-epoch profile:
+- **Spatial Positioning:** Fixed grid coordinates `[X, Y]`, founding epoch (`first_seen_epoch`), and latest active epoch.
+- **Keyframe Evolution & Triggers:** Chronological snapshots flagged by state changes: `genesis`, `char_mutation` (e.g. outpost `'o'` -> city `'O'`), `name_mutation`, `domain_mutation` (host region shifts), `terrain_mutation`, and `new_roads`.
+- **Local Environmental Context:** Local `(2r+1) x (2r+1)` ASCII terrain and region grid slices centered on the landmark, alongside host region lore and detected neighboring biomes with cardinal boundary positions (e.g., `"WEST BORDER (3 tiles)"`).
+- **Infrastructural Network & Gate Approaches:** Connected roads (`+`) and bridges (`=`), including computed entry orientations (`NORTH`, `SOUTH`, `EAST`, `WEST`, `NORTH_EAST`, etc.) and linked destination landmarks.
+- **Deterministic Delta Diffs:** Explicit transitions between keyframes (`biome_mutation`, `terrain_transition`, `status_transition`, and new road connections) for downstream procedural generation.
+
+#### Dossier JSON Schema Excerpt
+
+```json
+{
+  "feature_id": "eldermere",
+  "world_coords": [25, 13],
+  "first_seen_epoch": 1,
+  "latest_epoch": 3,
+  "total_keyframes": 3,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 1,
+      "char": "o",
+      "name": "Eldermere",
+      "type": "settlement",
+      "is_keyframe": true,
+      "keyframe_triggers": ["genesis"],
+      "environment": {
+        "host_region": {
+          "id": "E",
+          "name": "Eldermere Crofts",
+          "type": "farmland",
+          "lore": "Rich alluvial soil tilled by the pioneers of Eldermere along the eastern strand..."
+        },
+        "terrain_char": ":",
+        "terrain_label": "farmland",
+        "terrain_slice": [
+          ";::",
+          ";::",
+          ";::"
+        ],
+        "region_slice": [
+          "LEE",
+          "LEE",
+          "LEE"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "L",
+            "name": "The Inland Sea",
+            "type": "lake",
+            "tile_count": 3,
+            "relative_position": "WEST BORDER (3 tiles)",
+            "lore": "A broad, cold, and bottomless freshwater sea...",
+            "historical_context": "Active region in Epoch 1."
+          }
+        ]
+      },
+      "connected_roads": [
+        {
+          "road_id": "dawn_way",
+          "road_name": "The Dawn Way",
+          "road_type": "road",
+          "gate_approach": "NORTH",
+          "description": "An early beaten trade path...",
+          "destination": {
+            "feature_id": "gorgewatch",
+            "name": "Gorgewatch",
+            "type": "outpost"
+          },
+          "destination_coord": [22, 9]
+        }
+      ],
+      "delta_from_previous": null
+    }
+  ]
+}
+```
+
+---
+
+### Step 5: Inspect Maps Interactively (HTML Map Viewer)
 
 Open the interactive HTML Map Viewer to inspect the composite world map with rich colors, customizable tile spacing, and full hover inspection:
 
@@ -217,10 +349,16 @@ Or open [`viewer.html`](file:///C:/Developer/Random/dungeon-crawler-text/viewer.
 
 ## Python API
 
-All agents can be imported and executed programmatically:
+All agents and harvesters can be imported and executed programmatically:
 
 ```python
-from dungeon_crawler_text import Architect, Historian, Loremaster
+from dungeon_crawler_text import (
+    Architect,
+    Historian,
+    Loremaster,
+    harvest_all_dossiers,
+    harvest_landmark_keyframes,
+)
 
 # 1. Generate primordial narrative prose
 loremaster = Loremaster(model_name="gemini-3.8-flash", thinking_level="HIGH")
@@ -239,6 +377,20 @@ res_epoch1 = historian.run_epoch()
 
 # Run Epoch 2 in the same conversation (takes worldmap_epoch_1.md, creates worldmap_epoch_2.json and worldmap_epoch_2.md)
 res_epoch2 = historian.run_epoch()
+
+# 4. Harvest deterministic vector dossiers across all epochs
+all_dossiers = harvest_all_dossiers(
+    artifacts_dir="artifacts",
+    output_dir="artifacts/dossiers",
+    scan_radius=1,
+)
+
+# Or extract a single landmark dossier
+eldermere_dossier = harvest_landmark_keyframes(
+    feature_id="eldermere",
+    artifacts_dir="artifacts",
+    scan_radius=1,
+)
 ```
 
 ---
@@ -302,3 +454,13 @@ The Architect outputs a structured JSON artifact conforming to the following sch
    - **Validation Engine:** Automatically validates grid dimensions (strictly 32x32), verifies all characters in `region_grid` exist in the `regions` dictionary, guarantees region `'0'` is mapped to `"Unnamed Wilderness"`, and keeps `features` strictly empty for the primordial age.
    - **Visual CLI Preview:** Renders an ASCII map preview and regional registry breakdown directly to the terminal upon completion.
    - **Resilience & Tracking:** Employs exponential backoff retry handling and tracks token usage (prompt, candidate, thinking, and total counts).
+
+3. **Historian (`historian.py` & `prompts/historian_epoch.md`):**
+   - **Chronological Epoch Simulation:** Advances the historical timeline across sequential epochs, simulating settlement founding, highway expansion, border shifts, and ruin discovery.
+   - **Feature CRUD Tools:** Mutates features with Gemini Automatic Function Calling (AFC) tools (`add_feature`, `update_feature`, `delete_feature`, `update_region`, `terraform_tiles`).
+   - **Multi-Epoch Context Window:** Retains world history across turns in continuous multi-epoch sessions, emitting updated JSON state and companion markdown maps.
+
+4. **Dossier Harvester (`dossier.py`):**
+   - **Multi-Epoch Vector Compilation:** Discovers all landmarks (settlements, cities, dungeons) in the latest epoch and parses the entire epoch history to extract deterministic temporal keyframes.
+   - **Spatial & Infrastructural Extraction:** Extracts local terrain/biome ASCII slices, neighboring region boundaries, connected roads and bridges, and cardinal highway gate approaches (`NORTH`, `SOUTH`, etc.).
+   - **Keyframe Mutation Tracking:** Identifies structural triggers (`genesis`, `char_mutation`, `domain_mutation`, `terrain_mutation`, `new_roads`) and computes deterministic deltas to feed downstream Subarchitect models.

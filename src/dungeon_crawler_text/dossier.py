@@ -621,7 +621,7 @@ def harvest_all_dossiers(
     return all_dossiers
 
 
-if __name__ == "__main__":
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Harvest deterministic vector dossiers for settlements and dungeons.")
@@ -650,3 +650,7 @@ if __name__ == "__main__":
         print(f"Compiled {len(all_res)} landmark dossiers in {out_p}")
         for k in all_res:
             print(f"  - {k} ({len(all_res[k]['keyframes'])} keyframes)")
+
+
+if __name__ == "__main__":
+    main()

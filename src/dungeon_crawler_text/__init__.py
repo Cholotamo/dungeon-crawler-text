@@ -24,6 +24,10 @@ if TYPE_CHECKING:
         DEFAULT_OUTPUT_MAP_PATH,
         Architect,
     )
+    from dungeon_crawler_text.dossier import (
+        harvest_all_dossiers,
+        harvest_landmark_keyframes,
+    )
     from dungeon_crawler_text.viewer import (
         build_viewer_html,
         generate_html_viewer,
@@ -37,6 +41,10 @@ def __getattr__(name: str) -> Any:
         from dungeon_crawler_text import architect
 
         return getattr(architect, name)
+    if name in ("harvest_all_dossiers", "harvest_landmark_keyframes"):
+        from dungeon_crawler_text import dossier
+
+        return getattr(dossier, name)
     if name in ("build_viewer_html", "generate_html_viewer", "open_viewer", "serve_viewer"):
         from dungeon_crawler_text import viewer
 
@@ -60,6 +68,8 @@ __all__ = [
     "calculate_cost",
     "format_world_for_llm",
     "generate_html_viewer",
+    "harvest_all_dossiers",
+    "harvest_landmark_keyframes",
     "open_viewer",
     "resolve_epoch_paths",
     "serve_viewer",
