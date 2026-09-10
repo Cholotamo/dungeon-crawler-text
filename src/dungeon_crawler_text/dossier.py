@@ -412,15 +412,6 @@ def harvest_landmark_keyframes(
         logger.warning(f"No epoch files found in {artifacts_path} for base name '{base_name}'")
         return None
 
-    # Load regions history if available
-    regions_hist_path = artifacts_path / "regions_history.json"
-    regions_history: Optional[dict[str, Any]] = None
-    if regions_hist_path.exists():
-        try:
-            regions_history = json.loads(regions_hist_path.read_text(encoding="utf-8"))
-        except Exception as e:
-            logger.warning(f"Failed to load regions_history.json: {e}")
-
     keyframes: list[dict[str, Any]] = []
     prev_state: Optional[dict[str, Any]] = None
     first_epoch: Optional[int] = None
@@ -477,7 +468,6 @@ def harvest_landmark_keyframes(
         neighborhood = extract_neighborhood_regions(
             r_slice,
             regions,
-            regions_history,
             epoch=ep_num,
             host_region_id=r_id,
         )

@@ -16,12 +16,6 @@ from dungeon_crawler_text.loremaster import (
     DEFAULT_PRIMORDIAL_QUERY,
     Loremaster,
 )
-from dungeon_crawler_text.region_history import (
-    compile_regions_history,
-    get_regional_context_for_location,
-    render_regions_history_md,
-    update_regions_history,
-)
 from dungeon_crawler_text.world_state import format_world_for_llm
 
 if TYPE_CHECKING:
@@ -64,13 +58,9 @@ __all__ = [
     "WorldStateSnapshot",
     "build_viewer_html",
     "calculate_cost",
-    "compile_regions_history",
     "format_world_for_llm",
     "generate_html_viewer",
-    "get_regional_context_for_location",
     "open_viewer",
-    "render_regions_history_md",
     "resolve_epoch_paths",
     "serve_viewer",
-    "update_regions_history",
 ]

@@ -20,7 +20,6 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from dungeon_crawler_text.region_history import update_regions_history
 from dungeon_crawler_text.retry import retry_with_backoff
 from dungeon_crawler_text.world_state import FEATURE_PRIORITY, format_world_for_llm
 
@@ -2587,15 +2586,7 @@ class Historian:
         # 5. Render and save the companion .md copy with growing # Timeline
         self.snapshot.render_and_save_md(rendered_md, timeline_entry=narrative)
 
-        # 6. Incrementally update continuous regional biome history tracking
-        reg_history_json = update_regions_history(
-            epoch_num=epoch_num,
-            world_data=self.snapshot.data,
-            timeline_entry=narrative,
-            artifacts_dir=active_json.parent,
-        )
-
-        # 7. Update file tracking (stateless: no chat session or message history retained)
+        # 6. Update file tracking (stateless: no chat session or message history retained)
         self.current_epoch = epoch_num
         self.last_md_path = rendered_md
         self.last_json_path = active_json
@@ -2613,7 +2604,6 @@ class Historian:
         print(f"Total epochs in timeline:      {timeline_count}")
         print(f"Active JSON snapshot saved:    {active_json}")
         print(f"Rendered Markdown saved:       {rendered_md}")
-        print(f"Regions History updated:       {reg_history_json}")
 
         print("\n" + "-" * 80, flush=True)
         print(f" EPOCH {epoch_num} TOKEN USAGE & COST BREAKDOWN", flush=True)
@@ -2643,7 +2633,7 @@ class Historian:
             mutations=list(self.snapshot.mutations_log),
             features_count=features_count,
             token_usage=dict(epoch_usage),
-            regions_history_path=reg_history_json,
+            regions_history_path=None,
             api_calls=epoch_api_calls,
             estimated_cost_usd=epoch_cost_usd,
             cumulative_token_usage=dict(self.cumulative_usage),
