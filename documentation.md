@@ -1,3 +1,20 @@
+# 10/09/2026
+Introduced **Hydraulic Agriculture & Siegecraft Catalyst Alignment for the Grand Historian**.
+
+### The Motivation
+Canal engineering was previously underutilized by the Grand Historian because farmland expansion (`expand_domain`) was decoupled from water requirements, allowing the agent to effortlessly sprawl agricultural tiles across dry land without civil infrastructure. Furthermore, waterworks overlapped confusingly between general terraforming, monumental engineering, and military maneuvers.
+
+### The Solution: Realigned Catalysts & Streamlined Mandate
+1. **Hydraulic Agriculture & Agrarian Conquest (`prompts/historian.md` Catalyst 4):**
+   - Merged agricultural expansion and civil waterworks into a unified hydraulic catalyst.
+   - Grounded farmland viability in freshwater access: civilizations are instructed to carve arterial irrigation canals (`engineer_waterworks(action='canal')`), drain wetlands into fertile polders (`action='drain'`), or dam rivers into calm reservoirs (`action='dam'`) to sustain interior breadbaskets and guard against droughts.
+2. **Martial Strife, Conquest & Siege Engineering (`prompts/historian.md` Catalyst 2):**
+   - Consolidated all military applications of water engineering into warfare: naval assault canals, defensive moats, and tactical dam breaching.
+3. **Streamlined Query Alignment (`DEFAULT_SUBSEQUENT_EPOCH_QUERY` in `historian.py`):**
+   - Synchronized subsequent-epoch turn query prompts with the consolidated 7-catalyst architecture, maximizing token efficiency and evoking richer emergent civil history.
+
+---
+
 # 08/09/2026
 Introduced **Dynamic Regional Biome Lore Mutation Protocol for the Grand Historian**.
 

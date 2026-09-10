@@ -45,11 +45,11 @@ DEFAULT_EPOCH_1_QUERY = (
 
 DEFAULT_SUBSEQUENT_EPOCH_QUERY = (
     "Generations have passed. Chronicle the unfolding history of the realm across civilization, geography, and ecology:\n"
-    "- Settlements & Fortresses: Thriving towns prospering into metropolises or citadels, fallen bastions sacked or ruined, ancient dungeons reclaimed and cleansed into civilized havens, or new frontier outposts founded.\n"
-    "- Infrastructure & Routes: Paving trade or military highways and constructing bridges spanning rivers, shallows, or chasms.\n"
-    "- Terraforming & Domains: Cultivating expanding agrarian farmlands, clearing dense timberlands or bogs, spreading blighted wastelands from awakened evils, or dissolving abandoned domains back to wilderness.\n"
-    "- Mega-Engineering & Waterworks: Reshaping waterways by damming river gorges to create downstream shallows, draining wetlands, or cutting canals.\n"
-    "- Regional Biome Evolution: Chronicling how wars, blights, and migrations reshape the ecology, atmosphere, dangers, and canonical lore of the realm's regional biomes."
+    "- Settlements & Fortresses: Thriving towns prospering into metropolises or citadels, fallen bastions sacked or ruined, ancient dungeons reclaimed into havens, or new frontier outposts founded.\n"
+    "- Routes & Infrastructure: Paving highways, building bridges, or weaponizing waterworks with military canals, moats, and defensive dams.\n"
+    "- Hydraulic Agriculture & Terraforming: Cultivating farmlands, carving arterial irrigation canals from lakes/rivers to water inland crops, draining wetlands into fertile polders, or spreading blighted wastelands.\n"
+    "- Collapse & Rewilding: Dissolving abandoned farmlands and cleansed blights back to wild nature.\n"
+    "- Regional Biome Evolution: Chronicling how wars, blights, and migrations reshape the ecology, atmosphere, dangers, and canonical lore of regional biomes."
 )
 
 
