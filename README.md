@@ -126,8 +126,8 @@ uv run python -m dungeon_crawler_text.architect
 | :--- | :--- | :--- | :--- |
 | `--input`, `-i` | `str` | `artifacts/worldprose.md` | Path to input world prose markdown file |
 | `--output`, `-o` | `str` | `artifacts/worldmap.json` | Path to save output world map JSON file |
-| `--model` | `str` | `gemini-3.8-flash` | Gemini model to use for the agent |
-| `--thinking` | `str` | `HIGH` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
+| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for the agent |
+| `--thinking` | `str` | `MEDIUM` | Thinking budget / level (`HIGH`, `MEDIUM`, `LOW`, etc.) |
 
 **Examples:**
 ```bash
@@ -227,7 +227,7 @@ loremaster = Loremaster(model_name="gemini-3.8-flash", thinking_level="HIGH")
 prose = loremaster.generate_primordial_world()
 
 # 2. Architect 32x32 world map from prose
-architect = Architect(model_name="gemini-3.8-flash", thinking_level="HIGH")
+architect = Architect(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
 world_map = architect.generate_world_map(worldprose=prose)
 architect.save_world_map(world_map)
 
