@@ -18,58 +18,28 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
-def resolve_scale_category(char: str, ftype: str) -> tuple[str, str]:
-    """Maps landmark glyph and type to a deterministic scale and layout profile.
+def resolve_scale_category(char: str) -> Optional[tuple[str, str]]:
+    """Maps landmark glyph to a deterministic scale and layout profile.
+
+    'o' -> Small / Compact
+    'O' -> Large / Urban
+    '!' -> None (Dungeons/ruins do not use settlement scale categories)
 
     Returns:
-        tuple[str, str]: (Scale Category Name, Descriptive Guidance)
+        Optional[tuple[str, str]]: (Scale Category Name, Descriptive Guidance), or None for dungeons.
     """
     c = str(char).strip()
-    t = str(ftype).lower().strip()
-
-    if c == "O" or t in ("city", "major_city", "metropolis", "capital", "citadel"):
-        return (
-            "Large / Urban",
-            "Expansive, high-density footprint. Distinct functional wards, formal thoroughfares, and fortified perimeter walls.",
-        )
-    elif c == "!" or t in (
-        "dungeon",
-        "crypt",
-        "tomb",
-        "catacomb",
-        "vault",
-        "ruin",
-        "lair",
-        "den",
-        "monster_den",
-        "cavern",
-        "barrow",
-    ):
-        return (
-            "Enclosed Complex / Dungeon",
-            "Subterranean or megalithic footprint. Chambered architecture, ancient stone, subterranean natural hazards, and focal altar/crypt vaults.",
-        )
-    elif c == "o" or t in (
-        "settlement",
-        "outpost",
-        "village",
-        "town",
-        "hamlet",
-        "redoubt",
-        "fort",
-        "garrison",
-        "watchtower",
-        "hold",
-    ):
+    if c == "o":
         return (
             "Small / Compact",
             "Fledgling cluster. Small structural footprint with a high proportion of surrounding natural terrain, open yards, and frontier buffer.",
         )
-    else:
+    elif c == "O":
         return (
-            "Moderate / Standard",
-            "Balanced footprint with central functional quarters surrounded by natural edge buffers.",
+            "Large / Urban",
+            "Expansive, high-density footprint. Distinct functional wards, formal thoroughfares, and fortified perimeter walls.",
         )
+    return None
 
 
 def synthesize_perimeter_borders(
@@ -77,7 +47,7 @@ def synthesize_perimeter_borders(
     neighborhood_regions: list[dict[str, Any]],
 ) -> list[str]:
     """Resolves edge constraints for all 4 cardinal borders deterministically."""
-    host_name = host_region.get("name", "Host Domain")
+    host_name = host_region.get("name", "Host Region")
     host_type = host_region.get("type", "wilderness").title()
 
     cardinal_edges: dict[str, Optional[dict[str, Any]]] = {
@@ -124,15 +94,15 @@ def synthesize_perimeter_borders(
         else:
             processed_edges.add(cardinal)
 
-    # Any remaining unassigned borders transition into host domain
+    # Any remaining unassigned borders transition into host region
     unassigned = [c for c in ["NORTH", "SOUTH", "EAST", "WEST"] if cardinal_edges[c] is None]
     if unassigned:
         if len(unassigned) == 4:
-            border_lines.append(f"- **ALL BORDERS:** Transition into host domain ({host_name} — {host_type}).")
+            border_lines.append(f"- **ALL BORDERS:** Transition into host region ({host_name} — {host_type}).")
         else:
             cardinal_label = " & ".join(unassigned)
             border_lines.append(
-                f"- **{cardinal_label} BORDERS:** Transition into host domain ({host_name} — {host_type})."
+                f"- **{cardinal_label} BORDERS:** Transition into host region ({host_name} — {host_type})."
             )
 
     return border_lines
@@ -157,38 +127,39 @@ def generate_locale_seed(
     name = kf.get("name", feature_id.replace("_", " ").title())
     ftype = kf.get("type", "landmark").title()
     char = kf.get("char", "o")
-    epoch = kf.get("epoch", 1)
 
-    scale_name, scale_guidance = resolve_scale_category(char, ftype)
+    scale_info = resolve_scale_category(char)
 
     # 1. Classification & Scale
+    section_title = "## 1. Classification & Scale" if scale_info else "## 1. Classification"
     lines: list[str] = [
-        f"# Locale Generation Seed: {name} (Epoch {epoch})",
+        f"# Locale Generation Seed: {name}",
         "",
-        "## 1. Classification & Scale",
+        section_title,
         f"- **Feature ID:** `{feature_id}`",
         f"- **Name:** {name}",
         f"- **Type:** {ftype}",
-        f"- **Scale Category:** {scale_name} ({scale_guidance})",
-        f"- **Historical Epoch:** Epoch {epoch}" + (" (Founding Era / Genesis)" if epoch == 1 else ""),
-        "",
     ]
+    if scale_info:
+        scale_name, scale_guidance = scale_info
+        lines.append(f"- **Scale Category:** {scale_name} ({scale_guidance})")
+    lines.append("")
 
     # 2. Narrative Lore & Materials
     desc = kf.get("description") or kf.get("lore", "A notable regional landmark.")
     env = kf.get("environment", {})
     host_reg = env.get("host_region", {})
-    host_name = host_reg.get("name", "Host Domain")
+    host_name = host_reg.get("name", "Host Region")
     host_type = host_reg.get("type", "wilderness").title()
     host_lore = host_reg.get("lore", "").strip()
 
     lines.extend([
         "## 2. Narrative Lore & Materials",
-        f'- **Landmark Lore:** "{desc.strip()}"',
-        f"- **Host Domain:** {host_name} ({host_type})",
+        f'- **{name} Lore:** "{desc.strip()}"',
+        f"- **Host Region:** {host_name} ({host_type})",
     ])
     if host_lore:
-        lines.append(f'- **Host Domain Ecology:** "{host_lore}"')
+        lines.append(f'- **Host Region Ecology:** "{host_lore}"')
     lines.append("")
 
     # 3. Perimeter Edge Constraints
@@ -214,33 +185,41 @@ def generate_locale_seed(
             lines.append(f"- **{gate_dir} Approach:**")
             lines.append(f"  - *Road:* {r_name} ({r_type})")
             if r_desc:
-                lines.append(f'  - *Character:* "{r_desc}"')
+                lines.append(f'  - *Description:* "{r_desc}"')
             if dest and isinstance(dest, dict):
                 d_name = dest.get("name", "Unknown")
                 d_type = str(dest.get("type", "landmark")).title()
                 lines.append(f"  - *Destination:* Leads toward {d_name} ({d_type})")
+                d_lore = str(dest.get("description") or dest.get("lore") or "").strip()
+                if d_lore:
+                    lines.append(f'  - *Destination Lore:* "{d_lore}"')
         lines.append("- **Other Borders:** No external road infrastructure.")
     else:
         lines.append("- **Road Ingress:** None. (Isolated wilderness site; entry is via local terrain traversal).")
     lines.append("")
 
     # 5. Generation Directives
+    scale_directive = (
+        f"1. Construct the locale grid reflecting the **{scale_name}** scale and spatial density."
+        if scale_info
+        else f"1. Construct the locale grid reflecting a chambered {ftype.lower()} layout."
+    )
     lines.extend([
         "## 5. Generation Directives",
-        f"1. Construct the locale grid reflecting the **{scale_name}** scale and spatial density.",
-        "2. Perimeter edges must faithfully transition into the bordering domains defined in Section 3.",
+        scale_directive,
+        "2. Perimeter edges must faithfully transition into the bordering regions defined in Section 3.",
     ])
     if connected_roads:
         gate_approaches = ", ".join(sorted({str(r.get("gate_approach", "perimeter")).title() for r in connected_roads}))
         lines.append(
-            f"3. Establish physical gate entrances and thoroughfares aligned to external road approaches ({gate_approaches})."
+            f"3. Establish physical gate entrances and/or thoroughfares aligned to external road approaches ({gate_approaches})."
         )
     else:
         lines.append(
             "3. No external roads enter this site; entry point or structure threshold is reached via wild terrain."
         )
     lines.extend([
-        "4. Internal structures and architecture must strictly reflect the materials and narrative in the Landmark Lore.",
+        f"4. Internal structures and architecture must strictly reflect the materials and narrative in the {name} Lore.",
         "5. Maintain 100% 4-way cardinal walking connectivity (N, S, E, W) between all entrances, primary structures, and key facilities.",
     ])
 
