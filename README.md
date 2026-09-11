@@ -259,7 +259,7 @@ uv run dungeon-crawler-dossier --radius 2
 Each landmark dossier (`artifacts/locales/{feature_id}/dossier.json`) provides a complete, deterministic multi-epoch profile:
 - **Spatial Positioning:** Fixed grid coordinates `[X, Y]`, founding epoch (`first_seen_epoch`), and latest active epoch.
 - **Landmark Identity & Lore:** Epoch-specific names, character glyphs, landmark types, and narrative descriptions (`description`).
-- **Keyframe Evolution & Triggers:** Chronological snapshots flagged by state changes: `genesis`, `char_mutation` (e.g. outpost `'o'` -> city `'O'`), `name_mutation`, `domain_mutation` (host region shifts), `terrain_mutation`, and `new_roads`.
+- **Keyframe Evolution & Triggers:** Chronological milestones flagged by state changes: `genesis`, `char_mutation` (e.g. outpost `'o'` -> city `'O'`), `name_mutation`, `domain_mutation` (host region shifts), `terrain_mutation`, and `new_roads`. Stagnant epochs without changes are omitted so every keyframe represents a genuine historical milestone.
 - **Local Environmental Context:** Local `(2r+1) x (2r+1)` ASCII terrain and region grid slices centered on the landmark, alongside host region lore and detected neighboring biomes with cardinal boundary positions (e.g., `"WEST BORDER (3 tiles)"`).
 - **Infrastructural Network & Gate Approaches:** Connected roads (`+`) and bridges (`=`), including computed entry orientations (`NORTH`, `SOUTH`, `EAST`, `WEST`, `NORTH_EAST`, etc.) and linked destination landmarks.
 - **Deterministic Delta Diffs:** Explicit transitions between keyframes (`biome_mutation`, `terrain_transition`, `status_transition`, and new road connections) for downstream procedural generation.

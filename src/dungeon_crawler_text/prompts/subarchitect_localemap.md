@@ -63,6 +63,7 @@ Generate a JSON object matching this schema:
   "feature_id": "feature_id_from_seed",
   "name": "Locale Name",
   "type": "settlement or dungeon",
+  "epoch": 1,
   "context": {
     "summary": "Locale role, identity, and ecology from seed.",
     "surroundings": "Perimeter landscape context and border transitions.",

@@ -77,6 +77,10 @@ def parse_seed_metadata(seed_text: str) -> dict[str, Any]:
     if scale_m:
         meta["scale_category"] = scale_m.group(1).strip()
 
+    epoch_m = re.search(r"-\s*\*\*Epoch:\*\*\s*(\d+)", seed_text)
+    if epoch_m:
+        meta["epoch"] = int(epoch_m.group(1))
+
     lore_m = re.search(r"-\s*\*\*(?:[^\*]+?)\s*Lore:\*\*\s*\"?([^\n\r\"]+)\"?", seed_text)
     if lore_m:
         meta["lore"] = lore_m.group(1).strip()
@@ -269,7 +273,7 @@ def validate_localemap(
 
     seed_meta = seed_meta or {}
 
-    # Feature ID, Name, Type, Keyframe Index
+    # Feature ID, Name, Type, Keyframe Index, Epoch
     if not data.get("feature_id"):
         data["feature_id"] = seed_meta.get("feature_id", "unknown_locale")
     if not data.get("name"):
@@ -283,6 +287,14 @@ def validate_localemap(
             data["keyframe_index"] = int(data["keyframe_index"])
         except (ValueError, TypeError):
             data["keyframe_index"] = 0
+
+    if "epoch" not in data:
+        data["epoch"] = seed_meta.get("epoch", 1)
+    else:
+        try:
+            data["epoch"] = int(data["epoch"])
+        except (ValueError, TypeError):
+            data["epoch"] = seed_meta.get("epoch", 1)
 
     # Extract & Validate terrain_grid (ground + enclosures + infrastructure)
     terrain_grid = data.get("terrain_grid")
@@ -670,6 +682,7 @@ class Subarchitect:
         self,
         seed_text: str,
         keyframe_index: int = 0,
+        epoch: Optional[int] = None,
     ) -> dict[str, Any]:
         """Statelessly generates the 16x16 localemap JSON using code execution."""
         seed_meta = parse_seed_metadata(seed_text)
@@ -711,6 +724,11 @@ class Subarchitect:
             )
 
         parsed_data["keyframe_index"] = keyframe_index
+        if epoch is not None:
+            parsed_data["epoch"] = epoch
+        elif "epoch" not in parsed_data:
+            parsed_data["epoch"] = seed_meta.get("epoch", 1)
+
         validated_map = validate_localemap(parsed_data, seed_meta=seed_meta)
         return validated_map
 
@@ -833,6 +851,12 @@ def main() -> None:
         help="Keyframe index to generate (default: 0)",
     )
     parser.add_argument(
+        "--epoch",
+        type=int,
+        default=None,
+        help="Historical epoch of this keyframe (default: auto-detected from dossier or seed)",
+    )
+    parser.add_argument(
         "--output",
         "-o",
         type=str,
@@ -898,7 +922,23 @@ def main() -> None:
         seed_text = seed_path.read_text(encoding="utf-8")
 
         try:
-            locale_map = subarchitect.generate_localemap(seed_text=seed_text, keyframe_index=args.keyframe)
+            epoch_val = args.epoch
+            if epoch_val is None:
+                dossier_p = seed_path.parent / "dossier.json"
+                if dossier_p.exists():
+                    try:
+                        d_data = json.loads(dossier_p.read_text(encoding="utf-8"))
+                        kfs = d_data.get("keyframes", [])
+                        if 0 <= args.keyframe < len(kfs):
+                            epoch_val = kfs[args.keyframe].get("epoch")
+                    except Exception:
+                        pass
+
+            locale_map = subarchitect.generate_localemap(
+                seed_text=seed_text,
+                keyframe_index=args.keyframe,
+                epoch=epoch_val,
+            )
             json_file, md_file = subarchitect.save_localemap(
                 locale_map,
                 output_path=out_dir if out_dir.suffix else None,

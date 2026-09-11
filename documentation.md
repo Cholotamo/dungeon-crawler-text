@@ -1,3 +1,22 @@
+# 11/09/2026 (Update 2)
+Introduced **Stagnant Keyframe Omission in Landmark Dossiers & Explicit Epoch Tracking in Keyframe JSON**.
+
+### The Motivation
+1. **Redundant Dossier Keyframes:** Previously, `harvest_landmark_keyframes` appended an entry for every epoch the landmark existed, even if no mutations occurred (`is_keyframe == False`). This introduced passive snapshot bloat into `dossier.json`.
+2. **Missing Epoch Metadata in Localemap JSON:** Downstream consumers (and models simulating multi-keyframe evolutions) had access to `keyframe_index`, but the actual historical world `epoch` was missing from `localemap_keyframe_{n}.json`.
+
+### The Solution
+1. **Omit Stagnant Keyframes (`dossier.py`):**
+   - If an epoch triggers no state changes (no `genesis`, `char_mutation`, `name_mutation`, `domain_mutation`, `terrain_mutation`, or `new_roads`), no keyframe is recorded.
+   - Every recorded keyframe is now guaranteed to be an active milestone (`is_keyframe = True`).
+   - `delta_from_previous` correctly tracks the diff against the preceding recorded milestone keyframe.
+2. **Include Epoch in Keyframe JSON (`subarchitect.py`):**
+   - Added `"epoch"` field to `localemap_keyframe_{n}.json` (e.g. `"epoch": 1`).
+   - CLI supports `--epoch <int>` and auto-resolves `epoch` from adjacent `dossier.json` keyframes or seed text if omitted.
+   - The companion `.md` (`format_localemap_for_llm`) intentionally omits `Epoch` and `Keyframe Index` to keep markdown context clean and focused for human readers and LLM agents.
+
+---
+
 # 11/09/2026
 Introduced **Topological Sink-Gradient Hydrology, Ocean Immunity & Cascading Downstream Waterbody Desiccation for Dam Engineering**.
 

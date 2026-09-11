@@ -520,6 +520,10 @@ def harvest_landmark_keyframes(
                 "new_roads": new_roads_info,
             }
 
+        # Only record a keyframe if a mutation or genesis occurred
+        if not triggers:
+            continue
+
         keyframe_data = {
             "keyframe_index": len(keyframes),
             "epoch": ep_num,
@@ -527,7 +531,7 @@ def harvest_landmark_keyframes(
             "name": f_name,
             "type": f_type,
             "description": f_desc,
-            "is_keyframe": len(triggers) > 0,
+            "is_keyframe": True,
             "keyframe_triggers": triggers,
             "environment": {
                 "host_region": {
