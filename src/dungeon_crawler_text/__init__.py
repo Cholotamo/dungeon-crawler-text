@@ -34,6 +34,11 @@ if TYPE_CHECKING:
         open_viewer,
         serve_viewer,
     )
+    from dungeon_crawler_text.subarchitect import (
+        Subarchitect,
+        format_localemap_for_llm,
+        validate_localemap,
+    )
 
 
 def __getattr__(name: str) -> Any:
@@ -53,6 +58,10 @@ def __getattr__(name: str) -> Any:
         from dungeon_crawler_text import viewer
 
         return getattr(viewer, name)
+    if name in ("Subarchitect", "SubArchitect", "validate_localemap", "format_localemap_for_llm"):
+        from dungeon_crawler_text import subarchitect
+
+        return getattr(subarchitect, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -66,10 +75,13 @@ __all__ = [
     "Historian",
     "HistorianEpochResult",
     "Loremaster",
+    "SubArchitect",
+    "Subarchitect",
     "ToolRejectionError",
     "WorldStateSnapshot",
     "build_viewer_html",
     "calculate_cost",
+    "format_localemap_for_llm",
     "format_world_for_llm",
     "generate_all_locale_seeds",
     "generate_html_viewer",
@@ -79,4 +91,5 @@ __all__ = [
     "open_viewer",
     "resolve_epoch_paths",
     "serve_viewer",
+    "validate_localemap",
 ]
