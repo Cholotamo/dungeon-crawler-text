@@ -1,3 +1,43 @@
+# 11/09/2026
+Introduced **Topological Sink-Gradient Hydrology, Ocean Immunity & Cascading Downstream Waterbody Desiccation for Dam Engineering**.
+
+### The Problem
+Previously, the Grand Historian's damming mutator (`_detect_downstream_tiles` in `historian.py`) evaluated downstream flow using a cumulative penalty scoring heuristic:
+1. **Fluted Canyon Inversion:** Because tiles flanked by cliffs (`/`) and mountains (`^`) accumulated negative score penalties, long gorge segments (e.g. Red-Banded Gorges) accumulated heavy penalties, causing short 1-tile upstream stubs to erroneously score higher and reversing downstream flow back into the mountains.
+2. **Artificial Southward Bias:** The scoring heuristic hardcoded `score += cy * 0.5`, failing on rivers flowing north, east, or west.
+3. **Marine & Lake Vulnerabilities:** The algorithm did not guarantee marine immunity when rivers reached estuaries, and lacked a structured hierarchy for rivers without oceans (endorheic basins, karst sinkholes, blind streams).
+4. **Isolated & Incomplete Hydrological Impact:** When an inflowing river feeding an inland lake was dammed, downstream waterbodies (connected lakes, secondary outflow rivers, fens, deltas, and marshes) were either completely unaffected or only the immediate lake had its fringes dried, leaving the broader hydrological network unrealistically flooded despite choked upstream discharge.
+
+### The Solution: Multi-Tiered Topological Hydrology & Cascading Desiccation
+1. **Deterministic Sink-Gradient BFS:**
+   - Replaced path-length penalty accumulation with a 3-tier hierarchical sink resolution:
+     * *Tier 1A (True Marine Sinks):* Ocean and Bay biomes (`ocean`, `bay`).
+     * *Tier 1B (Continental Outflow Exits):* Map boundaries, picking lowest elevation exit (or East/South outflow exit).
+     * *Tier 2 (Inland Sinks):* Lakes, swamps/bogs (`%`), and karst sinkholes / chasms (`/`, `chasm`).
+     * *Tier 3 (Topographical Potential Minimum):* For isolated inland streams, locates the lowest surrounding terrain elevation among river endpoints (leaf nodes).
+   - Computes multi-source BFS distance-to-sink across the contiguous water network. Downstream is strictly along the descending distance gradient, completely eliminating canyon inversion and southward bias.
+2. **Strict Ocean Immunity:**
+   - Downstream river traversal halts the moment open ocean or bay biomes are reached.
+   - Guarded downstream terrain mutation so marine tiles (`ocean`, `bay`) are never mutated into shallow sandbanks (`;`).
+3. **Cascading Downstream Waterbody Desiccation (`_recede_downstream_waterbodies`):**
+   - When a dam is built, the mutator traces downstream along the descending distance-to-sink gradient past initial waterbodies into all connected downstream regions (lakes, secondary rivers, swamps, bogs, marshes, deltas) until hitting the ocean/bay boundary.
+   - Applies realistic, differentiated physical recession per waterbody type:
+     * **Lakes (`lake`):** Perimeter deep water tiles (`~`) bordering existing shallows (`;`), dry land banks, or outside regions recede into shallows (`;`), contracting the deep water pool and exposing wider shorelines.
+     * **Secondary Rivers & Canals (`river`, `stream`, `canal`):** Downstream river channels (e.g. *The Braided Reach*) experience 50% alternating desiccation along their flow path into shallow sandbanks (`;`).
+     * **Wetlands & Swamps (`swamp`, `marsh`, `bog`, `wetland`):** Standing water pools (`~`) recede into shallows (`;`), while outer wetland fringes (`%`) bordering dry land dry into open plains (`.`).
+   - **Dependent Downstream Canals (Distributaries) & Full Lake Basin Traversal:**
+     * Canals branching off receded waterbodies downstream of a dam are recognized as dependent off-takes rather than natural tributaries. Traversal enters connected canals regardless of ocean distance gradient, desiccating channel beds into sandbanks and updating lore (*"Intake head compromised by upstream impoundment at {dam_name}"*).
+     * **Full Lake Basin Flood-Fill (`is_same_lake`):** Traversal fills the entire equipotential surface of downstream lake basins, ensuring shore-bound canals (such as *The Sward Canal*) and off-axis coves/bays are reached even when shortest-path sink gradients bypass them.
+     * **Upstream Canal Protection:** Canals located upstream of the dam barrier remain 100% immune, as traversal starts strictly on the downstream side and cannot cross the barrier.
+   - **Enforced Canal Biome Typing:**
+     * Updated `engineer_waterworks(action="canal")` to strictly default and enforce region `type: "canal"` (preventing unintentional defaulting to `"river"`).
+   - **Bridge Protection:** Registered bridge coordinates (`char == "="` or `type == "bridge"`) spanning wetlands are strictly shielded during wetland drying, preserving the underlying barrier tile so bridges never become invalid overland spans.
+   - **Automated Multi-Region Lore Synchrony:** Automatically appends evocative hydrological notices to every affected downstream region's lore (e.g. reduced water tables, choked river discharge, dried wetland margins).
+4. **Deterministic Sequential Ordering:**
+   - Downstream tiles are returned strictly ordered from near-dam to far-mouth, ensuring clean desiccation along the river corridor.
+
+---
+
 # 10/09/2026
 Introduced **Hydraulic Agriculture & Siegecraft Catalyst Alignment for the Grand Historian**.
 

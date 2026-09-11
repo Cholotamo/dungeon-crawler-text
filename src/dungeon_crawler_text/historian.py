@@ -1369,6 +1369,124 @@ class WorldStateSnapshot:
         print(f"  -> {msg}", flush=True)
         return msg
 
+    def _compute_distance_to_sink(
+        self,
+        water_seeds: list[list[int]],
+        dam_set: Optional[set[tuple[int, int]]] = None,
+    ) -> tuple[set[tuple[int, int]], dict[tuple[int, int], int]]:
+        """Flood-fills the contiguous water component and computes BFS distance to sink."""
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        regions = self.data.get("regions", {})
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+        d_set = dam_set or set()
+
+        valid_seeds = [
+            pt for pt in water_seeds
+            if 0 <= pt[1] < height and 0 <= pt[0] < width and terrain[pt[1]][pt[0]] in ("~", ";", "%")
+        ]
+        if not valid_seeds:
+            return set(), {}
+
+        comp_water: set[tuple[int, int]] = set()
+        queue = deque()
+        visited_comp = set(d_set)
+        for s in valid_seeds:
+            s_tup = (s[0], s[1])
+            queue.append(s_tup)
+            if s_tup not in d_set:
+                comp_water.add(s_tup)
+
+        while queue:
+            cx, cy = queue.popleft()
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                cand = (nx, ny)
+                if 0 <= nx < width and 0 <= ny < height and cand not in visited_comp:
+                    if terrain[ny][nx] in ("~", ";", "%"):
+                        visited_comp.add(cand)
+                        comp_water.add(cand)
+                        queue.append(cand)
+
+        if not comp_water:
+            return set(), {}
+
+        elevation_weights = {
+            "^": 5, "/": 4, ",": 3,
+            ".": 2, "#": 2, "&": 2, ":": 2,
+            "%": 1, ";": 1, "~": 0,
+        }
+
+        def get_local_elevation(pt: tuple[int, int]) -> float:
+            tot, cnt = 0.0, 0
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = pt[0] + dx, pt[1] + dy
+                if 0 <= nx < width and 0 <= ny < height and terrain[ny][nx] not in ("~", ";", "%"):
+                    tot += elevation_weights.get(terrain[ny][nx], 2)
+                    cnt += 1
+            return (tot / cnt) if cnt > 0 else 2.0
+
+        sinks: set[tuple[int, int]] = set()
+
+        # Tier 1A: True Marine Sinks (Ocean, Bay)
+        ocean_sinks = {
+            (x, y) for (x, y) in comp_water
+            if regions.get(region[y][x], {}).get("type", "").lower() in ("ocean", "bay")
+        }
+        if ocean_sinks:
+            sinks = ocean_sinks
+
+        # Tier 1B: Map Boundaries (Continental Outflow Exits)
+        if not sinks:
+            boundary_sinks = [
+                (x, y) for (x, y) in comp_water
+                if x in (0, width - 1) or y in (0, height - 1)
+            ]
+            if boundary_sinks:
+                lowest_elev = min(get_local_elevation(pt) for pt in boundary_sinks)
+                candidates = [pt for pt in boundary_sinks if abs(get_local_elevation(pt) - lowest_elev) < 0.1]
+                sinks = {max(candidates, key=lambda pt: (pt[0] + pt[1]))}
+
+        # Tier 2: Inland Sinks (Lakes, Swamps, Chasms) if no ocean/map-boundary reached
+        if not sinks:
+            for x, y in comp_water:
+                r_type = regions.get(region[y][x], {}).get("type", "").lower()
+                if r_type in ("lake", "swamp") or terrain[y][x] == "%":
+                    sinks.add((x, y))
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < width and 0 <= ny < height:
+                        adj_type = regions.get(region[ny][nx], {}).get("type", "").lower()
+                        if terrain[ny][nx] == "/" or adj_type == "chasm":
+                            sinks.add((x, y))
+
+        # Tier 3: Topographical Minimum / Blind Terminus for isolated inland streams
+        if not sinks and comp_water:
+            endpoints = [
+                pt
+                for pt in comp_water
+                if sum(
+                    1
+                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                    if (pt[0] + dx, pt[1] + dy) in comp_water
+                )
+                <= 1
+            ] or list(comp_water)
+            sinks.add(min(endpoints, key=lambda pt: (get_local_elevation(pt), -(pt[0] + pt[1]))))
+
+        dist_to_sink = {pt: 0 for pt in sinks}
+        bfs_q = deque([(pt, 0) for pt in sinks])
+        while bfs_q:
+            (cx, cy), d = bfs_q.popleft()
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                if (nx, ny) in comp_water and (nx, ny) not in dist_to_sink:
+                    dist_to_sink[(nx, ny)] = d + 1
+                    bfs_q.append(((nx, ny), d + 1))
+
+        return comp_water, dist_to_sink
+
     def _detect_downstream_tiles(
         self,
         dam_coords: list[list[int]],
@@ -1377,9 +1495,9 @@ class WorldStateSnapshot:
     ) -> list[list[int]]:
         """Detects and returns downstream river tiles from a dam.
 
-        Traces connected river tiles belonging to river_reg_id outward from dam_coords.
-        Identifies the downstream branch flowing toward the ocean, bay, coast, swamp,
-        or lowlands, and returns the tiles ordered sequentially from dam to mouth.
+        Uses topological sink-gradient BFS across the contiguous water network.
+        Identifies downstream flow toward oceans, bays, lakes, wetlands, or topographical
+        basins, and returns the tiles ordered sequentially from dam to mouth.
         """
         if explicit_downstream:
             return _normalize_tiles(explicit_downstream)
@@ -1389,106 +1507,244 @@ class WorldStateSnapshot:
         regions = self.data.get("regions", {})
         height = len(terrain)
         width = len(terrain[0]) if height > 0 else 32
-
         dam_set = {(p[0], p[1]) for p in dam_coords}
 
-        # 1. Collect all river/waterway tiles matching this region
-        river_tiles = set()
-        for y in range(height):
-            for x in range(width):
-                if region[y][x] == river_reg_id and terrain[y][x] in ("~", ";"):
-                    river_tiles.add((x, y))
-
-        remaining = river_tiles - dam_set
-        if not remaining:
+        water_seeds = [
+            pt for pt in dam_coords
+            if 0 <= pt[1] < height and 0 <= pt[0] < width and terrain[pt[1]][pt[0]] in ("~", ";")
+        ]
+        if not water_seeds:
             return []
 
-        # 2. Find adjacent river neighbors of the dam
-        neighbors: list[tuple[int, int]] = []
+        comp_water, dist_to_sink = self._compute_distance_to_sink(water_seeds, dam_set=dam_set)
+        if not comp_water or not dist_to_sink:
+            return []
+
+        downstream_start: Optional[tuple[int, int]] = None
         for bx, by in dam_set:
             for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                nx, ny = bx + dx, by + dy
-                if (nx, ny) in remaining and (nx, ny) not in neighbors:
-                    neighbors.append((nx, ny))
+                nb = (bx + dx, by + dy)
+                if nb in comp_water and nb not in dam_set:
+                    nb_dist = dist_to_sink.get(nb, 999999)
+                    if downstream_start is None or nb_dist < dist_to_sink.get(downstream_start, 999999):
+                        downstream_start = nb
 
-        if not neighbors:
+        if not downstream_start:
             return []
 
-        # 3. Explore connected components for each neighbor
-        def score_component(comp: set[tuple[int, int]]) -> float:
-            score = 0.0
-            for cx, cy in comp:
-                for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    ax, ay = cx + ddx, cy + ddy
-                    if 0 <= ax < width and 0 <= ay < height:
-                        adj_t = terrain[ay][ax]
-                        adj_r = region[ay][ax]
-                        adj_rtype = regions.get(adj_r, {}).get("type", "").lower()
-                        if adj_rtype in ("ocean", "bay") or (adj_t == "~" and adj_r != river_reg_id):
-                            score += 50.0
-                        elif adj_rtype == "swamp" or adj_t == "%":
-                            score += 25.0
-                        elif adj_t == ";":
-                            score += 15.0
-                        elif adj_rtype == "mountains" or adj_t == "^":
-                            score -= 30.0
-                        elif adj_t == "/":
-                            score -= 15.0
-                        elif adj_t == ".":
-                            score += 5.0
-                if cx == 0 or cx == width - 1 or cy == 0 or cy == height - 1:
-                    score += 20.0
-                # In typical fantasy maps, rivers flow south/downward toward lower basin
-                score += cy * 0.5
-            return score
+        visited = set(dam_set)
+        downstream_set: list[tuple[int, int]] = []
+        q = deque([downstream_start])
+        visited.add(downstream_start)
 
-        components: list[tuple[tuple[int, int], set[tuple[int, int]], float]] = []
-        visited_global: set[tuple[int, int]] = set()
-
-        for start_node in neighbors:
-            if start_node in visited_global:
-                continue
-            comp: set[tuple[int, int]] = set()
-            queue = [start_node]
-            comp.add(start_node)
-            visited_global.add(start_node)
-
-            while queue:
-                curr = queue.pop(0)
-                cx, cy = curr
-                for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                    nx, ny = cx + ddx, cy + ddy
-                    if (nx, ny) in remaining and (nx, ny) not in comp:
-                        comp.add((nx, ny))
-                        visited_global.add((nx, ny))
-                        queue.append((nx, ny))
-
-            s = score_component(comp)
-            components.append((start_node, comp, s))
-
-        if not components:
-            return []
-
-        # Highest score indicates downstream towards ocean/lowlands
-        components.sort(key=lambda x: x[2], reverse=True)
-        best_start, best_comp, _ = components[0]
-
-        # 4. BFS from best_start to order tiles from near-dam to far-mouth
-        ordered_downstream: list[list[int]] = []
-        bfs_visited = {best_start}
-        bfs_queue = [best_start]
-
-        while bfs_queue:
-            curr = bfs_queue.pop(0)
-            ordered_downstream.append([curr[0], curr[1]])
+        while q:
+            curr = q.popleft()
             cx, cy = curr
-            for ddx, ddy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                nx, ny = cx + ddx, cy + ddy
-                if (nx, ny) in best_comp and (nx, ny) not in bfs_visited:
-                    bfs_visited.add((nx, ny))
-                    bfs_queue.append((nx, ny))
+            r_type = regions.get(region[cy][cx], {}).get("type", "").lower()
 
-        return ordered_downstream
+            # Halt before entering open ocean or bay (ocean immunity)
+            if r_type in ("ocean", "bay"):
+                continue
+
+            # Halt when entering an established lake of a different region (lake interior immunity)
+            if r_type == "lake" and region[cy][cx] != river_reg_id:
+                continue
+
+            downstream_set.append(curr)
+
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                cand = (nx, ny)
+                if cand in comp_water and cand not in visited:
+                    if dist_to_sink.get(cand, 999999) <= dist_to_sink.get(curr, 999999):
+                        visited.add(cand)
+                        q.append(cand)
+
+        downstream_set.sort(key=lambda pt: dist_to_sink.get(pt, 0), reverse=True)
+        return [[pt[0], pt[1]] for pt in downstream_set]
+
+    def _recede_downstream_waterbodies(
+        self,
+        dam_coords: list[list[int]],
+        downstream_tiles: list[list[int]],
+        river_reg_id: str,
+        dam_name: str,
+    ) -> tuple[list[list[int]], list[str]]:
+        """Detects all downstream waterbodies (lakes, swamps/wetlands, secondary rivers)
+        following the flow gradient toward the sink and applies realistic hydrological recession.
+        """
+        terrain = self.data.get("terrain_grid", [])
+        region = self.data.get("region_grid", [])
+        regions = self.data.get("regions", {})
+        height = len(terrain)
+        width = len(terrain[0]) if height > 0 else 32
+        tg = [list(row) for row in terrain]
+        rg = [list(row) for row in region]
+
+        dam_set = {(p[0], p[1]) for p in dam_coords}
+        mouth_seeds = [downstream_tiles[-1]] if downstream_tiles else [pt for pt in dam_coords if tg[pt[1]][pt[0]] in ("~", ";", "%")]
+        if not mouth_seeds:
+            for pt in dam_coords:
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = pt[0] + dx, pt[1] + dy
+                    if 0 <= nx < width and 0 <= ny < height and tg[ny][nx] in ("~", ";", "%"):
+                        mouth_seeds.append([nx, ny])
+        if not mouth_seeds:
+            return [], []
+
+        comp_water, dist_to_sink = self._compute_distance_to_sink(mouth_seeds, dam_set=dam_set)
+        if not comp_water or not dist_to_sink:
+            return [], []
+
+        # Collect protected bridge coordinates so wetland recession doesn't turn bridge spans into dry ground
+        protected_bridge_coords = set()
+        for feat in self.data.get("features", {}).values():
+            if isinstance(feat, dict) and (feat.get("char") == "=" or feat.get("type") in ("bridge", "viaduct")):
+                for pt in (feat.get("tiles") or ([feat["pos"]] if "pos" in feat else [])):
+                    protected_bridge_coords.add((pt[0], pt[1]))
+
+        # Trace downstream through the water network along the descending distance gradient
+        start_pts = [downstream_tiles[-1]] if downstream_tiles else mouth_seeds
+        visited = set(tuple(p) for p in downstream_tiles) | dam_set
+        q = deque([tuple(p) for p in start_pts])
+        downstream_waterbody_regions = set()
+        downstream_channel_tiles: dict[str, list[tuple[int, int]]] = {}
+
+        for p in start_pts:
+            r_id = rg[p[1]][p[0]]
+            r_type = regions.get(r_id, {}).get("type", "").lower()
+            if r_id != river_reg_id and r_type not in ("ocean", "bay"):
+                downstream_waterbody_regions.add(r_id)
+                if r_type in ("river", "stream", "canal"):
+                    downstream_channel_tiles.setdefault(r_id, []).append((p[0], p[1]))
+
+        while q:
+            curr = q.popleft()
+            cx, cy = curr
+            curr_r_id = rg[cy][cx]
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                cand = (nx, ny)
+                if 0 <= nx < width and 0 <= ny < height and cand not in visited:
+                    if tg[ny][nx] in ("~", ";", "%"):
+                        r_id = rg[ny][nx]
+                        r_type = regions.get(r_id, {}).get("type", "").lower()
+                        # Ocean immunity: halt traversal before entering open ocean or bay
+                        if r_type in ("ocean", "bay"):
+                            continue
+
+                        r_name = regions.get(r_id, {}).get("name", "").lower()
+                        is_canal = (r_type == "canal" or "canal" in r_name)
+                        is_same_lake = (r_type == "lake" and r_id == curr_r_id)
+                        is_downstream = dist_to_sink.get(cand, 999999) <= dist_to_sink.get(curr, 999999)
+
+                        if is_downstream or is_canal or is_same_lake:
+                            visited.add(cand)
+                            if r_id != river_reg_id:
+                                downstream_waterbody_regions.add(r_id)
+                                downstream_channel_tiles.setdefault(r_id, []).append(cand)
+                            q.append(cand)
+
+        all_mutated: list[list[int]] = []
+        recession_notes: list[str] = []
+
+        for r_id in sorted(downstream_waterbody_regions):
+            r_info = regions.get(r_id, {})
+            r_type = r_info.get("type", "").lower()
+            r_name = r_info.get("name", f"Region {r_id}")
+            reg_mutated: list[list[int]] = []
+
+            if r_type == "lake":
+                # Recede ~ fringes bordering shallows, land, or outside regions into ';'
+                fringes = []
+                for y in range(height):
+                    for x in range(width):
+                        if rg[y][x] == r_id and tg[y][x] == "~":
+                            is_fringe = any(
+                                not (0 <= x + dx < width and 0 <= y + dy < height)
+                                or tg[y + dy][x + dx] != "~"
+                                or rg[y + dy][x + dx] != r_id
+                                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                            )
+                            if is_fringe:
+                                fringes.append((x, y))
+                for fx, fy in fringes:
+                    tg[fy][fx] = ";"
+                    reg_mutated.append([fx, fy])
+
+                lake_notice = f"Inflow reduced by {dam_name}; water table receded into expanded shallows and exposed shoreline."
+                curr_lore = r_info.get("lore", "").strip()
+                if lake_notice not in curr_lore:
+                    r_info["lore"] = f"{curr_lore} {lake_notice}".strip() if curr_lore else lake_notice
+
+                if reg_mutated:
+                    recession_notes.append(f"{r_name} (lake: {len(reg_mutated)} shallows fringes)")
+
+            elif r_type in ("swamp", "marsh", "bog", "wetland"):
+                # 1. Standing water ~ in wetlands recedes into ';'
+                for y in range(height):
+                    for x in range(width):
+                        if rg[y][x] == r_id and tg[y][x] == "~":
+                            tg[y][x] = ";"
+                            reg_mutated.append([x, y])
+
+                # 2. Outer wetland % fringes bordering dry land dry into plains '.'
+                dry_fringes = []
+                for y in range(height):
+                    for x in range(width):
+                        if rg[y][x] == r_id and tg[y][x] == "%":
+                            if (x, y) in protected_bridge_coords:
+                                continue
+                            borders_dry_land = any(
+                                0 <= x + dx < width and 0 <= y + dy < height
+                                and tg[y + dy][x + dx] not in ("%", "~", ";")
+                                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                            )
+                            if borders_dry_land:
+                                dry_fringes.append((x, y))
+                for fx, fy in dry_fringes:
+                    tg[fy][fx] = "."
+                    reg_mutated.append([fx, fy])
+
+                swamp_notice = f"Inflow choked by upstream impoundment at {dam_name}; outer wetland margins dried into wild plains."
+                curr_lore = r_info.get("lore", "").strip()
+                if swamp_notice not in curr_lore:
+                    r_info["lore"] = f"{curr_lore} {swamp_notice}".strip() if curr_lore else swamp_notice
+
+                if reg_mutated:
+                    recession_notes.append(f"{r_name} (swamp: {len(reg_mutated)} dried margins)")
+
+            elif r_type in ("river", "stream", "canal") or "canal" in r_name.lower():
+                # Downstream secondary river/canal channels: 50% alternating desiccation along flow path
+                flow_tiles = downstream_channel_tiles.get(r_id, [])
+                flow_tiles.sort(key=lambda pt: dist_to_sink.get(pt, 0), reverse=True)
+                for i, pt in enumerate(flow_tiles):
+                    if i % 2 == 0:
+                        px, py = pt
+                        if tg[py][px] == "~":
+                            tg[py][px] = ";"
+                            reg_mutated.append([px, py])
+
+                is_canal_reg = (r_type == "canal" or "canal" in r_name.lower())
+                if is_canal_reg:
+                    notice = f"Intake head compromised by upstream impoundment at {dam_name}; canal flow reduced into shallow sandbars."
+                    label = "canal"
+                else:
+                    notice = f"Discharge choked by upstream impoundment at {dam_name}; channel flow reduced into shallow sandbars."
+                    label = "river"
+
+                curr_lore = r_info.get("lore", "").strip()
+                if notice not in curr_lore:
+                    r_info["lore"] = f"{curr_lore} {notice}".strip() if curr_lore else notice
+
+                if reg_mutated:
+                    recession_notes.append(f"{r_name} ({label}: {len(reg_mutated)} sandbanks)")
+
+            all_mutated.extend(reg_mutated)
+
+        self.data["terrain_grid"] = ["".join(row) for row in tg]
+        self.data["region_grid"] = ["".join(row) for row in rg]
+        return all_mutated, recession_notes
 
     def _find_canal_path(
         self,
@@ -1911,12 +2167,22 @@ class WorldStateSnapshot:
             for i, pt in enumerate(downstream_tiles):
                 if i % 2 == 0:  # 50% alternating along flow
                     dx, dy = pt[0], pt[1]
-                    if tg[dy][dx] == "~":
+                    r_type = regions.get(rg[dy][dx], {}).get("type", "").lower()
+                    if r_type not in ("ocean", "bay") and tg[dy][dx] == "~":
                         tg[dy][dx] = ";"
                         mutated_downstream.append(pt)
 
             self.data["terrain_grid"] = ["".join(row) for row in tg]
             self.data["region_grid"] = ["".join(row) for row in rg]
+
+            # 5. Cascading Desiccation: Automatically detect and recede all downstream waterbodies (lakes, swamps/wetlands, secondary rivers)
+            cascading_mutated, cascading_notes = self._recede_downstream_waterbodies(
+                dam_coords=norm_coords,
+                downstream_tiles=downstream_tiles,
+                river_reg_id=river_reg_id,
+                dam_name=d_name,
+            )
+
             self.save()
 
             assigned_reg = target_region_id.strip()[:1] if target_region_id and target_region_id.strip() else river_reg_id
@@ -1927,6 +2193,8 @@ class WorldStateSnapshot:
                 f"Downstream flow reduced: mutated {len(mutated_downstream)}/{len(downstream_tiles)} "
                 f"downstream water tile(s) into shallow sandbanks (';')."
             )
+            if cascading_notes:
+                msg += f" Cascading desiccation & Lake drawdown: receded {len(cascading_mutated)} tile(s) across downstream waterbodies: {'; '.join(cascading_notes)}."
             self.mutations_log.append(msg)
             print(f"  -> {msg}", flush=True)
             return msg
@@ -1949,7 +2217,7 @@ class WorldStateSnapshot:
 
             # Guard against phantom river bug: verify land_reg is NOT a water-type region!
             existing_reg_type = regions.get(land_reg, {}).get("type", "").lower()
-            if existing_reg_type in ("river", "ocean", "lake", "bay", "water"):
+            if existing_reg_type in ("river", "ocean", "lake", "bay", "water", "canal"):
                 land_reg = "0"
 
             for pt in norm_coords:
@@ -1973,7 +2241,7 @@ class WorldStateSnapshot:
         else:  # canal or flood (land -> water)
             w_id = waterway_region_id.strip()[:1] if waterway_region_id and waterway_region_id.strip() else "F"
             w_name = str(waterway_name).strip()
-            w_type = "river" if act == "canal" else "lake"
+            w_type = "canal" if act == "canal" else "lake"
 
             regions_dict = self.data.setdefault("regions", {})
             norm_coord_set = {(p[0], p[1]) for p in norm_coords}
@@ -2014,7 +2282,7 @@ class WorldStateSnapshot:
                 reg_name = w_name or ("Constructed Canal" if act == "canal" else "Flooded Basin")
                 regions_dict[w_id] = {
                     "name": reg_name,
-                    "type": w_type,
+                    "type": "canal" if act == "canal" else w_type,
                     "lore": str(waterway_lore).strip() if waterway_lore and str(waterway_lore).strip() else f"Constructed {act} waterway.",
                 }
                 w_name = reg_name
