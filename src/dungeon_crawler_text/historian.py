@@ -44,7 +44,7 @@ DEFAULT_EPOCH_1_QUERY = (
 )
 
 DEFAULT_SUBSEQUENT_EPOCH_QUERY = (
-    "Generations have passed. Chronicle the unfolding history of the realm across civilization, geography, and ecology:\n"
+    "Generations have passed. Chronicle 1 or 2 focused historical developments:\n"
     "- Settlements & Fortresses: Thriving towns prospering into metropolises or citadels, fallen bastions sacked or ruined, ancient dungeons reclaimed into havens, or new frontier outposts founded.\n"
     "- Routes & Infrastructure: Paving highways, building bridges, or weaponizing waterworks with military canals, moats, and defensive dams.\n"
     "- Hydraulic Agriculture & Terraforming: Cultivating farmlands, carving arterial irrigation canals from lakes/rivers to water inland crops, draining wetlands into fertile polders, or spreading blighted wastelands.\n"
