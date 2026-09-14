@@ -52,7 +52,6 @@ The 16x16 locale map consists of three synchronized layers:
 ### 4. World Context & Architectural Rationale (`context`)
 Ground the locale in its wider geographic setting and explain its living symbiosis with the world:
 - `summary`: 1–2 sentences summarizing the site's role, origin, and living ecology from `seed.md`.
-- `surroundings`: 1 sentence noting how the site physically and ecologically interfaces with perimeter borders.
 - `world_relations`: 2–3 sentences detailing the **interdependence, trade, and material flow** with connected settlements, outposts, or dungeons from Section 4 of `seed.md` (e.g. bartering smoked fish and barley for Kraghollow copper tools and Wealdstone pine timber).
 - `architectural_rationale`: 2–3 sentences explaining *why* structures, barriers, and districts are positioned the way they are to serve these external trade flows, local resources, and environmental hazards.
 
@@ -66,7 +65,6 @@ Generate a JSON object matching this schema:
   "epoch": 1,
   "context": {
     "summary": "Locale role, identity, and ecology from seed.",
-    "surroundings": "Perimeter landscape context and border transitions.",
     "world_relations": "Interdependence and material flow with connected destinations (e.g. Kraghollow, Wealdstone).",
     "architectural_rationale": "Why structures, barriers, and districts are positioned the way they are."
   },

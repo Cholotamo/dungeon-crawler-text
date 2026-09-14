@@ -248,29 +248,33 @@ def find_connected_roads(
         if (px, py) in tile_tuples:
             indices = [idx for idx, t in enumerate(tile_tuples) if t == (px, py)]
             for idx in indices:
-                adjacent_step = None
+                branches: list[tuple[Optional[tuple[int, int]], Optional[tuple[int, int]]]] = []
                 if idx == 0 and len(tile_tuples) > 1:
-                    adjacent_step = tile_tuples[1]
-                    other_end = tile_tuples[-1]
+                    branches.append((tile_tuples[1], tile_tuples[-1]))
                 elif idx == len(tile_tuples) - 1 and len(tile_tuples) > 1:
-                    adjacent_step = tile_tuples[-2]
-                    other_end = tile_tuples[0]
+                    branches.append((tile_tuples[-2], tile_tuples[0]))
+                elif len(tile_tuples) > 1:
+                    # Intermediate through-tile: enters from one side, exits to the other
+                    if idx > 0:
+                        branches.append((tile_tuples[idx - 1], tile_tuples[0]))
+                    if idx < len(tile_tuples) - 1:
+                        branches.append((tile_tuples[idx + 1], tile_tuples[-1]))
                 else:
-                    adjacent_step = tile_tuples[idx - 1] if idx > 0 else (tile_tuples[idx + 1] if len(tile_tuples) > 1 else None)
-                    other_end = tile_tuples[-1] if idx == 0 else tile_tuples[0]
+                    branches.append((None, None))
 
-                gate_dir = resolve_gate_direction((px, py), adjacent_step) if adjacent_step else "CENTER"
-                destination = _resolve_destination(f_id, other_end, features, origin_pos=pos)
+                for adjacent_step, other_end in branches:
+                    gate_dir = resolve_gate_direction((px, py), adjacent_step) if adjacent_step else "CENTER"
+                    destination = _resolve_destination(f_id, other_end, features, origin_pos=pos)
 
-                connected.append({
-                    "road_id": f_id,
-                    "road_name": feat.get("name", f_id),
-                    "road_type": f_type or ("bridge" if f_char == "=" else "road"),
-                    "gate_approach": gate_dir,
-                    "description": feat.get("description", ""),
-                    "destination": destination,
-                    "destination_coord": list(other_end) if other_end else None,
-                })
+                    connected.append({
+                        "road_id": f_id,
+                        "road_name": feat.get("name", f_id),
+                        "road_type": f_type or ("bridge" if f_char == "=" else "road"),
+                        "gate_approach": gate_dir,
+                        "description": feat.get("description", ""),
+                        "destination": destination,
+                        "destination_coord": list(other_end) if other_end else None,
+                    })
         else:
             # Case 2: Endpoint adjacency (bridges spanning river/chasm at gate, or roads terminating at approach)
             start_tile = tile_tuples[0]
@@ -485,20 +489,26 @@ def harvest_landmark_keyframes(
                 triggers.append(f"char_mutation ({prev_state['char']} -> {f_char})")
             if f_name != prev_state["name"]:
                 triggers.append(f"name_mutation ('{prev_state['name']}' -> '{f_name}')")
+            if f_type != prev_state["type"]:
+                triggers.append(f"type_mutation ('{prev_state['type']}' -> '{f_type}')")
             if r_id != prev_state["region_id"]:
                 triggers.append(f"domain_mutation (Region '{prev_state['region_id']}' -> '{r_id}')")
             if t_char != prev_state["terrain_char"]:
                 triggers.append(f"terrain_mutation ('{prev_state['terrain_char']}' -> '{t_char}')")
 
-            # Check for newly connected roads
+            # Check for road changes
             prev_road_ids = {r["road_id"] for r in prev_state["connected_roads"]}
             curr_road_ids = {r["road_id"] for r in connected_roads}
             new_road_ids = curr_road_ids - prev_road_ids
+            lost_road_ids = prev_road_ids - curr_road_ids
             if new_road_ids:
                 triggers.append(f"new_roads ({', '.join(sorted(new_road_ids))})")
+            if lost_road_ids:
+                triggers.append(f"lost_roads ({', '.join(sorted(lost_road_ids))})")
 
             # Build deterministic delta
             new_roads_info = [r for r in connected_roads if r["road_id"] in new_road_ids]
+            lost_roads_info = [r for r in prev_state["connected_roads"] if r["road_id"] in lost_road_ids]
             delta_dict = {
                 "biome_mutation": (
                     f"Region '{prev_state['region_id']}' ({prev_state['region_name']}) -> "
@@ -514,15 +524,12 @@ def harvest_landmark_keyframes(
                 ),
                 "status_transition": (
                     f"'{prev_state['char']}' ({prev_state['type']}) -> '{f_char}' ({f_type})"
-                    if f_char != prev_state["char"]
+                    if (f_char != prev_state["char"] or f_type != prev_state["type"])
                     else "None"
                 ),
                 "new_roads": new_roads_info,
+                "lost_roads": lost_roads_info,
             }
-
-        # Only record a keyframe if a mutation or genesis occurred
-        if not triggers:
-            continue
 
         keyframe_data = {
             "keyframe_index": len(keyframes),
@@ -531,7 +538,7 @@ def harvest_landmark_keyframes(
             "name": f_name,
             "type": f_type,
             "description": f_desc,
-            "is_keyframe": True,
+            "is_keyframe": len(triggers) > 0,
             "keyframe_triggers": triggers,
             "environment": {
                 "host_region": {
@@ -594,22 +601,26 @@ def harvest_all_dossiers(
     if not epoch_files:
         return {}
 
-    latest_world = json.loads(epoch_files[-1][1].read_text(encoding="utf-8"))
-    features = latest_world.get("features", {})
+    discovered_landmarks: set[str] = set()
+    for _, fpath in epoch_files:
+        try:
+            world = json.loads(fpath.read_text(encoding="utf-8"))
+            for fid, feat in world.get("features", {}).items():
+                if not isinstance(feat, dict):
+                    continue
+                f_char = str(feat.get("char", ""))
+                f_type = str(feat.get("type", "")).lower()
+                if f_char in landmark_chars or f_type in LANDMARK_TYPES:
+                    discovered_landmarks.add(fid)
+        except Exception as e:
+            logger.error(f"Error reading {fpath}: {e}")
 
     all_dossiers: dict[str, dict[str, Any]] = {}
     if output_dir:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-    for fid, feat in sorted(features.items()):
-        f_char = str(feat.get("char", ""))
-        f_type = str(feat.get("type", "")).lower()
-
-        # Filter to landmarks (settlements, cities, dungeons)
-        is_landmark = f_char in landmark_chars or f_type in LANDMARK_TYPES
-        if not is_landmark:
-            continue
+    for fid in sorted(discovered_landmarks):
 
         dossier = harvest_landmark_keyframes(
             fid,

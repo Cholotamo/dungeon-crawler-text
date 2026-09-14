@@ -273,6 +273,11 @@ def generate_all_locale_seeds(
     return seeds
 
 
+# Backward compatibility aliases
+generate_locale_vector = generate_locale_seed
+generate_all_locale_vectors = generate_all_locale_seeds
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Synthesize deterministic Locale Generation Seed markdown files from landmark dossiers."

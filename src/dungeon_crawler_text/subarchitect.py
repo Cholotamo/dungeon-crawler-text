@@ -96,15 +96,29 @@ def parse_seed_metadata(seed_text: str) -> dict[str, Any]:
     # Section 3: Perimeter Edge Constraints
     s3_m = re.search(r"## 3\.\s*Perimeter Edge Constraints\s*\n(.*?)(?=\n##|\Z)", seed_text, re.DOTALL)
     if s3_m:
-        perims: list[str] = []
+        perims: list[dict[str, str]] = []
+        cur_border, cur_desc, cur_lore = "", "", ""
         for line in s3_m.group(1).splitlines():
             line_s = line.strip()
             if line_s.startswith("- **"):
+                if cur_border:
+                    entry = {"border": cur_border, "description": cur_desc}
+                    if cur_lore:
+                        entry["lore"] = cur_lore
+                    perims.append(entry)
+                    cur_border, cur_desc, cur_lore = "", "", ""
                 m = re.search(r"^-\s*\*\*(.*?)\*\*:?\s*(.*)", line_s)
                 if m:
-                    label = m.group(1).rstrip(":").strip()
-                    val = m.group(2).strip()
-                    perims.append(f"{label}: {val}")
+                    cur_border = m.group(1).rstrip(":").strip()
+                    cur_desc = m.group(2).strip()
+            elif line_s.startswith("- *Lore Context:*"):
+                m_lore = re.search(r'\"([^\"]+)\"', line_s)
+                cur_lore = m_lore.group(1).strip() if m_lore else re.sub(r"^-\s*\*Lore Context:\*\s*", "", line_s).strip().strip('"')
+        if cur_border:
+            entry = {"border": cur_border, "description": cur_desc}
+            if cur_lore:
+                entry["lore"] = cur_lore
+            perims.append(entry)
         if perims:
             meta["perimeters"] = perims
 
@@ -444,17 +458,19 @@ def validate_localemap(
     )
 
     raw_perims = (
-        context.get("perimeters")
-        or context.get("surroundings")
-        or seed_meta.get("perimeters")
+        seed_meta.get("perimeters")
+        or context.get("perimeters")
         or []
     )
-    if isinstance(raw_perims, str):
+    perimeters = []
+    if isinstance(raw_perims, (list, tuple)):
+        for p in raw_perims:
+            if isinstance(p, dict):
+                perimeters.append(p)
+            elif isinstance(p, str) and str(p).strip():
+                perimeters.append(str(p).strip())
+    elif isinstance(raw_perims, (str, dict)):
         perimeters = [raw_perims]
-    elif isinstance(raw_perims, list):
-        perimeters = [str(p).strip() for p in raw_perims if str(p).strip()]
-    else:
-        perimeters = []
 
     raw_apps = (
         context.get("approaches")
@@ -559,7 +575,16 @@ def format_localemap_for_llm(data: dict[str, Any]) -> str:
         if perimeters:
             lines.append("- **Surrounding Perimeters:**")
             for p in perimeters:
-                lines.append(f"  - {p}")
+                if isinstance(p, dict):
+                    b_label = p.get("border", "Perimeter")
+                    b_desc = p.get("description", "")
+                    b_lore = p.get("lore", "")
+                    route_str = f"**{b_label}:** {b_desc}" if b_desc else f"**{b_label}**"
+                    lines.append(f"  - {route_str}")
+                    if b_lore:
+                        lines.append(f"    - *Lore Context:* \"{b_lore}\"")
+                else:
+                    lines.append(f"  - {p}")
         if approaches:
             lines.append("- **External Ingress & Connected Destinations:**")
             for a in approaches:
