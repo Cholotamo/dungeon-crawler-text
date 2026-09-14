@@ -126,7 +126,7 @@ def parse_seed_metadata(seed_text: str) -> dict[str, Any]:
     s4_m = re.search(r"## 4\.\s*Ingress & Approaches\s*\n(.*?)(?=\n##|\Z)", seed_text, re.DOTALL)
     if s4_m:
         approaches: list[dict[str, str]] = []
-        cur_approach, road_info, dest_info, dest_lore = "", "", "", ""
+        cur_approach, road_info, road_lore, dest_info, dest_lore = "", "", "", "", ""
         for line in s4_m.group(1).splitlines():
             line_s = line.strip()
             if "Other Borders:" in line_s:
@@ -141,29 +141,41 @@ def parse_seed_metadata(seed_text: str) -> dict[str, Any]:
                 })
             elif line_s.startswith("- **") and "Approach:" in line_s:
                 if cur_approach:
-                    approaches.append({
+                    entry = {
                         "direction": cur_approach,
                         "road": road_info,
-                        "destination": dest_info,
-                        "destination_lore": dest_lore,
-                    })
+                    }
+                    if road_lore:
+                        entry["road_lore"] = road_lore
+                    entry["destination"] = dest_info
+                    entry["destination_lore"] = dest_lore
+                    approaches.append(entry)
                 m = re.search(r"\*\*(.*?)\*\*", line_s)
                 cur_approach = m.group(1).replace(" Approach:", "").replace(" Approach", "").strip() if m else ""
-                road_info, dest_info, dest_lore = "", "", ""
+                road_info, road_lore, dest_info, dest_lore = "", "", "", ""
             elif line_s.startswith("- *Road:*"):
                 road_info = re.sub(r"^-\s*\*Road:\*\s*", "", line_s).strip()
+            elif line_s.startswith("- *Description:*"):
+                m_lore = re.search(r'\"([^\"]+)\"', line_s)
+                road_lore = m_lore.group(1).strip() if m_lore else re.sub(r"^-\s*\*Description:\*\s*", "", line_s).strip().strip('"')
+            elif line_s.startswith("- *Road Lore:*"):
+                m_lore = re.search(r'\"([^\"]+)\"', line_s)
+                road_lore = m_lore.group(1).strip() if m_lore else re.sub(r"^-\s*\*Road Lore:\*\s*", "", line_s).strip().strip('"')
             elif line_s.startswith("- *Destination:*"):
                 dest_info = re.sub(r"^-\s*\*Destination:\*\s*", "", line_s).strip()
             elif line_s.startswith("- *Destination Lore:*"):
                 m_lore = re.search(r'\"([^\"]+)\"', line_s)
                 dest_lore = m_lore.group(1).strip() if m_lore else re.sub(r"^-\s*\*Destination Lore:\*\s*", "", line_s).strip().strip('"')
         if cur_approach:
-            approaches.append({
+            entry = {
                 "direction": cur_approach,
                 "road": road_info,
-                "destination": dest_info,
-                "destination_lore": dest_lore,
-            })
+            }
+            if road_lore:
+                entry["road_lore"] = road_lore
+            entry["destination"] = dest_info
+            entry["destination_lore"] = dest_lore
+            approaches.append(entry)
         if approaches:
             meta["approaches"] = approaches
 
@@ -482,11 +494,25 @@ def validate_localemap(
     if isinstance(raw_apps, (list, tuple)):
         for a in raw_apps:
             if isinstance(a, dict):
-                approaches.append(a)
+                approaches.append(dict(a))
             elif isinstance(a, str) and str(a).strip():
                 approaches.append(str(a).strip())
     elif isinstance(raw_apps, (str, dict)):
         approaches = [raw_apps]
+
+    # Backfill missing road_lore from seed_meta if available
+    seed_apps = seed_meta.get("approaches", [])
+    for app in approaches:
+        if isinstance(app, dict) and "road_lore" not in app:
+            app_dir = app.get("direction", "").strip().upper()
+            app_road = app.get("road", "").strip().lower()
+            for s_app in seed_apps:
+                if isinstance(s_app, dict) and s_app.get("road_lore"):
+                    s_dir = s_app.get("direction", "").strip().upper()
+                    s_road = s_app.get("road", "").strip().lower()
+                    if (app_dir and app_dir == s_dir) or (app_road and (s_road in app_road or app_road in s_road)):
+                        app["road_lore"] = s_app["road_lore"]
+                        break
 
     # World Relations & Symbiosis
     world_relations = context.get("world_relations")
@@ -591,10 +617,13 @@ def format_localemap_for_llm(data: dict[str, Any]) -> str:
                 if isinstance(a, dict):
                     dir_name = a.get("direction") or a.get("approach", "Ingress")
                     r_name = a.get("road", "Path")
+                    r_lore = a.get("road_lore", "")
                     d_name = a.get("destination", "")
                     d_lore = a.get("destination_lore", "")
                     route_str = f"**{dir_name} Approach:** {r_name}" + (f" -> {d_name}" if d_name else "")
                     lines.append(f"  - {route_str}")
+                    if r_lore:
+                        lines.append(f"    - *Road Lore:* \"{r_lore}\"")
                     if d_lore:
                         lines.append(f"    - *Destination Context:* \"{d_lore}\"")
                 else:
