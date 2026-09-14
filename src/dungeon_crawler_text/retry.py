@@ -17,6 +17,7 @@ def retry_with_backoff(
     initial_delay: float = 2.0,
     backoff_factor: float = 2.0,
     retryable_codes: tuple[int, ...] = (429, 500, 502, 503, 504),
+    retry_exceptions: tuple[type[Exception], ...] = (ValueError,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator to retry API calls on transient errors with exponential backoff."""
 
@@ -49,6 +50,15 @@ def retry_with_backoff(
                             raise
                         print(
                             f"\n[WARNING] Network/service error (attempt {attempt}/{max_retries}): {err}. Retrying in {delay:.1f}s...",
+                            flush=True,
+                        )
+                        time.sleep(delay)
+                        delay *= backoff_factor
+                    elif isinstance(err, retry_exceptions):
+                        if attempt == max_retries:
+                            raise
+                        print(
+                            f"\n[WARNING] Generation/validation error (attempt {attempt}/{max_retries}): {err}. Retrying with fresh generation in {delay:.1f}s...",
                             flush=True,
                         )
                         time.sleep(delay)

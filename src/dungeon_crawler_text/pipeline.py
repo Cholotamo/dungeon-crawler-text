@@ -70,7 +70,7 @@ def run_full_pipeline(
     architect_model: str = "gemini-3.6-flash",
     historian_model: str = "gemini-3.8-flash",
     subarchitect_model: str = "gemini-3.6-flash",
-    subhistorian_model: str = "gemini-3.8-flash",
+    subhistorian_model: str = "gemini-3.6-flash",
     thinking_level: str = "MEDIUM",
     concurrency: int = 4,
     skip_existing: bool = True,
@@ -335,7 +335,7 @@ def main() -> None:
         "--architect-model",
         type=str,
         default="gemini-3.6-flash",
-        help="Model for Architect and Subarchitect (default: gemini-3.6-flash)",
+        help="Model for Architect, Subarchitect, and Subhistorian code execution (default: gemini-3.6-flash)",
     )
     parser.add_argument(
         "--thinking",
@@ -375,7 +375,7 @@ def main() -> None:
         architect_model=args.architect_model,
         historian_model=args.model,
         subarchitect_model=args.architect_model,
-        subhistorian_model=args.model,
+        subhistorian_model=args.architect_model,
         thinking_level=args.thinking,
         concurrency=args.concurrency,
         skip_existing=not args.no_skip,

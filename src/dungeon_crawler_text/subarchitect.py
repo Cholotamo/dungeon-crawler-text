@@ -7,6 +7,7 @@ from deterministic Locale Generation Seeds (`seed.md`) using Gemini with Python 
 from __future__ import annotations
 
 import argparse
+import ast
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
@@ -207,17 +208,18 @@ def extract_all_parts(response: Any) -> tuple[str, str]:
                         code_outputs.append(code_res.output)
 
     full_text = "\n".join(texts)
-    if not full_text and hasattr(response, "text") and response.text:
-        full_text = response.text
-
     full_code_output = "\n".join(code_outputs)
     return full_text, full_code_output
 
 
 def parse_localemap_json(raw_text: str) -> Optional[dict[str, Any]]:
     """Attempts to extract and parse localemap JSON from text or code execution stdout."""
-    # 1. Direct JSON parse (standard clean code execution stdout)
+    if not raw_text or not raw_text.strip():
+        return None
+
     raw_clean = raw_text.strip()
+
+    # 1. Direct JSON parse (standard clean code execution stdout)
     try:
         data = json.loads(raw_clean)
         if isinstance(data, dict) and ("terrain_grid" in data or "overview_grid" in data or "district_grid" in data):
@@ -232,36 +234,33 @@ def parse_localemap_json(raw_text: str) -> Optional[dict[str, Any]]:
         re.DOTALL,
     )
     if delimiter_match:
+        content = delimiter_match.group(1).strip()
         try:
-            return json.loads(delimiter_match.group(1))
+            return json.loads(content)
         except json.JSONDecodeError:
-            pass
+            try:
+                data = ast.literal_eval(content)
+                if isinstance(data, dict) and ("terrain_grid" in data or "overview_grid" in data or "district_grid" in data):
+                    return data
+            except Exception:
+                pass
 
     # 3. Try markdown fenced code block extraction
-    code_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
+    code_blocks = re.findall(r"```(?:json|python)?\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
     for block in code_blocks:
         try:
             data = json.loads(block)
             if isinstance(data, dict) and ("terrain_grid" in data or "overview_grid" in data or "district_grid" in data):
                 return data
         except json.JSONDecodeError:
-            continue
+            try:
+                data = ast.literal_eval(block)
+                if isinstance(data, dict) and ("terrain_grid" in data or "overview_grid" in data or "district_grid" in data):
+                    return data
+            except Exception:
+                continue
 
-    # 4. Try outermost curly braces enclosing keys
-    outer_match = re.search(
-        r"(\{\s*\"(?:feature_id|name|terrain_grid|overview_grid)\".*?\})",
-        raw_text,
-        re.DOTALL,
-    )
-    if outer_match:
-        try:
-            data = json.loads(outer_match.group(1))
-            if isinstance(data, dict) and ("terrain_grid" in data or "overview_grid" in data or "district_grid" in data):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-    # 5. Fallback raw decoder search
+    # 4. Fallback raw JSON decoder search (scans forward for valid JSON object)
     start_idx = raw_text.find("{")
     while start_idx != -1:
         decoder = json.JSONDecoder()
@@ -271,6 +270,44 @@ def parse_localemap_json(raw_text: str) -> Optional[dict[str, Any]]:
                 return obj
         except json.JSONDecodeError:
             pass
+        start_idx = raw_text.find("{", start_idx + 1)
+
+    # 5. Fallback Python dict literal search (ast.literal_eval for single-quoted dict repr)
+    start_idx = raw_text.find("{")
+    quote_chars = ('"', "'")
+    while start_idx != -1:
+        depth = 0
+        in_str = False
+        quote_char = ""
+        escape = False
+        for i in range(start_idx, len(raw_text)):
+            c = raw_text[i]
+            if escape:
+                escape = False
+                continue
+            if c == "\\":
+                escape = True
+                continue
+            if in_str:
+                if c == quote_char:
+                    in_str = False
+            else:
+                if c in quote_chars:
+                    in_str = True
+                    quote_char = c
+                elif c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                    if depth == 0:
+                        candidate = raw_text[start_idx : i + 1]
+                        try:
+                            res = ast.literal_eval(candidate)
+                            if isinstance(res, dict) and ("terrain_grid" in res or "district_grid" in res):
+                                return res
+                        except Exception:
+                            pass
+                        break
         start_idx = raw_text.find("{", start_idx + 1)
 
     return None

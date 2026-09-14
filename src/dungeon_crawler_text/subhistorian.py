@@ -515,7 +515,7 @@ class Subhistorian:
 
     def __init__(
         self,
-        model_name: str = "gemini-3.8-flash",
+        model_name: str = "gemini-3.6-flash",
         thinking_level: str = "MEDIUM",
         client: Optional[genai.Client] = None,
     ) -> None:
@@ -618,11 +618,31 @@ class Subhistorian:
         text_content, code_output = extract_all_parts(response)
         combined_text = f"{code_output}\n\n{text_content}"
 
-        parsed_data = (
-            parse_localemap_json(code_output)
-            or parse_localemap_json(text_content)
-            or parse_localemap_json(combined_text)
-        )
+        # First try the latest code execution outputs in reverse chronological order
+        parsed_data = None
+        if hasattr(response, "candidates") and response.candidates:
+            for candidate in response.candidates:
+                if hasattr(candidate, "content") and candidate.content and candidate.content.parts:
+                    for part in reversed(candidate.content.parts):
+                        code_res = getattr(part, "code_execution_result", None)
+                        if code_res and getattr(code_res, "output", None):
+                            parsed_data = parse_localemap_json(code_res.output)
+                            if parsed_data:
+                                break
+                        exec_code = getattr(part, "executable_code", None)
+                        if exec_code and getattr(exec_code, "code", None):
+                            parsed_data = parse_localemap_json(exec_code.code)
+                            if parsed_data:
+                                break
+                    if parsed_data:
+                        break
+
+        if not parsed_data:
+            parsed_data = (
+                parse_localemap_json(code_output)
+                or parse_localemap_json(text_content)
+                or parse_localemap_json(combined_text)
+            )
 
         if not parsed_data:
             raise ValueError(
@@ -884,8 +904,8 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-3.8-flash",
-        help="Gemini model to use (default: gemini-3.8-flash)",
+        default="gemini-3.6-flash",
+        help="Gemini model to use (default: gemini-3.6-flash)",
     )
     parser.add_argument(
         "--thinking",
