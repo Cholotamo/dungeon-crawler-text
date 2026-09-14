@@ -5,6 +5,7 @@ with Python code execution enabled, running statelessly.
 """
 
 import argparse
+from collections import deque
 import json
 import logging
 from pathlib import Path
@@ -125,6 +126,154 @@ def parse_world_map_json(raw_text: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def enforce_river_monotonicity(
+    terrain: list[str],
+    region: list[str],
+    regions: dict[str, Any],
+    elev_grid: list[list[int]],
+) -> list[list[int]]:
+    """Enforces strictly non-increasing downstream elevation along all connected river paths."""
+    height = len(terrain)
+    width = len(terrain[0]) if height > 0 else 0
+    if height == 0 or width == 0:
+        return elev_grid
+
+    river_tiles = [
+        (x, y) for y in range(height) for x in range(width)
+        if terrain[y][x] in ("~", ";") and regions.get(region[y][x], {}).get("type", "").lower() in ("river", "stream")
+    ]
+    if not river_tiles:
+        return elev_grid
+
+    all_water = {(x, y) for y in range(height) for x in range(width) if terrain[y][x] in ("~", ";")}
+
+    # Tier 1: True Marine Sinks (Ocean, Bay)
+    sinks = {
+        (x, y) for (x, y) in all_water
+        if regions.get(region[y][x], {}).get("type", "").lower() in ("ocean", "bay")
+    }
+    # Tier 2: Continental South edge or other map boundaries if no ocean
+    if not sinks:
+        sinks = {(x, y) for (x, y) in all_water if y == height - 1}
+    if not sinks:
+        sinks = {(x, y) for (x, y) in all_water if x in (0, width - 1) or y in (0, height - 1)}
+    # Tier 3: Inland Lake sinks
+    if not sinks:
+        for x, y in river_tiles:
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < width and 0 <= ny < height:
+                    if regions.get(region[ny][nx], {}).get("type", "").lower() == "lake":
+                        sinks.add((nx, ny))
+    if not sinks and river_tiles:
+        sinks = {max(river_tiles, key=lambda pt: pt[1])}
+
+    dist: dict[tuple[int, int], int] = {pt: 0 for pt in sinks}
+    q = deque(sinks)
+    while q:
+        cx, cy = q.popleft()
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = cx + dx, cy + dy
+            if (nx, ny) in all_water and (nx, ny) not in dist:
+                dist[(nx, ny)] = dist[(cx, cy)] + 1
+                q.append((nx, ny))
+
+    sorted_rivers = sorted(river_tiles, key=lambda pt: dist.get(pt, 0), reverse=True)
+
+    # Downstream clamping pass: from headwaters to mouth
+    for cx, cy in sorted_rivers:
+        curr_z = elev_grid[cy][cx]
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = cx + dx, cy + dy
+            if (nx, ny) in dist and dist[(nx, ny)] < dist.get((cx, cy), 0):
+                if elev_grid[ny][nx] > curr_z:
+                    elev_grid[ny][nx] = curr_z
+
+    return elev_grid
+
+
+def generate_fallback_elevation(
+    terrain: list[str],
+    region: list[str],
+    regions: dict[str, Any],
+) -> list[str]:
+    """Procedurally generates a 32x32 elevation grid when not supplied by the Architect."""
+    height = len(terrain)
+    width = len(terrain[0]) if height > 0 else 32
+
+    REGION_BASE = {
+        "mountains": 8, "mountain": 8,
+        "cliffs": 6, "chasm": 6, "canyon": 6,
+        "hills": 5, "highland": 5,
+        "forest": 3, "jungle": 3, "woods": 3,
+        "wilderness": 2, "plains": 2, "farmland": 2, "wasteland": 2,
+        "river": 1, "stream": 1, "canal": 1,
+        "lake": 1, "bay": 0, "swamp": 1, "wetland": 1, "bog": 1,
+        "ocean": 0, "sea": 0,
+    }
+    TERRAIN_BASE = {
+        "^": 9, "/": 7, ",": 5, "&": 4, "#": 3,
+        ":": 2, ".": 2, "%": 1, ";": 1, "~": 0,
+    }
+
+    # 1. Base terrain elevation calculation
+    elev = [[0 for _ in range(width)] for _ in range(height)]
+    for y in range(height):
+        for x in range(width):
+            t_char = terrain[y][x]
+            r_type = regions.get(region[y][x], {}).get("type", "").lower()
+            r_b = REGION_BASE.get(r_type, 2)
+            t_b = TERRAIN_BASE.get(t_char, 2)
+            base = (r_b + t_b) / 2.0
+            slope = (height - 1 - y) / height * 2.0
+            lvl = int(round(base + slope))
+            elev[y][x] = max(0, min(9, lvl))
+
+    # 2. Sinks and distance for river flow gradient
+    water_tiles = [(x, y) for y in range(height) for x in range(width) if terrain[y][x] in ("~", ";")]
+    sinks = set()
+    for x, y in water_tiles:
+        r_type = regions.get(region[y][x], {}).get("type", "").lower()
+        if r_type in ("ocean", "bay") or y == height - 1 or x in (0, width - 1):
+            sinks.add((x, y))
+
+    if not sinks and water_tiles:
+        sinks.add(max(water_tiles, key=lambda pt: pt[1]))
+
+    dist_to_sink: dict[tuple[int, int], int] = {pt: 0 for pt in sinks}
+    q = deque(sinks)
+    while q:
+        cx, cy = q.popleft()
+        d = dist_to_sink[(cx, cy)]
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = cx + dx, cy + dy
+            if (nx, ny) in water_tiles and (nx, ny) not in dist_to_sink:
+                dist_to_sink[(nx, ny)] = d + 1
+                q.append((nx, ny))
+
+    # River tiles: scale elevation monotonically by distance to sink
+    river_tiles = [
+        (x, y) for (x, y) in water_tiles
+        if regions.get(region[y][x], {}).get("type", "").lower() in ("river", "stream")
+    ]
+    if river_tiles and dist_to_sink:
+        max_dist = max(dist_to_sink.get(pt, 0) for pt in river_tiles) or 1
+        for x, y in river_tiles:
+            d = dist_to_sink.get((x, y), 0)
+            land_neighbors = [
+                elev[y + dy][x + dx]
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                if 0 <= x + dx < width and 0 <= y + dy < height and terrain[y + dy][x + dx] not in ("~", ";")
+            ]
+            headwater_z = max(land_neighbors) if land_neighbors else 6
+            max_river_z = max(2, min(headwater_z - 1, 6))
+            r_elev = 1 + int(round((d / max_dist) * (max_river_z - 1)))
+            elev[y][x] = max(1, min(9, r_elev))
+
+    elev = enforce_river_monotonicity(terrain, region, regions, elev)
+    return ["".join(str(elev[y][x]) for x in range(width)) for y in range(height)]
+
+
 def validate_world_map(data: dict[str, Any]) -> dict[str, Any]:
     """Validates and enforces map dimensions, legends, and registry integrity."""
     if not isinstance(data, dict):
@@ -203,44 +352,25 @@ def validate_world_map(data: dict[str, Any]) -> dict[str, Any]:
     elev = data.get("elevation_grid")
     valid_elev = False
     if isinstance(elev, list) and len(elev) == 32:
-        if all(isinstance(row, str) and len(row) == 32 for row in elev):
+        if all(isinstance(row, str) and len(row) == 32 and all(ch.isdigit() for ch in row) for row in elev):
+            int_grid = [[int(ch) for ch in row] for row in elev]
+            int_grid = enforce_river_monotonicity(terrain, region, regions, int_grid)
+            data["elevation_grid"] = ["".join(str(min(9, max(0, val))) for val in row) for row in int_grid]
             valid_elev = True
         elif all(isinstance(row, (list, tuple)) and len(row) == 32 for row in elev):
-            data["elevation_grid"] = [
-                "".join(str(min(9, max(0, int(val)))) for val in row)
-                for row in elev
-            ]
-            valid_elev = True
+            try:
+                int_grid = [[int(val) for val in row] for row in elev]
+                int_grid = enforce_river_monotonicity(terrain, region, regions, int_grid)
+                data["elevation_grid"] = [
+                    "".join(str(min(9, max(0, val))) for val in row)
+                    for row in int_grid
+                ]
+                valid_elev = True
+            except (ValueError, TypeError):
+                valid_elev = False
 
     if not valid_elev:
-        REGION_BASE = {
-            "mountains": 8, "mountain": 8,
-            "cliffs": 6, "chasm": 6, "canyon": 6,
-            "hills": 4, "highland": 4,
-            "forest": 3, "jungle": 3, "woods": 3,
-            "wilderness": 2, "plains": 2, "farmland": 2, "wasteland": 2,
-            "lake": 1, "bay": 0, "swamp": 1, "wetland": 1, "bog": 1,
-            "ocean": 0, "sea": 0,
-        }
-        TERRAIN_BASE = {
-            "^": 9, "/": 7, ",": 5, "&": 4, "#": 3,
-            ":": 2, ".": 2, "%": 1, ";": 1, "~": 0,
-        }
-        generated_elev = []
-        for y in range(32):
-            row_chars = []
-            for x in range(32):
-                t_char = terrain[y][x]
-                r_type = regions.get(region[y][x], {}).get("type", "").lower()
-                r_b = REGION_BASE.get(r_type, 2)
-                t_b = TERRAIN_BASE.get(t_char, 2)
-                base = (r_b + t_b) / 2.0
-                slope = (31 - y) * 0.06
-                lvl = int(round(base + slope))
-                lvl = max(0, min(9, lvl))
-                row_chars.append(str(lvl))
-            generated_elev.append("".join(row_chars))
-        data["elevation_grid"] = generated_elev
+        data["elevation_grid"] = generate_fallback_elevation(terrain, region, regions)
 
     return data
 
@@ -347,6 +477,12 @@ def print_map_preview(map_data: dict[str, Any]) -> None:
         lore = info.get("lore", "")
         lore_snippet = f" - \"{lore[:60]}...\"" if len(lore) > 60 else (f" - \"{lore}\"" if lore else "")
         print(f"  [{rid}] {info.get('name')} ({info.get('type')}){lore_snippet}")
+
+    if "elevation_grid" in map_data and map_data["elevation_grid"]:
+        eg = map_data["elevation_grid"]
+        all_z = [int(ch) for row in eg for ch in row if ch.isdigit()]
+        if all_z:
+            print(f"\nELEVATION PROFILE: min={min(all_z)} (lowest), max={max(all_z)} (highest), avg={sum(all_z)/len(all_z):.1f}")
     print("=" * 68)
 
 

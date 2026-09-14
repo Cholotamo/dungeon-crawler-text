@@ -84,6 +84,20 @@ COLOR_FEATURES: dict[str, str] = {
     "~": "\033[94;1m",       # Bold Bright Blue (Canal)
 }
 
+# Elevation color palette ('0' deepest ocean to '9' highest peak)
+COLOR_ELEVATION: dict[str, str] = {
+    "0": "\033[34;1m",       # Bold Deep Blue (Ocean)
+    "1": "\033[36m",         # Cyan (Shallows/Lakes/Wetlands)
+    "2": "\033[32m",         # Green (Low Plains/Valleys)
+    "3": "\033[32;1m",       # Bold Green (High Plains/Woods)
+    "4": "\033[33m",         # Yellow (Foothills/Uplands)
+    "5": "\033[33;1m",       # Bold Yellow (Rolling Hills)
+    "6": "\033[35m",         # Magenta (Highlands/Chasms)
+    "7": "\033[35;1m",       # Bold Magenta (Cliffs/Canyons)
+    "8": "\033[37m",         # White (High Mountains)
+    "9": "\033[37;1m",       # Bold Bright White (Alpine Peaks)
+}
+
 
 def colorize_char(char: str, is_feature: bool = False, use_color: bool = True) -> str:
     """Wraps a character with ANSI colors if color output is enabled."""
@@ -227,6 +241,58 @@ def render_region_grid(
     return render_map_grid(cells, width, height, spaced=spaced, use_color=False)
 
 
+def render_elevation_grid(
+    elevation_grid: list[str],
+    width: int,
+    height: int,
+    spaced: bool = True,
+    use_color: bool = True,
+) -> list[str]:
+    """Renders topographical elevation grid with coordinate rulers and altitude colors."""
+    if not spaced:
+        lines = []
+        header_tens = "    " + "".join(str(x // 10) for x in range(width))
+        header_ones = "    " + "".join(str(x % 10) for x in range(width))
+        border = "   +" + "-" * width + "+"
+        if width >= 10:
+            lines.append(header_tens)
+        lines.append(header_ones)
+        lines.append(border)
+        for y in range(height):
+            row = elevation_grid[y] if y < len(elevation_grid) else "0" * width
+            row_content = "".join(
+                f"{COLOR_ELEVATION.get(ch, '')}{ch}{ANSI_RESET}" if use_color and ch in COLOR_ELEVATION else ch
+                for ch in row
+            )
+            lines.append(f"{y:02d} |{row_content}| {y:02d}")
+        lines.append(border)
+        lines.append(header_ones)
+        if width >= 10:
+            lines.append(header_tens)
+        return lines
+    else:
+        lines = []
+        header_tens = "     " + " ".join(str(x // 10) for x in range(width))
+        header_ones = "     " + " ".join(str(x % 10) for x in range(width))
+        border = "   +-" + "--" * (width - 1) + "-+"
+        if width >= 10:
+            lines.append(header_tens)
+        lines.append(header_ones)
+        lines.append(border)
+        for y in range(height):
+            row = elevation_grid[y] if y < len(elevation_grid) else "0" * width
+            colored_chars = [
+                f"{COLOR_ELEVATION.get(ch, '')}{ch}{ANSI_RESET}" if use_color and ch in COLOR_ELEVATION else ch
+                for ch in row
+            ]
+            lines.append(f"{y:02d} | " + " ".join(colored_chars) + f" | {y:02d}")
+        lines.append(border)
+        lines.append(header_ones)
+        if width >= 10:
+            lines.append(header_tens)
+        return lines
+
+
 def render_side_by_side(
     comp_cells: list[list[tuple[str, bool]]],
     reg_grid: list[str],
@@ -262,6 +328,7 @@ def print_composite_map(
     spaced: bool = True,
     map_only: bool = False,
     show_regions: bool = False,
+    show_elevation: bool = False,
     side_by_side: bool = False,
     show_legend: bool = True,
     use_color: Optional[bool] = None,
@@ -318,6 +385,13 @@ def print_composite_map(
                 region_grid, width, height, spaced=spaced, use_color=use_color
             )
             print("\n".join(reg_lines))
+
+        if show_elevation and "elevation_grid" in map_data and map_data["elevation_grid"]:
+            print(f"\n[ELEVATION GRID (Topographical Heights '0'-'9')]")
+            elev_lines = render_elevation_grid(
+                map_data["elevation_grid"], width, height, spaced=spaced, use_color=use_color
+            )
+            print("\n".join(elev_lines))
 
     if map_only:
         return
@@ -426,6 +500,12 @@ def main() -> None:
         help="Also print the Region Grid (or District Grid)",
     )
     parser.add_argument(
+        "--elevation",
+        "-e",
+        action="store_true",
+        help="Also print the Elevation Grid (topographical heights '0'-'9')",
+    )
+    parser.add_argument(
         "--side-by-side",
         "-s",
         action="store_true",
@@ -479,6 +559,7 @@ def main() -> None:
             spaced=not args.compact,
             map_only=args.map_only,
             show_regions=args.regions,
+            show_elevation=args.elevation,
             side_by_side=args.side_by_side,
             show_legend=not args.no_legend,
             use_color=use_color,
