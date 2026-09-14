@@ -74,6 +74,10 @@ def __getattr__(name: str) -> Any:
         from dungeon_crawler_text import viewer
 
         return getattr(viewer, name)
+    if name in ("print_composite_map",):
+        from dungeon_crawler_text import map_printer
+
+        return getattr(map_printer, name)
     if name in (
         "Subarchitect",
         "SubArchitect",
@@ -145,6 +149,7 @@ __all__ = [
     "load_keyframe",
     "load_vector",
     "open_viewer",
+    "print_composite_map",
     "resolve_epoch_paths",
     "run_full_pipeline",
     "save_locale_vector",

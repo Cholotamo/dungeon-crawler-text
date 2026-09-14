@@ -22,6 +22,7 @@ dungeon-crawler-seed = "dungeon_crawler_text.seed:main"
 dungeon-crawler-subarchitect = "dungeon_crawler_text.subarchitect:main"
 dungeon-crawler-subhistorian = "dungeon_crawler_text.subhistorian:main"
 dungeon-crawler-pipeline = "dungeon_crawler_text.pipeline:main"
+dungeon-crawler-map = "dungeon_crawler_text.map_printer:main"
 
 [dependency-groups]
 dev = [
