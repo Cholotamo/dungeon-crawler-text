@@ -7,12 +7,14 @@ from deterministic Locale Generation Seeds (`seed.md`) using Gemini with Python 
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
 from pathlib import Path
 import re
 import sys
-from typing import Any, Optional
+import threading
+from typing import Any, Optional, Union
 
 from dotenv import load_dotenv
 from google import genai
@@ -732,6 +734,7 @@ class Subarchitect:
         self.client = client or genai.Client()
         self.system_prompt = _load_prompt("subarchitect_localemap.md")
         self.tools = [types.Tool(code_execution=types.ToolCodeExecution())]
+        self._usage_lock = threading.Lock()
         self.token_usage: dict[str, int] = {
             "prompt_tokens": 0,
             "candidates_tokens": 0,
@@ -747,10 +750,11 @@ class Subarchitect:
             c = getattr(meta, "candidates_token_count", 0) or 0
             t = getattr(meta, "total_token_count", 0) or (p + c)
             th = getattr(meta, "thoughts_token_count", 0) or 0
-            self.token_usage["prompt_tokens"] += p
-            self.token_usage["candidates_tokens"] += c
-            self.token_usage["total_tokens"] += t
-            self.token_usage["thoughts_tokens"] += th
+            with self._usage_lock:
+                self.token_usage["prompt_tokens"] += p
+                self.token_usage["candidates_tokens"] += c
+                self.token_usage["total_tokens"] += t
+                self.token_usage["thoughts_tokens"] += th
 
     @retry_with_backoff(max_retries=4, initial_delay=2.0)
     def generate_localemap(
@@ -887,6 +891,126 @@ def print_localemap_preview(map_data: dict[str, Any]) -> None:
     print("=" * 80)
 
 
+def generate_locale_localemap(
+    seed_path: Union[Path, str],
+    output_dir: Optional[Union[Path, str]] = None,
+    keyframe_index: int = 0,
+    epoch: Optional[int] = None,
+    subarchitect: Optional[Subarchitect] = None,
+    overwrite: bool = False,
+) -> tuple[Path, Path]:
+    """Generates a 16x16 localemap for a single locale seed.
+
+    Args:
+        seed_path: Path to the locale's seed.md file.
+        output_dir: Custom output directory or file path. If None, saves in seed's parent dir.
+        keyframe_index: Target keyframe index (default 0).
+        epoch: Target epoch. If None, auto-detected from companion dossier.json or seed.md.
+        subarchitect: Subarchitect instance to use. If None, creates a default instance.
+        overwrite: If True, regenerates and overwrites existing keyframe files.
+
+    Returns:
+        tuple[Path, Path]: (json_file_path, md_file_path)
+    """
+    sp = Path(seed_path)
+    if not sp.exists():
+        raise FileNotFoundError(f"Seed file not found: {sp}")
+
+    target_dir = Path(output_dir) if output_dir else sp.parent
+    json_target = target_dir / f"localemap_keyframe_{keyframe_index}.json"
+    md_target = target_dir / f"localemap_keyframe_{keyframe_index}.md"
+
+    if json_target.exists() and md_target.exists() and not overwrite:
+        logger.info(f"Skipping existing localemap at {json_target}")
+        return json_target, md_target
+
+    agent = subarchitect or Subarchitect()
+    seed_text = sp.read_text(encoding="utf-8")
+
+    epoch_val = epoch
+    if epoch_val is None:
+        dossier_p = sp.parent / "dossier.json"
+        if dossier_p.exists():
+            try:
+                d_data = json.loads(dossier_p.read_text(encoding="utf-8"))
+                kfs = d_data.get("keyframes", [])
+                if 0 <= keyframe_index < len(kfs):
+                    epoch_val = kfs[keyframe_index].get("epoch")
+            except Exception:
+                pass
+
+    localemap = agent.generate_localemap(
+        seed_text=seed_text,
+        keyframe_index=keyframe_index,
+        epoch=epoch_val,
+    )
+    return agent.save_localemap(
+        localemap,
+        output_path=target_dir if target_dir.suffix else None,
+        base_dir=target_dir if not target_dir.suffix else None,
+    )
+
+
+def generate_all_localemaps_concurrently(
+    locales_dir: Union[Path, str] = DEFAULT_LOCALES_DIR,
+    max_workers: int = 4,
+    subarchitect: Optional[Subarchitect] = None,
+    keyframe_index: int = 0,
+    overwrite: bool = False,
+) -> dict[str, tuple[Path, Path]]:
+    """Concurrently generates localemaps for all discovered seeds across worker threads.
+
+    Args:
+        locales_dir: Root directory containing locale subdirectories with seed.md files.
+        max_workers: Maximum number of worker threads.
+        subarchitect: Shared Subarchitect agent instance.
+        keyframe_index: Target keyframe index (default 0).
+        overwrite: If True, overwrites existing localemaps.
+
+    Returns:
+        dict[str, tuple[Path, Path]]: Mapping of feature_id -> (json_file, md_file).
+    """
+    root_p = Path(locales_dir)
+    if not root_p.exists():
+        logger.warning(f"Locales directory does not exist: {root_p}")
+        return {}
+
+    seed_files = sorted(root_p.glob("*/seed.md"))
+    if not seed_files:
+        logger.warning(f"No seed.md files found in {root_p}")
+        return {}
+
+    agent = subarchitect or Subarchitect()
+    results: dict[str, tuple[Path, Path]] = {}
+    workers = max(1, min(max_workers, len(seed_files)))
+    print(f"[CONCURRENCY] Generating {len(seed_files)} localemaps across {workers} worker threads...", flush=True)
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_fid = {
+            executor.submit(
+                generate_locale_localemap,
+                seed_path=sp,
+                output_dir=sp.parent,
+                keyframe_index=keyframe_index,
+                subarchitect=agent,
+                overwrite=overwrite,
+            ): sp.parent.name
+            for sp in seed_files
+        }
+
+        for future in as_completed(future_to_fid):
+            fid = future_to_fid[future]
+            try:
+                paths = future.result()
+                results[fid] = paths
+                print(f"[CONCURRENCY] Completed localemap for '{fid}' -> {paths[0].name}", flush=True)
+            except Exception as exc:
+                logger.exception(f"Error generating localemap for '{fid}': {exc}")
+                print(f"[ERROR] Failed to generate localemap for '{fid}': {exc}", file=sys.stderr, flush=True)
+
+    return results
+
+
 def main() -> None:
     """CLI entry point for the Subarchitect agent."""
     if hasattr(sys.stdout, "reconfigure"):
@@ -917,6 +1041,18 @@ def main() -> None:
         "-a",
         action="store_true",
         help="Generate localemaps for all seeds found in artifacts/locales.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        "-j",
+        type=int,
+        default=4,
+        help="Number of concurrent workers for multi-locale generation (default: 4)",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing localemap files instead of skipping.",
     )
     parser.add_argument(
         "--keyframe",
@@ -954,37 +1090,6 @@ def main() -> None:
     args = parser.parse_args()
     load_dotenv()
 
-    seed_targets: list[tuple[Path, Path]] = []  # (seed_file, output_dir)
-
-    if args.all:
-        for seed_p in sorted(DEFAULT_LOCALES_DIR.glob("*/seed.md")):
-            seed_targets.append((seed_p, seed_p.parent))
-        if not seed_targets:
-            print(f"[ERROR] No seed.md files found in {DEFAULT_LOCALES_DIR}", file=sys.stderr)
-            sys.exit(1)
-    elif args.seed:
-        sp = Path(args.seed)
-        if not sp.exists():
-            print(f"[ERROR] Seed file not found: {sp}", file=sys.stderr)
-            sys.exit(1)
-        out_target = Path(args.output) if args.output else sp.parent
-        seed_targets.append((sp, out_target))
-    elif args.locale:
-        sp = DEFAULT_LOCALES_DIR / args.locale / "seed.md"
-        if not sp.exists():
-            print(f"[ERROR] Locale seed not found at: {sp}", file=sys.stderr)
-            sys.exit(1)
-        out_target = Path(args.output) if args.output else sp.parent
-        seed_targets.append((sp, out_target))
-    else:
-        # Default fallback: check eldenmere
-        default_sp = DEFAULT_LOCALES_DIR / "eldenmere" / "seed.md"
-        if default_sp.exists():
-            seed_targets.append((default_sp, default_sp.parent))
-        else:
-            parser.print_help()
-            sys.exit(1)
-
     print("=" * 80, flush=True)
     print(" SUBARCHITECT: 16x16 LOCALE MAP GENERATION", flush=True)
     print("=" * 80, flush=True)
@@ -992,41 +1097,57 @@ def main() -> None:
 
     subarchitect = Subarchitect(model_name=args.model, thinking_level=args.thinking)
 
-    for seed_path, out_dir in seed_targets:
-        print(f"--> Processing seed: {seed_path}", flush=True)
-        seed_text = seed_path.read_text(encoding="utf-8")
+    if args.all and not args.locale and not args.seed:
+        results = generate_all_localemaps_concurrently(
+            locales_dir=DEFAULT_LOCALES_DIR,
+            max_workers=args.concurrency,
+            subarchitect=subarchitect,
+            keyframe_index=args.keyframe,
+            overwrite=args.overwrite,
+        )
+        print(f"\nGenerated localemaps across {len(results)} locale(s).", flush=True)
+        for fid, paths in sorted(results.items()):
+            print(f"  - {fid}: {paths[0].name}", flush=True)
+    else:
+        seed_targets: list[tuple[Path, Path]] = []
+        if args.seed:
+            sp = Path(args.seed)
+            if not sp.exists():
+                print(f"[ERROR] Seed file not found: {sp}", file=sys.stderr)
+                sys.exit(1)
+            out_target = Path(args.output) if args.output else sp.parent
+            seed_targets.append((sp, out_target))
+        elif args.locale:
+            sp = DEFAULT_LOCALES_DIR / args.locale / "seed.md"
+            if not sp.exists():
+                print(f"[ERROR] Locale seed not found at: {sp}", file=sys.stderr)
+                sys.exit(1)
+            out_target = Path(args.output) if args.output else sp.parent
+            seed_targets.append((sp, out_target))
+        else:
+            default_sp = DEFAULT_LOCALES_DIR / "eldenmere" / "seed.md"
+            if default_sp.exists():
+                seed_targets.append((default_sp, default_sp.parent))
+            else:
+                parser.print_help()
+                sys.exit(1)
 
-        try:
-            epoch_val = args.epoch
-            if epoch_val is None:
-                dossier_p = seed_path.parent / "dossier.json"
-                if dossier_p.exists():
-                    try:
-                        d_data = json.loads(dossier_p.read_text(encoding="utf-8"))
-                        kfs = d_data.get("keyframes", [])
-                        if 0 <= args.keyframe < len(kfs):
-                            epoch_val = kfs[args.keyframe].get("epoch")
-                    except Exception:
-                        pass
-
-            locale_map = subarchitect.generate_localemap(
-                seed_text=seed_text,
-                keyframe_index=args.keyframe,
-                epoch=epoch_val,
-            )
-            json_file, md_file = subarchitect.save_localemap(
-                locale_map,
-                output_path=out_dir if out_dir.suffix else None,
-                base_dir=out_dir if not out_dir.suffix else None,
-            )
-
-            print_localemap_preview(locale_map)
-            print(f"JSON saved to:     {json_file}", flush=True)
-            print(f"Markdown saved to: {md_file}\n", flush=True)
-
-        except Exception as e:
-            logger.exception("Error generating localemap")
-            print(f"[ERROR] Failed to generate localemap for {seed_path}: {e}", file=sys.stderr)
+        for seed_path, out_dir in seed_targets:
+            print(f"--> Processing seed: {seed_path}", flush=True)
+            try:
+                json_file, md_file = generate_locale_localemap(
+                    seed_path=seed_path,
+                    output_dir=out_dir,
+                    keyframe_index=args.keyframe,
+                    epoch=args.epoch,
+                    subarchitect=subarchitect,
+                    overwrite=args.overwrite,
+                )
+                print(f"JSON saved to:     {json_file}", flush=True)
+                print(f"Markdown saved to: {md_file}\n", flush=True)
+            except Exception as e:
+                logger.exception("Error generating localemap")
+                print(f"[ERROR] Failed to generate localemap for {seed_path}: {e}", file=sys.stderr)
 
     print("=" * 80, flush=True)
     print(" TOKEN USAGE SUMMARY", flush=True)

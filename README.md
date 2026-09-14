@@ -1,13 +1,14 @@
 # Dungeon Crawler Text: Primordial World-Building Pipeline
 
-A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in six coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map, rich landmark vector dossiers, deterministic locale generation seeds, and tactical 16x16 localemaps:
+A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in seven coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map, rich landmark vector dossiers, deterministic locale generation seeds, and tactical 16x16 localemaps:
 
 1. **The Loremaster:** Synthesizes evocative, mythic narrative prose describing the untouched primordial landscape and raw physical geography of a realm at the dawn of creation.
 2. **The Architect:** Translates the primordial world prose into a structured 32x32 ASCII and JSON world map using Gemini with **Python Code Execution**, enforcing organic biome geography and strict hydrological rules.
 3. **The Historian:** Chronicles the passage of historical epochs, translating narrative developments into physical changes on the map using fine-grained **Feature CRUD Tools** via Gemini Automatic Function Calling (AFC).
 4. **The Dossier Harvester:** Extracts deterministic spatial, geographic, and infrastructural vector dossiers across epochs for settlements, cities, and dungeons, tracking keyframe mutations, local terrain/biome slices, and cardinal road/gate approaches.
-5. **The Seed Synthesizer:** Compiles vector dossiers into clean, prompt-ready **Locale Generation Seeds** (`{id}_epoch_{n}_seed.md`), feeding downstream Subarchitect models with deterministic perimeter edge constraints, road access alignments, and scale footprints.
-6. **The Subarchitect:** Procedurally designs living **16x16 Tactical Locale Maps** (`localemap_keyframe_{n}.json`) from locale seeds using Gemini with **Python Code Execution**, generating zoned districts, physical architecture, perimeter-matching boundaries, and contextual feature overlays.
+5. **The Seed Synthesizer:** Compiles vector dossiers into clean, prompt-ready **Locale Generation Seeds** (`seed.md`), feeding downstream Subarchitect models with deterministic perimeter edge constraints, road access alignments, and scale footprints.
+6. **The Subarchitect:** Procedurally designs living **16x16 Tactical Locale Maps** (`localemap_keyframe_0.json`) from locale seeds using Gemini with **Python Code Execution**, generating zoned districts, physical architecture, perimeter-matching boundaries, and contextual feature overlays.
+7. **The Subhistorian:** Algorithmically evolves 16x16 localemaps across epochs from one keyframe to the next (`localemap_keyframe_{i+1}.json`) using sparse evolution vectors (`vector_{i}.json` and `.md`) and Gemini with **Python Code Execution**, preserving spatial continuity while applying historical mutations.
 
 ```
                     ┌─────────────────────────┐
@@ -87,6 +88,30 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
                     │ artifacts/locales/{id}/ │
                     │   localemap_keyframe_0  │
                     │   (.json and .md)       │
+                    └────────────┬────────────┘
+                                 │
+             ┌───────────────────┴───────────────────┐
+             │                                       │
+             │ (Keyframe i)            (Vector i)    │
+             ▼                                       ▼
+┌─────────────────────────┐             ┌─────────────────────────┐
+│ localemap_keyframe_{i}  │             │      vector_{i}         │
+│     (.json & .md)       │             │     (.json & .md)       │
+└────────────┬────────────┘             └────────────┬────────────┘
+             │                                       │
+             └───────────────────┬───────────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │      Subhistorian       │
+                    │ (LLM + Code Execution)  │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/locales/{id}/ │
+                    │ localemap_keyframe_{i+1}│
+                    │     (.json and .md)     │
                     └─────────────────────────┘
 ```
 
@@ -114,6 +139,49 @@ uv sync
 ---
 
 ## Running the Pipeline
+
+### One-Call Master Pipeline (Prose to Full World & Localemaps)
+
+Generate the entire living fantasy world from scratch in a single command—automating all 8 stages from primordial world prose down to 32x32 world map, historical epoch chronicle, landmark dossiers, seeds, vectors, concurrent 16x16 localemaps, and the interactive viewer:
+
+```bash
+uv run dungeon-crawler-pipeline
+```
+
+Or invoke via `dungeon-crawler-text`:
+
+```bash
+uv run dungeon-crawler-text --full
+```
+
+#### Master Pipeline CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--epochs`, `-e` | `int` | `3` | Number of historical epochs to simulate (e.g. 1..3) |
+| `--concurrency`, `-j` | `int` | `4` | Number of parallel worker threads for Subarchitect & Subhistorian |
+| `--query`, `-q` | `str` | *Default Primordial Query* | Custom prompt query for the Loremaster |
+| `--model` | `str` | `gemini-3.8-flash` | Default Gemini model for text-generation agents |
+| `--architect-model` | `str` | `gemini-3.6-flash` | Gemini model for Architect and Subarchitect code execution |
+| `--thinking` | `str` | `MEDIUM` | Thinking level for Gemini models |
+| `--overwrite` | `flag` | `False` | Force regeneration and overwrite of all intermediate artifacts |
+| `--no-skip` | `flag` | `False` | Do not skip existing stages even if intermediate files exist |
+| `--open` | `flag` | `False` | Automatically open the interactive HTML map viewer in default browser upon completion |
+| `--artifacts`, `-a` | `str` | `artifacts` | Root directory for generated artifacts |
+
+**Examples:**
+```bash
+# Run full 3-epoch pipeline with 4 concurrent locale workers
+uv run dungeon-crawler-pipeline
+
+# Run full pipeline with 5 epochs, 8 concurrent workers, and open the viewer in browser
+uv run dungeon-crawler-pipeline --epochs 5 -j 8 --open
+
+# Force overwrite of all existing artifacts with a custom world theme
+uv run dungeon-crawler-pipeline --overwrite --query "A sunken obsidian continent shrouded in spectral mist."
+```
+
+---
 
 ### Step 1: Generate Primordial World Prose (Loremaster)
 
@@ -416,6 +484,8 @@ uv run python -m dungeon_crawler_text.subarchitect --locale eldenmere
 | `--locale`, `-f`, `--feature` | `str` | `""` | Feature ID to generate (searches `artifacts/locales/<id>/seed.md`) |
 | `--seed`, `-s`, `-i`, `--input` | `str` | `""` | Path directly to a specific `seed.md` file |
 | `--all`, `-a` | `flag` | `False` | Batch generate localemaps for all seeds found in `artifacts/locales` |
+| `--concurrency`, `-j` | `int` | `4` | Number of concurrent worker threads when using `--all` |
+| `--overwrite` | `flag` | `False` | Force overwrite of existing localemap files |
 | `--keyframe`, `-k` | `int` | `0` | Keyframe index to generate (`0` = founding epoch / genesis) |
 | `--epoch` | `int` | `None` | Historical epoch (auto-detected from dossier or seed if omitted) |
 | `--output`, `-o` | `str` | `""` | Custom output file or directory path |
@@ -430,8 +500,8 @@ uv run dungeon-crawler-subarchitect --locale eldenmere
 # Generate from a direct seed file path
 uv run dungeon-crawler-subarchitect --seed artifacts/locales/kraghollow/seed.md
 
-# Batch generate localemaps for all available locales
-uv run dungeon-crawler-subarchitect --all
+# Batch generate localemaps concurrently for all locales (4 workers)
+uv run dungeon-crawler-subarchitect --all -j 4
 
 # Generate for a specific historical epoch keyframe
 uv run dungeon-crawler-subarchitect --locale eldenmere --keyframe 1
@@ -442,7 +512,65 @@ uv run dungeon-crawler-subarchitect --locale eldenmere --model gemini-3.8-flash 
 
 ---
 
-### Step 7: Inspect Maps Interactively (HTML Map Viewer)
+### Step 7: Evolve 16x16 Localemaps Across Epochs (Subhistorian)
+
+Evolve tactical localemaps across historical epochs from one keyframe to the next (`localemap_keyframe_{i+1}.json` and companion `.md`) using allocated sparse evolution vectors (`vector_{i}.json`) with the Subhistorian agent powered by Gemini with **Python Code Execution**:
+
+```bash
+uv run dungeon-crawler-subhistorian --locale eldenmere --keyframe 0
+```
+
+Or invoke the module directly:
+
+```bash
+uv run python -m dungeon_crawler_text.subhistorian --locale eldenmere --keyframe 0
+```
+
+#### Subhistorian Features & Workflow
+- **Spatial Continuity via Python Code Execution:** Rather than regenerating from scratch, the Subhistorian writes and executes Python code that loads the previous keyframe and mutates its physical, zoning, and feature layers based on vector deltas.
+- **Multi-Aspect Evolution:**
+  - **Scale & Density Shifts:** Paves broad thoroughfares (`+`), erects defensive stone walls (`#`) and gatehouses (`/`), or breaches fallen bastions into ruins and rubble (`:`, `&`).
+  - **Perimeter Hydrological Shifts:** Mutates border shorelines and shallows when water tables recede or advance (e.g. lake waters `~` receding into shallows `;` following barrage impoundment).
+  - **Road & Approach Updates:** Paves new highways, adds gate fortifications, or walls off severed/perilous trade approaches.
+  - **Notable Structures (POI) Evolution:** Upgrades materials (e.g. wooden wattle docks -> cyclopean ashlar quays), expands footprints, founds new landmark buildings, or decommissions sacked sites.
+  - **Districts Layer Evolution:** Subdivides civic squares, introduces specialized industrial/refugee/residential wards, or allows abandoned sectors to revert to wild buffer (`0`).
+  - **Living World Context Synchronization:** Synchronizes `summary`, `host_region_lore`, `scale_profile`, `perimeters`, `approaches`, `world_relations`, and `architectural_rationale`.
+- **Deterministic Stagnancy Short-Circuit:** Automatically detects dormant/stagnant epochs (`has_new_development: false`) and deepcopies the previous state while advancing epoch indices, conserving 100% of LLM tokens.
+
+#### Subhistorian CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--locale`, `-f`, `--feature` | `str` | `""` | Feature ID to evolve (searches `artifacts/locales/<id>/`) |
+| `--keyframe`, `-k` | `int` | `0` | Keyframe index to evolve from (`0` produces keyframe 1) |
+| `--input`, `-i` | `str` | `""` | Path directly to previous keyframe file (`.json` or `.md`) |
+| `--vector`, `-v` | `str` | `""` | Path directly to specific vector delta packet (`.json` or `.md`) |
+| `--all`, `-a` | `flag` | `False` | Batch evolve all consecutive keyframes for a locale or all locales |
+| `--concurrency`, `-j` | `int` | `4` | Number of concurrent worker threads when evolving all locales |
+| `--overwrite` | `flag` | `False` | Force overwrite of existing evolved keyframe files |
+| `--output`, `-o` | `str` | `""` | Custom output file or directory path |
+| `--model` | `str` | `gemini-3.8-flash` | Gemini model to use for code execution |
+| `--thinking` | `str` | `MEDIUM` | Thinking level (`LOW`, `MEDIUM`, `HIGH`) |
+| `--force-llm` | `flag` | `False` | Force LLM execution even when vector indicates no new development |
+
+**Examples:**
+```bash
+# Evolve keyframe 0 to keyframe 1 for a specific locale
+uv run dungeon-crawler-subhistorian --locale eldenmere --keyframe 0
+
+# Evolve all consecutive keyframe transitions for a locale
+uv run dungeon-crawler-subhistorian --locale eldenmere --all
+
+# Evolve from explicit file paths
+uv run dungeon-crawler-subhistorian --input artifacts/locales/eldenmere/localemap_keyframe_0.json --vector artifacts/locales/eldenmere/vector_0.json
+
+# Batch evolve all eligible locales concurrently across 4 worker threads
+uv run dungeon-crawler-subhistorian --all -j 4
+```
+
+---
+
+### Step 8: Inspect Maps Interactively (HTML Map Viewer)
 
 Open the interactive HTML Map Viewer to inspect the composite world map with rich colors, customizable tile spacing, and full hover inspection:
 
@@ -478,6 +606,7 @@ from dungeon_crawler_text import (
     Historian,
     Loremaster,
     Subarchitect,
+    Subhistorian,
     harvest_all_dossiers,
     harvest_landmark_keyframes,
     generate_all_locale_seeds,
@@ -516,19 +645,32 @@ all_seeds = generate_all_locale_seeds(
     keyframe_index=0,
 )
 
-# 6. Procedurally generate 16x16 localemaps using the Subarchitect
+# 6. Procedurally generate 16x16 localemaps using the Subarchitect (concurrently or per-locale)
 subarchitect = Subarchitect(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
-seed_text = Path("artifacts/locales/eldenmere/seed.md").read_text(encoding="utf-8")
+kf0_maps = generate_all_localemaps_concurrently(
+    locales_dir="artifacts/locales",
+    max_workers=4,
+    subarchitect=subarchitect,
+)
 
-locale_map = subarchitect.generate_localemap(
-    seed_text=seed_text,
-    keyframe_index=0,
-    epoch=1,
+# 7. Evolve localemaps across epochs using the Subhistorian (concurrently or per-locale)
+subhistorian = Subhistorian(model_name="gemini-3.8-flash", thinking_level="MEDIUM")
+evolved_maps = evolve_all_locales_concurrently(
+    locales_dir="artifacts/locales",
+    max_workers=4,
+    subhistorian=subhistorian,
 )
-json_path, md_path = subarchitect.save_localemap(
-    locale_map,
-    base_dir="artifacts/locales/eldenmere",
+
+# 8. Or run the entire pipeline end-to-end with a single call!
+from dungeon_crawler_text import run_full_pipeline
+
+metrics = run_full_pipeline(
+    epochs=3,
+    concurrency=4,
+    skip_existing=True,
+    open_browser=False,
 )
+print(f"Pipeline complete in {metrics.elapsed_seconds:.2f}s! Total tokens: {metrics.total_tokens}")
 ```
 
 ---
@@ -647,7 +789,7 @@ The Subarchitect outputs a structured JSON artifact conforming to the following 
 ## Architecture & How It Works
 
 1. **Loremaster (`loremaster.py` & `prompts/loremaster_worldprose.md`):**
-   - Anchors the model in high-fantasy mythic world-building (Tolkien + Kentaro Miura).
+   - Anchors the model in high-fantasy mythic world-building (Tolkien + The Elder Scrolls).
    - Restricts focus purely to macro-geography: ridgelines, coastlines, river basins, and primal ecosystems before mortal civilization or settlements.
 
 2. **Architect (`architect.py` & `prompts/architect_worldmap.md`):**

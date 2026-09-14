@@ -96,8 +96,56 @@ def main() -> None:
         default=str(DEFAULT_ARTIFACT_PATH),
         help=f"File path or directory to save the output artifact file (default: {DEFAULT_ARTIFACT_PATH})",
     )
+    parser.add_argument(
+        "--pipeline",
+        "--full",
+        action="store_true",
+        help="Run the entire generation pipeline: from narrative prose to full world, epochs, and 16x16 localemaps.",
+    )
+    parser.add_argument(
+        "--epochs",
+        "-e",
+        type=int,
+        default=3,
+        help="Number of historical epochs to simulate if running full pipeline (default: 3)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        "-j",
+        type=int,
+        default=4,
+        help="Number of parallel workers for Subarchitect and Subhistorian (default: 4)",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Force regeneration and overwrite of all intermediate artifacts in full pipeline.",
+    )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Automatically open the interactive HTML map viewer in your default browser upon completion.",
+    )
 
     args = parser.parse_args()
+
+    if args.pipeline:
+        from dungeon_crawler_text.pipeline import run_full_pipeline
+
+        try:
+            run_full_pipeline(
+                query=args.query,
+                epochs=args.epochs,
+                loremaster_model=args.model,
+                thinking_level=args.thinking,
+                concurrency=args.concurrency,
+                overwrite=args.overwrite,
+                open_browser=args.open,
+            )
+        except Exception as e:
+            print(f"\n[ERROR] Pipeline failed: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
 
     try:
         generate_primordial_landscape(

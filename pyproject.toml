@@ -20,6 +20,8 @@ dungeon-crawler-viewer = "dungeon_crawler_text.viewer:main"
 dungeon-crawler-dossier = "dungeon_crawler_text.dossier:main"
 dungeon-crawler-seed = "dungeon_crawler_text.seed:main"
 dungeon-crawler-subarchitect = "dungeon_crawler_text.subarchitect:main"
+dungeon-crawler-subhistorian = "dungeon_crawler_text.subhistorian:main"
+dungeon-crawler-pipeline = "dungeon_crawler_text.pipeline:main"
 
 [dependency-groups]
 dev = [

@@ -1,3 +1,58 @@
+# 14/09/2026 (Update 3)
+Introduced **Concurrent Subarchitect & Subhistorian Multi-Locale Generation & One-Call Master Pipeline Orchestrator**.
+
+### The Motivation
+1. **Multi-Locale Latency & Bottlenecks:** Previously, generating and evolving 16x16 local submaps for multiple world landmarks required either manual sequential commands or single-threaded iteration. While an individual locale's historical keyframes must evolve sequentially ($0 \to 1 \to 2 \dots$) to preserve spatial continuity, separate landmarks (`eldenmere`, `kraghollow`, `wealdstone`, `the_briarfast`, `the_fluted_necropolis`) operate in completely independent directories and can execute concurrently across threads.
+2. **One-Call End-to-End Realm Generation:** A user wanting to generate an entire fantasy world—from raw primordial narrative prose to 32x32 world map, multi-epoch history, dossiers, seeds, vectors, and all 16x16 localemaps down to the interactive HTML map viewer—had to manually run 7 separate CLI tools in sequence. A single orchestrator was needed to coordinate all agents with intelligent artifact reuse (`skip_existing`), overwrite controls, and aggregated metrics.
+
+### The Solution
+1. **Thread-Safe Agent Token Accounting:**
+   - Added `threading.Lock()` to `Subarchitect` and `Subhistorian` (`_usage_lock`) to ensure thread-safe concurrent token accumulation across parallel threads.
+2. **Sequential Single-Locale Continuity (`subhistorian.py`):**
+   - `evolve_locale_series(locale_dir, ...)`: Sequentially evolves all consecutive keyframes ($0 \to 1 \to 2 \dots$) for a single locale, guaranteeing strict spatial continuity and automated short-circuiting for dormant epochs.
+3. **Multi-Locale Concurrency (`subarchitect.py`, `subhistorian.py`):**
+   - `generate_all_localemaps_concurrently(locales_dir, max_workers, ...)`: Concurrently generates 16x16 Keyframe 0 localemaps across worker threads using `ThreadPoolExecutor`.
+   - `evolve_all_locales_concurrently(locales_dir, max_workers, ...)`: Concurrently evolves keyframes across distinct locales while preserving sequential evolution within each locale.
+   - CLI flags added: `--concurrency` / `-j` (default 4) and `--overwrite` in both `dungeon-crawler-subarchitect` and `dungeon-crawler-subhistorian`.
+4. **One-Call Master Pipeline Orchestrator (`pipeline.py`):**
+   - `run_full_pipeline(...)`: Orchestrates the complete world generation lifecycle:
+     * *Stage 1:* Loremaster synthesizes `artifacts/worldprose.md`.
+     * *Stage 2:* Architect creates 32x32 `artifacts/worldmap.json` and `.md`.
+     * *Stage 3:* Historian simulates and chronicling epochs 1..$N$.
+     * *Stage 4:* Dossier Harvester extracts landmark milestones to `artifacts/locales/*/dossier.json`.
+     * *Stage 5:* Seed & Vector Synthesizer generates `seed.md` and `vector_{i}.json` / `.md`.
+     * *Stage 6:* Subarchitect generates 16x16 Keyframe 0 maps concurrently.
+     * *Stage 7:* Subhistorian evolves 16x16 Keyframes 1..$N$ concurrently.
+     * *Stage 8:* Viewer compiles interactive HTML map viewer (`artifacts/viewer.html`).
+   - Tracks comprehensive execution metrics (`PipelineMetrics`): total tokens, stage durations, locales, and keyframes generated.
+5. **CLI Integration & Scripts (`pyproject.toml`, `main.py`):**
+   - Registered `dungeon-crawler-pipeline` executable script.
+   - Added `--pipeline` / `--full` flag in `dungeon-crawler-text` (`main.py`) for unified invocation.
+
+---
+
+# 14/09/2026 (Update 2)
+Introduced **Subhistorian Agent for Vector-Driven Localemap Keyframe Evolution via Code Execution**.
+
+### The Motivation
+1. **Multi-Keyframe Submap Continuity:** While the Subarchitect designs keyframe 0 (`localemap_keyframe_0.json`), evolving the 16x16 local submap to reflect successive historical epochs required an agent capable of taking the previous keyframe and its allocated sparse evolution vector (`vector_{i}.json` and `vector_{i}.md`) to produce the next chronological keyframe (`localemap_keyframe_{i+1}.json`).
+2. **Procedural Spatial Mutations via Code Execution:** Regenerating localemaps with random seeds or plain prompting risked catastrophic loss of spatial continuity (e.g. walls jumping across the map, shorelines shifting arbitrarily, or established landmarks vanishing). The Subhistorian employs Gemini with Python Code Execution (`code_execution=True`) to algorithmically copy and mutate the existing map layers (`terrain_grid`, `district_grid`, `districts`, `features`, and `context`).
+3. **Deterministic Stagnancy Handling:** For stagnant or dormant epochs where an isolated landmark experienced no developments (`has_new_development: false`), the Subhistorian deterministically short-circuits to advance `keyframe_index` and `epoch` without mutating physical grids or wasting LLM tokens.
+
+### The Solution
+1. **Subhistorian Agent (`subhistorian.py`):**
+   - `Subhistorian.evolve_localemap(previous_keyframe, vector, to_keyframe_index, to_epoch, allow_stagnant_short_circuit)`: Statelessly evolves a 16x16 localemap from keyframe $i$ to keyframe $i+1$ using Python code execution.
+   - `validate_evolved_localemap(data, prev_keyframe, vector_packet)`: Enforces strict grid dimensions (16x16), palette verification, district registry validation, feature tile boundary checks (`0 <= x < 16, 0 <= y < 16`), and context synchronization (backfilling host region lore, scale profiles, perimeter shifts, and road deltas).
+   - `evolve_stagnant_keyframe`: Deepcopies previous keyframes for dormant epochs, advancing indices and noting architectural stagnancy in `context`.
+   - `save_localemap`: Saves both `localemap_keyframe_{i+1}.json` and companion `localemap_keyframe_{i+1}.md` into `artifacts/locales/<feature_id>/`.
+2. **Subhistorian System Prompt (`prompts/subhistorian_localemap.md`):**
+   - Directs the LLM to respect spatial continuity, grounding all mutations in the previous keyframe.
+   - Governs mutations across all 6 vector aspects: scale densification/fall, perimeter hydrological shifts, road/approach updates, notable structure evolution, district zoning shifts, and living world relations context.
+3. **CLI & Scripts (`dungeon-crawler-subhistorian`):**
+   - CLI supports `--locale` (`-f`), `--keyframe` (`-k`), `--vector` (`-v`), `--input` (`-i`), `--all` (`-a`), `--output` (`-o`), `--model`, and `--thinking`.
+
+---
+
 # 14/09/2026
 Introduced **Sparse Vector Delta Packets (.json & .md) for Localemap Keyframe Evolution & Road Lore Integration**.
 

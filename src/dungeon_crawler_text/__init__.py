@@ -39,6 +39,12 @@ if TYPE_CHECKING:
         format_localemap_for_llm,
         validate_localemap,
     )
+    from dungeon_crawler_text.subhistorian import (
+        Subhistorian,
+        load_keyframe,
+        load_vector,
+        validate_evolved_localemap,
+    )
 
 
 def __getattr__(name: str) -> Any:
@@ -68,10 +74,34 @@ def __getattr__(name: str) -> Any:
         from dungeon_crawler_text import viewer
 
         return getattr(viewer, name)
-    if name in ("Subarchitect", "SubArchitect", "validate_localemap", "format_localemap_for_llm"):
+    if name in (
+        "Subarchitect",
+        "SubArchitect",
+        "validate_localemap",
+        "format_localemap_for_llm",
+        "generate_locale_localemap",
+        "generate_all_localemaps_concurrently",
+    ):
         from dungeon_crawler_text import subarchitect
 
         return getattr(subarchitect, name)
+    if name in (
+        "Subhistorian",
+        "SubHistorian",
+        "load_keyframe",
+        "load_vector",
+        "validate_evolved_localemap",
+        "evolve_stagnant_keyframe",
+        "evolve_locale_series",
+        "evolve_all_locales_concurrently",
+    ):
+        from dungeon_crawler_text import subhistorian
+
+        return getattr(subhistorian, name)
+    if name in ("run_full_pipeline", "PipelineMetrics"):
+        from dungeon_crawler_text import pipeline
+
+        return getattr(pipeline, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -85,8 +115,11 @@ __all__ = [
     "Historian",
     "HistorianEpochResult",
     "Loremaster",
+    "PipelineMetrics",
     "SubArchitect",
     "Subarchitect",
+    "SubHistorian",
+    "Subhistorian",
     "ToolRejectionError",
     "WorldStateSnapshot",
     "build_locale_vector_packet",
@@ -94,19 +127,28 @@ __all__ = [
     "calculate_cost",
     "clean_global_updates",
     "clean_world_updates",
+    "evolve_all_locales_concurrently",
+    "evolve_locale_series",
+    "evolve_stagnant_keyframe",
     "format_locale_vector_markdown",
     "format_localemap_for_llm",
     "format_world_for_llm",
     "generate_all_locale_seeds",
     "generate_all_locale_vectors",
+    "generate_all_localemaps_concurrently",
     "generate_html_viewer",
+    "generate_locale_localemap",
     "generate_locale_seed",
     "generate_locale_vector",
     "harvest_all_dossiers",
     "harvest_landmark_keyframes",
+    "load_keyframe",
+    "load_vector",
     "open_viewer",
     "resolve_epoch_paths",
+    "run_full_pipeline",
     "save_locale_vector",
     "serve_viewer",
+    "validate_evolved_localemap",
     "validate_localemap",
 ]
