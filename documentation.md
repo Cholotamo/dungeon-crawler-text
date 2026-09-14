@@ -1,3 +1,42 @@
+# 14/09/2026
+Introduced **Sparse Vector Delta Packets (.json & .md) for Localemap Keyframe Evolution & Road Lore Integration**.
+
+### The Motivation
+1. **Localemap Multi-Keyframe Continuity:** While `dossier.json` records landmark milestones across epochs, evolving a 16x16 local submap from one keyframe to the next required a structured, deterministic delta contract rather than regenerating from scratch.
+2. **Plain-English Semantic Deltas:** Raw glyph mutations (`o -> O`) lacked contextual clarity. Downstream agents and human readers benefit from natural English descriptions (e.g. *"Settlement turned into big city"*, *"Settlement fell into an abandoned ruin"*).
+3. **Sparse New Development Model:** Including stagnant aspects clutters LLM context. Stagnant sections (unchanged scale, unaltered roads, static perimeters) are omitted entirely.
+4. **All-Epochs Coverage with Explicit Stagnancy Tracking:** A vector packet file (`vector_{i}.json` and `vector_{i}.md`) is emitted for *every* consecutive epoch transition. When an isolated or dormant locale (such as The Briarfast) has no developments in that epoch, the packet explicitly flags `"has_new_development": false`, outputs a clear human-readable status, and cleanly omits the macro timeline content to conserve tokens.
+5. **Road Lore Continuity:** Road descriptions from `dossier.json` were previously dropped during localemap parsing, leaving downstream agents unaware of road infrastructure evolution.
+
+### The Solution
+1. **Sparse Vector Delta Packets (`seed.py`):**
+   - `build_locale_vector_packet(dossier, from_keyframe_index, artifacts_dir)`: Produces a sparse dictionary omitting any aspect that experienced no new development:
+     * `scale_new_development`: Plain-English scale transition (e.g. *"Settlement turned into big city (Small / Compact -> Large / Urban). Urban Densification & Fortification."*).
+     * `locale_lore_new_development`: Narrative description changes for the landmark itself.
+     * `home_region_lore_new_development`: Changes to the host region's lore or territory.
+     * `perimeter_new_development`: Environmental/hydrological shifts on surrounding borders (e.g. lake recession, blight encroachment), filtering out generic `"Active region in Epoch X."` placeholder strings.
+     * `road_new_development`: Newly established, severed, or modified routes with directional approaches and detailed road lore.
+     * `global_developments`: Overarching world events for that epoch resolved from `worldmap_epoch_{n}.json["timeline"]`, automatically sanitized via `clean_global_updates` to strip epoch headers (`## Epoch ...`), map coordinates (`[x, y]`, `[[x, y], ...]`), and glyph markers (`('o' -> 'O')`, `(*)`). Displayed as `## Global Developments` in markdown, separated from `## Locale (<name>) Developments` by a `---` horizontal rule divider.
+     * `has_new_development`: Boolean indicating if any of the 6 development aspects occurred. If `false`, includes `"status"` message and omits `global_developments`.
+   - `save_locale_vector`: Saves both `vector_{i}.json` and `vector_{i}.md` into `artifacts/locales/<feature_id>/`.
+   - `generate_all_locale_vectors`: Compiles and saves packets for all consecutive epoch transitions across all landmarks in the workspace.
+   - CLI supports `--vector` (`-v`) flag in `dungeon-crawler-seed`.
+2. **Road Lore Integration (`subarchitect.py`):**
+   - `parse_seed_metadata` extracts `- *Description:*` and `- *Road Lore:*` into `road_lore`.
+   - `clean_and_validate_localemap` defensively backfills `road_lore` from seed metadata.
+   - `format_localemap_for_llm` renders `- *Road Lore:* "..."` for every road approach in the companion markdown.
+3. **Host Region Lore Integration & Section Alignment (`subarchitect.py`, `seed.py`, `prompts/subarchitect_localemap.md`):**
+   - `parse_seed_metadata` extracts `- **Host Region Ecology:**` and `- **Host Region Lore:**` into `meta["host_region_lore"]`.
+   - `validate_localemap` preserves `host_region_lore` in `localemap_keyframe_{n}.json["context"]["host_region_lore"]` (defensively backfilling from seed metadata if omitted).
+   - `validate_localemap` backfills `lore` context on perimeter edge items transitioning into the host region.
+   - `format_localemap_for_llm` renders `- **Host Region:** ...` and `- *Host Region Lore:* "..."` directly within the `### Geographic & World Context` section (alongside `Overview Lore` and `Surrounding Perimeters`), keeping top header metadata focused solely on locale identity and scale.
+   - `format_localemap_for_llm` renders `- *Lore Context:* "..."` on host region perimeter transitions in `localemap_keyframe_{n}.md`.
+   - `synthesize_perimeter_borders` in `seed.py` includes `*Lore Context:*` for unassigned host region borders.
+   - Vector delta packets (`vector_{n}.json` and `vector_{n}.md`) now refer to `host_region_lore_new_development` and `### Host Region Lore New Development` to align naming with keyframes (aliasing `home_region_lore_new_development` for backward compatibility).
+   - `subarchitect_localemap.md` prompt schema and directives instruct the Subarchitect to ground unzoned buffers, perimeter edges, and physical terrain in the host region's ecology and lore.
+
+---
+
 # 11/09/2026 (Update 2)
 Introduced **Stagnant Keyframe Omission in Landmark Dossiers & Explicit Epoch Tracking in Keyframe JSON**.
 

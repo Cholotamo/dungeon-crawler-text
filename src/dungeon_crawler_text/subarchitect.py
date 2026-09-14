@@ -89,9 +89,15 @@ def parse_seed_metadata(seed_text: str) -> dict[str, Any]:
     if host_m:
         meta["host_region"] = host_m.group(1).strip()
 
-    host_eco_m = re.search(r"-\s*\*\*Host Region Ecology:\*\*\s*\"?([^\n\r\"]+)\"?", seed_text)
+    host_eco_m = re.search(
+        r"-\s*\*\*Host Region (?:Ecology|Lore):\*\*\s*\"?([^\n\r\"]+)\"?",
+        seed_text,
+        re.IGNORECASE,
+    )
     if host_eco_m:
-        meta["host_ecology"] = host_eco_m.group(1).strip()
+        lore_val = host_eco_m.group(1).strip()
+        meta["host_ecology"] = lore_val
+        meta["host_region_lore"] = lore_val
 
     # Section 3: Perimeter Edge Constraints
     s3_m = re.search(r"## 3\.\s*Perimeter Edge Constraints\s*\n(.*?)(?=\n##|\Z)", seed_text, re.DOTALL)
@@ -462,6 +468,13 @@ def validate_localemap(
         or seed_meta.get("host_region")
         or ""
     )
+    host_region_lore = (
+        context.get("host_region_lore")
+        or context.get("host_ecology")
+        or (seed_meta.get("host_region_lore") if seed_meta else None)
+        or (seed_meta.get("host_ecology") if seed_meta else None)
+        or ""
+    )
     scale_profile = (
         context.get("scale_profile")
         or context.get("scale")
@@ -478,7 +491,12 @@ def validate_localemap(
     if isinstance(raw_perims, (list, tuple)):
         for p in raw_perims:
             if isinstance(p, dict):
-                perimeters.append(p)
+                p_dict = dict(p)
+                if host_region_lore and "lore" not in p_dict:
+                    desc_lower = p_dict.get("description", "").lower()
+                    if "transition into host region" in desc_lower or "host region" in desc_lower:
+                        p_dict["lore"] = host_region_lore
+                perimeters.append(p_dict)
             elif isinstance(p, str) and str(p).strip():
                 perimeters.append(str(p).strip())
     elif isinstance(raw_perims, (str, dict)):
@@ -543,6 +561,7 @@ def validate_localemap(
     data["context"] = {
         "summary": summary,
         "host_region": host_region,
+        "host_region_lore": host_region_lore,
         "scale_profile": scale_profile,
         "perimeters": perimeters,
         "approaches": approaches,
@@ -576,10 +595,6 @@ def format_localemap_for_llm(data: dict[str, Any]) -> str:
         f"- **Classification:** {ltype}",
     ]
 
-    host_region = context.get("host_region")
-    if host_region:
-        lines.append(f"- **Host Region:** {host_region}")
-
     scale_profile = context.get("scale_profile")
     if scale_profile:
         lines.append(f"- **Scale Profile:** {scale_profile}")
@@ -589,15 +604,21 @@ def format_localemap_for_llm(data: dict[str, Any]) -> str:
 
     # Geographic & World Context
     summary = context.get("summary")
+    host_region = context.get("host_region")
+    host_region_lore = context.get("host_region_lore") or context.get("host_ecology")
     perimeters = context.get("perimeters", [])
     approaches = context.get("approaches", [])
     world_relations = context.get("world_relations")
     arch_rationale = context.get("architectural_rationale")
 
-    if summary or perimeters or approaches:
+    if summary or host_region or perimeters or approaches:
         lines.append("### Geographic & World Context")
         if summary:
             lines.append(f"- **Overview Lore:** {summary}")
+        if host_region:
+            lines.append(f"- **Host Region:** {host_region}")
+            if host_region_lore:
+                lines.append(f'  - *Host Region Lore:* "{host_region_lore}"')
         if perimeters:
             lines.append("- **Surrounding Perimeters:**")
             for p in perimeters:

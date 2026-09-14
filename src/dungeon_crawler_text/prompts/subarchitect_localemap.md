@@ -22,7 +22,7 @@ The 16x16 locale map consists of three synchronized layers:
   - `#` : Solid Wall / Stone Masonry / Timber Palisade / Hewn Rock Wall / Bedrock
   - `/` : Ingress / Doorway / Gate Threshold / Cavern Mouth / Iron Door (Walkable)
   - `|` : Partition / Wooden Fence / Low Hurdle / Iron Grate / Portcullis
-- **Perimeter Edge Constraints:** Faithfully transition outer boundary edges into host biomes and neighboring regions from Section 3 of `seed.md` (e.g., lakes/meadows for lakeside settlements; cliffs, mountain stone, or impassable bedrock `#` for subterranean dungeons).
+- **Perimeter Edge Constraints & Host Ecology:** Faithfully transition outer boundary edges into host biomes and neighboring regions from Section 3 of `seed.md` (e.g., lakes/meadows for lakeside settlements; cliffs, mountain stone, or impassable bedrock `#` for subterranean dungeons). Ground surrounding terrain, soil, and unzoned buffers in the host region's ecology and lore from Section 2.
 - **Ingress Alignment:** Align roads (`+`) and entry thresholds/gates (`/`) to approaches in Section 4 of `seed.md`. Isolated wilderness sites or dungeons without roads enter via a walkable natural threshold, cavern mouth, or trail (`/` or `+`) facing the perimeter.
 - **Scale Profile:** Follow spatial footprint and density from Section 1 of `seed.md` (e.g., compact fledgling cluster with open yards, dense urban wards, or multi-chambered hypogeum complexes).
 
@@ -30,7 +30,7 @@ The 16x16 locale map consists of three synchronized layers:
 - **Dimensions:** Exactly 16 rows of exactly 16 characters (1-to-1 spatial alignment with `terrain_grid`).
 - **Scope:** Semantic zoning partitioning the site (settlement wards or dungeon wings/chambers) into functional zones.
 - **District IDs:** Single-character alphanumeric IDs (`0`, `1`, `2`, ... or `A`, `B`, `C`, ...).
-- **Reserved ID `'0'`:** Reserved for `"Frontier Buffer & Wilderness"` (`type: "buffer"`), representing unzoned natural perimeter, exterior water, or impassable enclosing bedrock.
+- **Reserved ID `'0'`:** Reserved for `"Frontier Buffer & Wilderness"` (`type: "buffer"`), representing unzoned natural perimeter, exterior water, or impassable enclosing bedrock. Reflect the host region's ecology in its atmospheric description.
 - **Guided Categories:**
   - *Settlements:* `square`, `residential`, `harbor`, `marketplace`, `farmland`, `crafts`, `keep`, `sanctum`.
   - *Dungeons / Ruins:* `antechamber`, `crypt`, `catacomb`, `hall`, `sanctum`, `vault`, `chasm`, `lair`, `temple`.
@@ -52,6 +52,8 @@ The 16x16 locale map consists of three synchronized layers:
 ### 4. World Context & Architectural Rationale (`context`)
 Ground the locale in its wider geographic setting and explain its living symbiosis with the world:
 - `summary`: 1–2 sentences summarizing the site's role, origin, and living ecology from `seed.md`.
+- `host_region`: Host region name and biome classification from Section 2 of `seed.md`.
+- `host_region_lore`: Narrative ecology and regional lore of the host region from Section 2 of `seed.md`.
 - `world_relations`: 2–3 sentences detailing the **interdependence, trade, and material flow** with connected settlements, outposts, or dungeons from Section 4 of `seed.md` (e.g. bartering smoked fish and barley for Kraghollow copper tools and Wealdstone pine timber).
 - `architectural_rationale`: 2–3 sentences explaining *why* structures, barriers, and districts are positioned the way they are to serve these external trade flows, local resources, and environmental hazards.
 
@@ -65,6 +67,8 @@ Generate a JSON object matching this schema:
   "epoch": 1,
   "context": {
     "summary": "Locale role, identity, and ecology from seed.",
+    "host_region": "Host Region Name (Biome) from seed.",
+    "host_region_lore": "Host region ecology/lore from Section 2 of seed.",
     "world_relations": "Interdependence and material flow with connected destinations (e.g. Kraghollow, Wealdstone).",
     "architectural_rationale": "Why structures, barriers, and districts are positioned the way they are."
   },

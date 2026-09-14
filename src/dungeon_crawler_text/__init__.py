@@ -50,7 +50,17 @@ def __getattr__(name: str) -> Any:
         from dungeon_crawler_text import dossier
 
         return getattr(dossier, name)
-    if name in ("generate_locale_seed", "generate_all_locale_seeds"):
+    if name in (
+        "generate_locale_seed",
+        "generate_all_locale_seeds",
+        "clean_global_updates",
+        "clean_world_updates",
+        "build_locale_vector_packet",
+        "format_locale_vector_markdown",
+        "generate_locale_vector",
+        "save_locale_vector",
+        "generate_all_locale_vectors",
+    ):
         from dungeon_crawler_text import seed
 
         return getattr(seed, name)
@@ -79,17 +89,24 @@ __all__ = [
     "Subarchitect",
     "ToolRejectionError",
     "WorldStateSnapshot",
+    "build_locale_vector_packet",
     "build_viewer_html",
     "calculate_cost",
+    "clean_global_updates",
+    "clean_world_updates",
+    "format_locale_vector_markdown",
     "format_localemap_for_llm",
     "format_world_for_llm",
     "generate_all_locale_seeds",
+    "generate_all_locale_vectors",
     "generate_html_viewer",
     "generate_locale_seed",
+    "generate_locale_vector",
     "harvest_all_dossiers",
     "harvest_landmark_keyframes",
     "open_viewer",
     "resolve_epoch_paths",
+    "save_locale_vector",
     "serve_viewer",
     "validate_localemap",
 ]
