@@ -1,12 +1,13 @@
 # Dungeon Crawler Text: Primordial World-Building Pipeline
 
-A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in five coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map, rich landmark vector dossiers, and deterministic locale generation seeds:
+A generative fantasy world-building pipeline powered by Gemini. The pipeline operates in six coordinated stages to craft living, mythic fantasy realms from dawn-of-time lore down to a concrete 32x32 cartographic world map, rich landmark vector dossiers, deterministic locale generation seeds, and tactical 16x16 localemaps:
 
 1. **The Loremaster:** Synthesizes evocative, mythic narrative prose describing the untouched primordial landscape and raw physical geography of a realm at the dawn of creation.
 2. **The Architect:** Translates the primordial world prose into a structured 32x32 ASCII and JSON world map using Gemini with **Python Code Execution**, enforcing organic biome geography and strict hydrological rules.
 3. **The Historian:** Chronicles the passage of historical epochs, translating narrative developments into physical changes on the map using fine-grained **Feature CRUD Tools** via Gemini Automatic Function Calling (AFC).
 4. **The Dossier Harvester:** Extracts deterministic spatial, geographic, and infrastructural vector dossiers across epochs for settlements, cities, and dungeons, tracking keyframe mutations, local terrain/biome slices, and cardinal road/gate approaches.
 5. **The Seed Synthesizer:** Compiles vector dossiers into clean, prompt-ready **Locale Generation Seeds** (`{id}_epoch_{n}_seed.md`), feeding downstream Subarchitect models with deterministic perimeter edge constraints, road access alignments, and scale footprints.
+6. **The Subarchitect:** Procedurally designs living **16x16 Tactical Locale Maps** (`localemap_keyframe_{n}.json`) from locale seeds using Gemini with **Python Code Execution**, generating zoned districts, physical architecture, perimeter-matching boundaries, and contextual feature overlays.
 
 ```
                     ┌─────────────────────────┐
@@ -73,6 +74,19 @@ A generative fantasy world-building pipeline powered by Gemini. The pipeline ope
                     ┌─────────────────────────┐
                     │ artifacts/locales/{id}/ │
                     │   seed.md               │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │      Subarchitect       │
+                    │ (LLM + Code Execution)  │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ artifacts/locales/{id}/ │
+                    │   localemap_keyframe_0  │
+                    │   (.json and .md)       │
                     └─────────────────────────┘
 ```
 
@@ -366,15 +380,69 @@ uv run python -m dungeon_crawler_text.seed
 uv run dungeon-crawler-seed
 
 # Synthesize and inspect a specific landmark seed
-uv run dungeon-crawler-seed --feature eldermere
+uv run dungeon-crawler-seed --feature eldenmere
 
 # Synthesize for a later epoch keyframe (e.g. keyframe 1)
-uv run dungeon-crawler-seed --feature eldermere --keyframe 1
+uv run dungeon-crawler-seed --feature eldenmere --keyframe 1
 ```
 
 ---
 
-### Step 6: Inspect Maps Interactively (HTML Map Viewer)
+### Step 6: Procedurally Generate 16x16 Locale Maps (Subarchitect)
+
+Translate deterministic Locale Generation Seeds (`artifacts/locales/{feature_id}/seed.md`) into fully realized, living **16x16 Tactical Locale Maps** (`localemap_keyframe_{n}.json` and companion `localemap_keyframe_{n}.md`) using the Subarchitect powered by Gemini with **Python Code Execution**:
+
+```bash
+uv run dungeon-crawler-subarchitect --locale eldenmere
+```
+
+Or invoke the module directly:
+
+```bash
+uv run python -m dungeon_crawler_text.subarchitect --locale eldenmere
+```
+
+#### Subarchitect Features & Workflow
+- **Python Code Execution:** The Subarchitect writes and executes procedural Python code to sculpt naturalistic room layouts, palisades, roads, and waterways.
+- **Dual-Grid System:** Generates both a physical `terrain_grid` (floors, walls, doors, roads, bridges, waters) and a zoning `district_grid` (wards, quarters, enclosures, or dungeon sectors).
+- **Perimeter Edge Matching:** Enforces strict boundary continuity with the surrounding world map biomes identified in Section 3 of `seed.md`.
+- **Road/Gate Alignment:** Connects inbound highway routes (`+`) and spans (`=`) at the exact cardinal boundary tiles specified in the seed's ingress requirements.
+- **Contextual POI Feature Registry:** Populates interior buildings, gates, taverns, shrines, and keeps with exact tile coordinates, glyphs, and local lore.
+
+#### Subarchitect CLI Options
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--locale`, `-f`, `--feature` | `str` | `""` | Feature ID to generate (searches `artifacts/locales/<id>/seed.md`) |
+| `--seed`, `-s`, `-i`, `--input` | `str` | `""` | Path directly to a specific `seed.md` file |
+| `--all`, `-a` | `flag` | `False` | Batch generate localemaps for all seeds found in `artifacts/locales` |
+| `--keyframe`, `-k` | `int` | `0` | Keyframe index to generate (`0` = founding epoch / genesis) |
+| `--epoch` | `int` | `None` | Historical epoch (auto-detected from dossier or seed if omitted) |
+| `--output`, `-o` | `str` | `""` | Custom output file or directory path |
+| `--model` | `str` | `gemini-3.6-flash` | Gemini model to use for code execution |
+| `--thinking` | `str` | `MEDIUM` | Thinking level (`LOW`, `MEDIUM`, `HIGH`) |
+
+**Examples:**
+```bash
+# Generate localemap for a specific locale (saves to artifacts/locales/eldenmere/localemap_keyframe_0.*)
+uv run dungeon-crawler-subarchitect --locale eldenmere
+
+# Generate from a direct seed file path
+uv run dungeon-crawler-subarchitect --seed artifacts/locales/kraghollow/seed.md
+
+# Batch generate localemaps for all available locales
+uv run dungeon-crawler-subarchitect --all
+
+# Generate for a specific historical epoch keyframe
+uv run dungeon-crawler-subarchitect --locale eldenmere --keyframe 1
+
+# Run with higher thinking budget or alternative model
+uv run dungeon-crawler-subarchitect --locale eldenmere --model gemini-3.8-flash --thinking HIGH
+```
+
+---
+
+### Step 7: Inspect Maps Interactively (HTML Map Viewer)
 
 Open the interactive HTML Map Viewer to inspect the composite world map with rich colors, customizable tile spacing, and full hover inspection:
 
@@ -401,13 +469,15 @@ Or open [`viewer.html`](file:///C:/Developer/Random/dungeon-crawler-text/viewer.
 
 ## Python API
 
-All agents and harvesters can be imported and executed programmatically:
+All agents, harvesters, and generators can be imported and executed programmatically:
 
 ```python
+from pathlib import Path
 from dungeon_crawler_text import (
     Architect,
     Historian,
     Loremaster,
+    Subarchitect,
     harvest_all_dossiers,
     harvest_landmark_keyframes,
     generate_all_locale_seeds,
@@ -445,11 +515,27 @@ all_seeds = generate_all_locale_seeds(
     output_dir="artifacts/locales",
     keyframe_index=0,
 )
+
+# 6. Procedurally generate 16x16 localemaps using the Subarchitect
+subarchitect = Subarchitect(model_name="gemini-3.6-flash", thinking_level="MEDIUM")
+seed_text = Path("artifacts/locales/eldenmere/seed.md").read_text(encoding="utf-8")
+
+locale_map = subarchitect.generate_localemap(
+    seed_text=seed_text,
+    keyframe_index=0,
+    epoch=1,
+)
+json_path, md_path = subarchitect.save_localemap(
+    locale_map,
+    base_dir="artifacts/locales/eldenmere",
+)
 ```
 
 ---
 
-## Map Structure & Legend
+## Map Structure & Legends
+
+### 1. World Map (32x32)
 
 The Architect outputs a structured JSON artifact conforming to the following schema:
 
@@ -478,7 +564,7 @@ The Architect outputs a structured JSON artifact conforming to the following sch
 }
 ```
 
-### Terrain Character Legend
+#### World Map Terrain Legend
 
 | Char | Terrain Type | Description |
 | :---: | :--- | :--- |
@@ -493,6 +579,68 @@ The Architect outputs a structured JSON artifact conforming to the following sch
 | `/` | Cliffs / Edges / Chasms | Precipitous escarpments and fissures |
 | `*` | Wastelands | Blighted, volcanic, or desolate wastes |
 | `:` | Farmland | Arable agricultural lands |
+
+---
+
+### 2. Local Tactical Map (16x16)
+
+The Subarchitect outputs a structured JSON artifact conforming to the following schema:
+
+```json
+{
+  "name": "Eldenmere",
+  "feature_id": "eldenmere",
+  "type": "settlement",
+  "keyframe_index": 0,
+  "epoch": 1,
+  "scale_category": "Small / Compact",
+  "dimensions": [16, 16],
+  "terrain_grid": [
+    "16 strings of exactly 16 terrain chars..."
+  ],
+  "district_grid": [
+    "16 strings of exactly 16 single-character district IDs..."
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Outskirts",
+      "type": "wilderness",
+      "lore": "The untamed perimeter encircling the settlement."
+    },
+    "1": {
+      "name": "Common Ward",
+      "type": "residential",
+      "lore": "Rustic timber steadings clustered around the dawn highway."
+    }
+  },
+  "features": {
+    "town_hall": {
+      "name": "Town Hall",
+      "type": "civic",
+      "char": "H",
+      "tiles": [[8, 8]],
+      "lore": "The rustic governing lodge of Eldenmere."
+    }
+  }
+}
+```
+
+#### Local Tactical Map Terrain Legend
+
+| Char | Tactical Terrain Type | Description |
+| :---: | :--- | :--- |
+| `.` | Floor / Open Dirt | Open clearings, bare dirt, flagstone paving, or chamber floor |
+| `,` | Turf / Grass / Moss | Untamed grass, mossy hummocks, lichen, or wild turf |
+| `:` | Farmland / Scree | Tilled plots, garden beds, rubble, debris, or gravel yards |
+| `~` | Deep Water | Navigable watercourse, mill pond, deep lake, or flooded cistern |
+| `;` | Shallows / Shoreline | Mudflats, reed beds, tidal reaches, shallows, or flooded flags |
+| `&` | Overgrowth / Thicket | Hedgerows, dense brambles, fungal clusters, or tangled brush |
+| `^` | Elevated Stone / Ridge | Rocky outcrop, natural limestone bluff, chasm edge, or talus slope |
+| `+` | Road / Corridor | Cobbled lane, thoroughfare, dirt highway, hallway, or passage |
+| `=` | Span / Bridge | Timber bridge, stone culvert, pier, pontoon, or boardwalk |
+| `#` | Solid Wall / Palisade | Hewn rock, masonry wall, timber palisade, or unworked stone |
+| `/` | Ingress / Gate / Door | Gatehouse archway, heavy oak door, cavern mouth, or sally port |
+| `|` | Partition / Fence | Wattle fence, paddock hurdle, low iron grate, or portcullis |
 
 ---
 
@@ -518,3 +666,14 @@ The Architect outputs a structured JSON artifact conforming to the following sch
    - **Multi-Epoch Vector Compilation:** Discovers all landmarks (settlements, cities, dungeons) in the latest epoch and parses the entire epoch history to extract deterministic temporal keyframes.
    - **Spatial & Infrastructural Extraction:** Extracts local terrain/biome ASCII slices, neighboring region boundaries, connected roads and bridges, and cardinal highway gate approaches (`NORTH`, `SOUTH`, etc.).
    - **Keyframe Mutation Tracking:** Identifies structural triggers (`genesis`, `char_mutation`, `domain_mutation`, `terrain_mutation`, `new_roads`) and computes deterministic deltas to feed downstream Subarchitect models.
+
+5. **Seed Synthesizer (`seed.py`):**
+   - **Deterministic Seed Compilation:** Synthesizes clean, prompt-ready markdown seeds (`seed.md`) from multi-epoch landmark dossiers.
+   - **Context-Pure Extraction:** Translates landmark scale profiles, perimeter border boundaries, and cardinal road ingress approaches into natural directives without leaking global coordinates or premature tile legends.
+
+6. **Subarchitect (`subarchitect.py` & `prompts/subarchitect_localemap.md`):**
+   - **Python Code Execution:** Operates with Gemini Python code execution enabled to procedurally synthesize organic, non-uniform 16x16 tactical maps from seeds.
+   - **Dual-Grid Architecture:** Concurrently builds a base physical `terrain_grid` (walls, floors, doors, paths, waters) and a functional `district_grid` (wards, quarters, courtyards).
+   - **Boundary & Road Alignment:** Validates that external perimeter edges match the surrounding biomes from the seed, and that highway roads/spans (`+`, `=`) enter at the exact assigned border positions.
+   - **POI Feature Placement:** Populates interior points of interest (taverns, smithies, shrines, crypts, gates) with coordinate footprints, glyphs, and rich localized lore.
+   - **Rigorous Grid Validation:** Defensively checks 16x16 dimensions, character sets, road connectivity, district assignments, and feature boundaries.
