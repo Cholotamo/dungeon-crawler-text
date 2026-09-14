@@ -45,6 +45,10 @@ Generate a JSON object matching this schema:
    - `lore`: A rich, evocative 1–3 sentence lore summary drawn directly from the Loremaster's prose capturing the atmosphere, ecology, physical characteristics, and mythic weight of that specific region.
 4. **Features:** Must be an empty dictionary `{}`.
 5. **Organic & Natural Landforms:** Terrain and biomes must be shaped organically—strictly avoid unnatural straight lines, rigid rectangles, or blocky vertical/horizontal bands. Coastlines, mountain ridges, and forests should feature irregular curves, natural meanders, and organic clumping (e.g., using distance fields, cellular smoothing, or jittered edge offsets in your Python generation script).
+6. **Drainage Basin & River Separation:**
+   - **Independent River Systems:** Any river flowing from its own source into a separate inlet/mouth (whether entering the ocean, an estuary, or a different shore of an inland sea/lake) is an independent geographical entity and must receive its own distinct region ID and lore (e.g. '9' The High Ice River, 'A' The Sward Run).
+   - **Tributaries:** A tributary that merges directly into a parent river before reaching the lake/ocean may either share the parent river's region ID (as part of that river basin) or take its own ID if prominent in the prose.
+   - **Never Lump Disjoint Waterways:** Disconnected channels entering waterbodies at separate locations must never share a region ID.
 
 # Code Execution
 Use Python code execution to procedurally generate and validate the 32x32 grids and build the `regions` dictionary with names, types, and rich lore extracted from the prose. At the end of your script, serialize and print the world map dictionary:

@@ -354,6 +354,68 @@ class WorldStateSnapshot:
         r_name = regions.get(r_id, {}).get("name", f"Region {r_id}")
         return t_char, r_id, r_name
 
+    def _get_elevation_grid(self) -> list[list[float]]:
+        """Returns the 32x32 numerical elevation grid, loading from data or deriving on the fly."""
+        raw_eg = self.data.get("elevation_grid")
+        height = len(self.data.get("terrain_grid", []))
+        width = len(self.data.get("terrain_grid", [[]])[0]) if height > 0 else 32
+
+        if raw_eg and isinstance(raw_eg, list) and len(raw_eg) == height:
+            try:
+                grid = []
+                for row in raw_eg:
+                    if isinstance(row, str):
+                        grid.append([float(ch) if ch.isdigit() else float(ord(ch.lower()) - ord('a') + 10) for ch in row])
+                    elif isinstance(row, (list, tuple)):
+                        grid.append([float(val) for val in row])
+                if len(grid) == height and all(len(r) == width for r in grid):
+                    return grid
+            except Exception:
+                pass
+
+        # Fallback: Deterministic topological derivation
+        tg = self.data.get("terrain_grid", [])
+        rg = self.data.get("region_grid", [])
+        regions = self.data.get("regions", {})
+
+        TERRAIN_BASE = {
+            "^": 90.0,  # Mountains
+            "/": 70.0,  # Cliffs / Chasms
+            ",": 50.0,  # Hills / Foothills
+            "&": 35.0,  # Ancient / Dense Forest
+            "#": 30.0,  # Forest / Woodlands
+            ":": 22.0,  # Farmlands
+            ".": 20.0,  # Plains / Steppe
+            "%": 8.0,   # Swamps / Bogs
+            ";": 5.0,   # Shallows / Shoreline
+            "~": 3.0,   # Water / River
+        }
+
+        REGION_BASE = {
+            "mountains": 80.0, "mountain": 80.0,
+            "cliffs": 60.0, "chasm": 60.0, "canyon": 60.0,
+            "hills": 40.0, "highland": 40.0,
+            "forest": 30.0, "jungle": 30.0, "woods": 30.0,
+            "wilderness": 20.0, "plains": 20.0, "farmland": 20.0, "wasteland": 20.0,
+            "lake": 10.0, "bay": 0.0, "swamp": 4.0, "wetland": 4.0, "bog": 4.0,
+            "ocean": 0.0, "sea": 0.0
+        }
+
+        grid = []
+        for y in range(height):
+            row = []
+            for x in range(width):
+                t_char = tg[y][x] if y < len(tg) and x < len(tg[y]) else "."
+                r_type = regions.get(rg[y][x], {}).get("type", "").lower() if y < len(rg) and x < len(rg[y]) else "wilderness"
+                base_reg = REGION_BASE.get(r_type, 20.0)
+                base_ter = TERRAIN_BASE.get(t_char, 20.0)
+                base = (base_reg + base_ter) / 2.0
+                # Continental gradient: North is higher than South
+                slope = (height - 1 - y) * 1.0 + (x * 0.1)
+                row.append(base + slope)
+            grid.append(row)
+        return grid
+
     def _validate_feature_terrain(
         self,
         fid: str,
@@ -371,13 +433,13 @@ class WorldStateSnapshot:
         width = len(terrain[0]) if height > 0 else 32
 
         # Character validation
-        VALID_FEATURE_CHARS = {"o", "O", "!", "+", "=", "*"}
+        VALID_FEATURE_CHARS = {"o", "O", "!", "+", "=", "*", "~"}
         fchar_clean = str(fchar).strip()[0] if fchar and str(fchar).strip() else ""
         if not fchar_clean or fchar_clean not in VALID_FEATURE_CHARS:
             return (
                 f"[REJECTION] Feature '{fid}' has invalid or missing char='{fchar}'. "
                 f"char is required and must be one of 'o' (outpost/village/fort), 'O' (city/citadel/fortress), "
-                f"'!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge), or '*' (masonry dam/barrier)."
+                f"'!' (hostile lair/dungeon/ruin), '+' (road), '=' (bridge), '*' (masonry dam/barrier), or '~' (canal)."
             )
 
         # 1. Road Validation ('+')
@@ -696,6 +758,18 @@ class WorldStateSnapshot:
                     return (
                         f"[REJECTION] Dam/barrier feature '{fid}' at [{x}, {y}] is placed on invalid terrain '{t_char}'. "
                         f"Dams and masonry barriers must be situated on masonry ('*') or waterways ('~', ';')."
+                    )
+
+        # 6. Canal Validation ('~')
+        elif fchar_clean == "~":
+            for pt in tiles:
+                x, y = pt[0], pt[1]
+                t_char = terrain[y][x] if 0 <= y < height and 0 <= x < width else "?"
+                if t_char not in ("~", ";"):
+                    return (
+                        f"[REJECTION] Canal feature '{fid}' at [{x}, {y}] is situated on non-water terrain '{t_char}'. "
+                        f"Canal features must be situated on water channels ('~', ';'). "
+                        f"To carve new canals through land, use engineer_waterworks(action='canal')."
                     )
 
         return None
@@ -1487,6 +1561,129 @@ class WorldStateSnapshot:
 
         return comp_water, dist_to_sink
 
+    def _validate_dam_reach(
+        self,
+        norm_coords: list[list[int]],
+        water_coords: list[list[int]],
+        tg: list[list[str]],
+        width: int,
+        height: int,
+        dam_name: str,
+    ) -> Optional[str]:
+        """Validates that dam coordinates form a complete bank-to-bank barrier across the waterway.
+
+        Following bridge reach validation: rejects partial dams that leave open water/shallows
+        unsealed across the river cross-section.
+        """
+        norm_set = {(p[0], p[1]) for p in norm_coords}
+
+        def _is_water(x: int, y: int) -> bool:
+            return 0 <= x < width and 0 <= y < height and tg[y][x] in ("~", ";")
+
+        def _is_land(x: int, y: int) -> bool:
+            return 0 <= x < width and 0 <= y < height and tg[y][x] not in ("~", ";")
+
+        # Case 1: Single water tile dam
+        if len(water_coords) == 1:
+            bx, by = water_coords[0][0], water_coords[0][1]
+            w_land = _is_land(bx - 1, by) or (bx - 1, by) in norm_set
+            e_land = _is_land(bx + 1, by) or (bx + 1, by) in norm_set
+            n_land = _is_land(bx, by - 1) or (bx, by - 1) in norm_set
+            s_land = _is_land(bx, by + 1) or (bx, by + 1) in norm_set
+
+            if (w_land and e_land) or (n_land and s_land):
+                return None
+
+            cardinals = [
+                ((-1, 0), (1, 0), "East", "West"),
+                ((1, 0), (-1, 0), "West", "East"),
+                ((0, -1), (0, 1), "South", "North"),
+                ((0, 1), (0, -1), "North", "South"),
+            ]
+            for (dbx, dby), (dcx, dcy), fwd_name, back_name in cardinals:
+                if (_is_land(bx + dbx, by + dby) or (bx + dbx, by + dby) in norm_set) and _is_water(bx + dcx, by + dcy) and (bx + dcx, by + dcy) not in norm_set:
+                    needed = [[bx, by]]
+                    cx, cy = bx + dcx, by + dcy
+                    while _is_water(cx, cy) and (cx, cy) not in norm_set:
+                        needed.append([cx, cy])
+                        cx += dcx
+                        cy += dcy
+                    return (
+                        f"[REJECTION] Dam '{dam_name}' at {norm_coords} does not reach the opposite bank! "
+                        f"Anchored on the {back_name} bank at [{bx + dbx}, {by + dby}], but leaves open water/shallows unsealed to the {fwd_name} at [{bx + dcx}, {by + dcy}]. "
+                        f"To dam this waterway, seal all water/shallows tiles across the channel cross-section: coords={needed} reaching the {fwd_name} bank at [{cx}, {cy}]."
+                    )
+            return (
+                f"[REJECTION] Dam '{dam_name}' at {norm_coords} is situated in open water/shallows but does not span between two opposing land banks. "
+                f"Dams must seal the channel cross-section from bank to bank."
+            )
+
+        # Case 2: Multi-tile dam
+        for i in range(1, len(water_coords)):
+            prev = water_coords[i - 1]
+            curr = water_coords[i]
+            if max(abs(curr[0] - prev[0]), abs(curr[1] - prev[1])) > 1:
+                return (
+                    f"[REJECTION] Dam '{dam_name}' coordinates are not contiguous: tile {prev} and "
+                    f"tile {curr} have a gap. Dam barriers must form an unbroken sequence of adjacent coordinates."
+                )
+
+        all_same_y = all(pt[1] == water_coords[0][1] for pt in water_coords)
+        all_same_x = all(pt[0] == water_coords[0][0] for pt in water_coords)
+
+        if all_same_y:
+            y = water_coords[0][1]
+            xs = sorted(pt[0] for pt in water_coords)
+            min_x, max_x = xs[0], xs[-1]
+            if _is_water(min_x - 1, y) and (min_x - 1, y) not in norm_set:
+                needed = []
+                cx = min_x - 1
+                while _is_water(cx, y) and (cx, y) not in norm_set:
+                    needed.insert(0, [cx, y])
+                    cx -= 1
+                needed = needed + [[x, y] for x in xs]
+                return (
+                    f"[REJECTION] Dam '{dam_name}' at {norm_coords} does not reach the opposite bank! "
+                    f"Water continues unsealed to the West. Extend dam to coords={needed} to reach the West bank at [{cx}, {y}]."
+                )
+            if _is_water(max_x + 1, y) and (max_x + 1, y) not in norm_set:
+                needed = [[x, y] for x in xs]
+                cx = max_x + 1
+                while _is_water(cx, y) and (cx, y) not in norm_set:
+                    needed.append([cx, y])
+                    cx += 1
+                return (
+                    f"[REJECTION] Dam '{dam_name}' at {norm_coords} does not reach the opposite bank! "
+                    f"Water continues unsealed to the East. Extend dam to coords={needed} to reach the East bank at [{cx}, {y}]."
+                )
+        elif all_same_x:
+            x = water_coords[0][0]
+            ys = sorted(pt[1] for pt in water_coords)
+            min_y, max_y = ys[0], ys[-1]
+            if _is_water(x, min_y - 1) and (x, min_y - 1) not in norm_set:
+                needed = []
+                cy = min_y - 1
+                while _is_water(x, cy) and (x, cy) not in norm_set:
+                    needed.insert(0, [x, cy])
+                    cy -= 1
+                needed = needed + [[x, y] for y in ys]
+                return (
+                    f"[REJECTION] Dam '{dam_name}' at {norm_coords} does not reach the opposite bank! "
+                    f"Water continues unsealed to the North. Extend dam to coords={needed} to reach the North bank at [{x}, {cy}]."
+                )
+            if _is_water(x, max_y + 1) and (x, max_y + 1) not in norm_set:
+                needed = [[x, y] for y in ys]
+                cy = max_y + 1
+                while _is_water(x, cy) and (x, cy) not in norm_set:
+                    needed.append([x, cy])
+                    cy += 1
+                return (
+                    f"[REJECTION] Dam '{dam_name}' at {norm_coords} does not reach the opposite bank! "
+                    f"Water continues unsealed to the South. Extend dam to coords={needed} to reach the South bank at [{x}, {cy}]."
+                )
+
+        return None
+
     def _detect_downstream_tiles(
         self,
         dam_coords: list[list[int]],
@@ -1495,9 +1692,8 @@ class WorldStateSnapshot:
     ) -> list[list[int]]:
         """Detects and returns downstream river tiles from a dam.
 
-        Uses topological sink-gradient BFS across the contiguous water network.
-        Identifies downstream flow toward oceans, bays, lakes, wetlands, or topographical
-        basins, and returns the tiles ordered sequentially from dam to mouth.
+        Uses downhill elevation gradient across the contiguous water network to trace
+        flow descending towards lakes, deltas, and seas without shortest-path flow inversion.
         """
         if explicit_downstream:
             return _normalize_tiles(explicit_downstream)
@@ -1516,38 +1712,41 @@ class WorldStateSnapshot:
         if not water_seeds:
             return []
 
-        comp_water, dist_to_sink = self._compute_distance_to_sink(water_seeds, dam_set=dam_set)
-        if not comp_water or not dist_to_sink:
-            return []
+        elev_grid = self._get_elevation_grid()
+        z_dam = min(elev_grid[pt[1]][pt[0]] for pt in water_seeds)
 
-        downstream_start: Optional[tuple[int, int]] = None
+        # Downstream seeds must be adjacent to the dam and flow downhill or flat (elev <= z_dam + 0.1)
+        downstream_seeds = []
         for bx, by in dam_set:
             for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                nb = (bx + dx, by + dy)
-                if nb in comp_water and nb not in dam_set:
-                    nb_dist = dist_to_sink.get(nb, 999999)
-                    if downstream_start is None or nb_dist < dist_to_sink.get(downstream_start, 999999):
-                        downstream_start = nb
+                nx, ny = bx + dx, by + dy
+                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in dam_set:
+                    if terrain[ny][nx] in ("~", ";"):
+                        if elev_grid[ny][nx] <= z_dam + 0.1:
+                            downstream_seeds.append((nx, ny))
 
-        if not downstream_start:
+        if not downstream_seeds:
             return []
 
-        visited = set(dam_set)
+        downstream_seeds.sort(key=lambda pt: elev_grid[pt[1]][pt[0]])
+
+        visited = set(dam_set) | set(downstream_seeds)
         downstream_set: list[tuple[int, int]] = []
-        q = deque([downstream_start])
-        visited.add(downstream_start)
+        q = deque(downstream_seeds)
 
         while q:
             curr = q.popleft()
             cx, cy = curr
-            r_type = regions.get(region[cy][cx], {}).get("type", "").lower()
+            curr_z = elev_grid[cy][cx]
+            r_id = region[cy][cx]
+            r_type = regions.get(r_id, {}).get("type", "").lower()
 
             # Halt before entering open ocean or bay (ocean immunity)
             if r_type in ("ocean", "bay"):
                 continue
 
             # Halt when entering an established lake of a different region (lake interior immunity)
-            if r_type == "lake" and region[cy][cx] != river_reg_id:
+            if r_type == "lake" and r_id != river_reg_id:
                 continue
 
             downstream_set.append(curr)
@@ -1555,12 +1754,15 @@ class WorldStateSnapshot:
             for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 nx, ny = cx + dx, cy + dy
                 cand = (nx, ny)
-                if cand in comp_water and cand not in visited:
-                    if dist_to_sink.get(cand, 999999) <= dist_to_sink.get(curr, 999999):
-                        visited.add(cand)
-                        q.append(cand)
+                if 0 <= nx < width and 0 <= ny < height and cand not in visited:
+                    if terrain[ny][nx] in ("~", ";"):
+                        cand_z = elev_grid[ny][nx]
+                        # Downhill slope check: cannot step uphill relative to current or dam
+                        if cand_z <= curr_z + 0.1 and cand_z <= z_dam + 0.1:
+                            visited.add(cand)
+                            q.append(cand)
 
-        downstream_set.sort(key=lambda pt: dist_to_sink.get(pt, 0), reverse=True)
+        downstream_set.sort(key=lambda pt: elev_grid[pt[1]][pt[0]], reverse=True)
         return [[pt[0], pt[1]] for pt in downstream_set]
 
     def _recede_downstream_waterbodies(
@@ -1622,6 +1824,7 @@ class WorldStateSnapshot:
             curr = q.popleft()
             cx, cy = curr
             curr_r_id = rg[cy][cx]
+            curr_r_type = regions.get(curr_r_id, {}).get("type", "").lower()
             for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 nx, ny = cx + dx, cy + dy
                 cand = (nx, ny)
@@ -1636,6 +1839,11 @@ class WorldStateSnapshot:
                         r_name = regions.get(r_id, {}).get("name", "").lower()
                         is_canal = (r_type == "canal" or "canal" in r_name)
                         is_same_lake = (r_type == "lake" and r_id == curr_r_id)
+
+                        # Lake firewall: if current tile is inside a lake, do not step into different non-canal waterbodies
+                        if curr_r_type == "lake" and not is_canal and r_id != curr_r_id:
+                            continue
+
                         is_downstream = dist_to_sink.get(cand, 999999) <= dist_to_sink.get(curr, 999999)
 
                         if is_downstream or is_canal or is_same_lake:
@@ -1656,18 +1864,31 @@ class WorldStateSnapshot:
 
             if r_type == "lake":
                 # Recede ~ fringes bordering shallows, land, or outside regions into ';'
+                # River mouth protection: do NOT treat tiles touching inflowing/outflowing rivers as dry land fringes!
                 fringes = []
                 for y in range(height):
                     for x in range(width):
                         if rg[y][x] == r_id and tg[y][x] == "~":
                             is_fringe = any(
                                 not (0 <= x + dx < width and 0 <= y + dy < height)
-                                or tg[y + dy][x + dx] != "~"
-                                or rg[y + dy][x + dx] != r_id
+                                or (
+                                    tg[y + dy][x + dx] not in ("~", ";")
+                                    and regions.get(rg[y + dy][x + dx], {}).get("type", "").lower() not in ("river", "stream", "canal")
+                                )
+                                or (
+                                    rg[y + dy][x + dx] == r_id and tg[y + dy][x + dx] == ";"
+                                )
                                 for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
                             )
                             if is_fringe:
-                                fringes.append((x, y))
+                                touches_river_inlet = any(
+                                    0 <= x + dx < width and 0 <= y + dy < height
+                                    and regions.get(rg[y + dy][x + dx], {}).get("type", "").lower() in ("river", "stream", "canal")
+                                    and tg[y + dy][x + dx] in ("~", ";")
+                                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                                )
+                                if not touches_river_inlet:
+                                    fringes.append((x, y))
                 for fx, fy in fringes:
                     tg[fy][fx] = ";"
                     reg_mutated.append([fx, fy])
@@ -1681,30 +1902,45 @@ class WorldStateSnapshot:
                     recession_notes.append(f"{r_name} (lake: {len(reg_mutated)} shallows fringes)")
 
             elif r_type in ("swamp", "marsh", "bog", "wetland"):
-                # 1. Standing water ~ in wetlands recedes into ';'
-                for y in range(height):
-                    for x in range(width):
-                        if rg[y][x] == r_id and tg[y][x] == "~":
-                            tg[y][x] = ";"
-                            reg_mutated.append([x, y])
+                # Tidal estuary / marine delta immunity: shielded if bordering open ocean or bay
+                borders_marine = any(
+                    rg[y][x] == r_id and any(
+                        0 <= x + dx < width and 0 <= y + dy < height
+                        and regions.get(rg[y + dy][x + dx], {}).get("type", "").lower() in ("ocean", "bay")
+                        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                    )
+                    for y in range(height) for x in range(width)
+                )
+                if borders_marine:
+                    continue
 
-                # 2. Outer wetland % fringes bordering dry land dry into plains '.'
-                dry_fringes = []
-                for y in range(height):
-                    for x in range(width):
-                        if rg[y][x] == r_id and tg[y][x] == "%":
-                            if (x, y) in protected_bridge_coords:
-                                continue
-                            borders_dry_land = any(
-                                0 <= x + dx < width and 0 <= y + dy < height
-                                and tg[y + dy][x + dx] not in ("%", "~", ";")
-                                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
-                            )
-                            if borders_dry_land:
-                                dry_fringes.append((x, y))
-                for fx, fy in dry_fringes:
-                    tg[fy][fx] = "."
-                    reg_mutated.append([fx, fy])
+                inlet_tiles = downstream_channel_tiles.get(r_id, []) or [pt for pt in start_pts if rg[pt[1]][pt[0]] == r_id]
+                if not inlet_tiles:
+                    continue
+
+                inlet_set = {(p[0], p[1]) for p in inlet_tiles}
+                local_candidates = set()
+                for ix, iy in inlet_set:
+                    for dy in range(-2, 3):
+                        for dx in range(-2, 3):
+                            if abs(dx) + abs(dy) <= 2:
+                                nx, ny = ix + dx, iy + dy
+                                if 0 <= nx < width and 0 <= ny < height and rg[ny][nx] == r_id:
+                                    local_candidates.add((nx, ny))
+
+                for (lx, ly) in sorted(local_candidates):
+                    if tg[ly][lx] == "~":
+                        tg[ly][lx] = ";"
+                        reg_mutated.append([lx, ly])
+                    elif tg[ly][lx] == "%" and (lx, ly) not in protected_bridge_coords:
+                        borders_dry_land = any(
+                            0 <= lx + dx < width and 0 <= ly + dy < height
+                            and tg[ly + dy][lx + dx] not in ("%", "~", ";")
+                            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                        )
+                        if borders_dry_land:
+                            tg[ly][lx] = "."
+                            reg_mutated.append([lx, ly])
 
                 swamp_notice = f"Inflow choked by upstream impoundment at {dam_name}; outer wetland margins dried into wild plains."
                 curr_lore = r_info.get("lore", "").strip()
@@ -2112,6 +2348,20 @@ class WorldStateSnapshot:
 
             river_info = regions.get(river_reg_id, {})
             river_name = river_info.get("name", f"Region {river_reg_id}")
+            d_name = dam_name.strip() if dam_name and dam_name.strip() else f"{river_name} Dam"
+
+            # Validate bank-to-bank cross-section reach (bridge-style reach validation)
+            reach_err = self._validate_dam_reach(
+                norm_coords=norm_coords,
+                water_coords=water_coords,
+                tg=tg,
+                width=width,
+                height=height,
+                dam_name=d_name,
+            )
+            if reach_err:
+                print(f"  -> {reach_err}", flush=True)
+                raise ToolRejectionError(reach_err)
 
             t_ground = target_terrain.strip()[:1] if target_terrain and target_terrain.strip() in (".", ":", "*", ",") else "*"
 
@@ -2127,7 +2377,6 @@ class WorldStateSnapshot:
                     # Dry land banks retain their existing region rg[y][x]
 
             # 2. Register Feature of type 'dam' with char '*'
-            d_name = dam_name.strip() if dam_name and dam_name.strip() else f"{river_name} Dam"
             d_lore = dam_lore.strip() if dam_lore and dam_lore.strip() else f"An engineered heavy stone masonry dam impounding the {river_name}."
 
             first_x, first_y = norm_coords[0][0], norm_coords[0][1]
@@ -2163,12 +2412,24 @@ class WorldStateSnapshot:
                 river_reg_id=river_reg_id,
                 explicit_downstream=downstream_coords,
             )
+            downstream_set_set = {(p[0], p[1]) for p in downstream_tiles}
             mutated_downstream = []
             for i, pt in enumerate(downstream_tiles):
                 if i % 2 == 0:  # 50% alternating along flow
                     dx, dy = pt[0], pt[1]
                     r_type = regions.get(rg[dy][dx], {}).get("type", "").lower()
                     if r_type not in ("ocean", "bay") and tg[dy][dx] == "~":
+                        # River mouth backwater shielding: preserve ~ if bordering deep water of lake/ocean
+                        borders_deep_waterbody = any(
+                            0 <= dx + odx < width and 0 <= dy + ody < height
+                            and tg[dy + ody][dx + odx] == "~"
+                            and (dx + odx, dy + ody) not in downstream_set_set
+                            and regions.get(rg[dy + ody][dx + odx], {}).get("type", "").lower() in ("lake", "ocean", "bay")
+                            for odx, ody in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                        )
+                        if borders_deep_waterbody:
+                            continue
+
                         tg[dy][dx] = ";"
                         mutated_downstream.append(pt)
 
@@ -2355,19 +2616,44 @@ class WorldStateSnapshot:
                     )
                 severed_road_notes.append(note)
 
+            # Register canal as a first-class feature in features registry
+            if act == "canal":
+                first_pt = norm_coords[0]
+                last_pt = norm_coords[-1]
+                intake_pt = norm_src[0] if norm_src else last_pt
+                terminus_pt = norm_dest[0] if norm_dest else first_pt
+
+                fid = re.sub(r'[^a-z0-9_]', '', w_name.lower().replace(" ", "_").replace("'", "").replace("-", "_"))
+                if not fid or fid == "constructed_canal":
+                    fid = f"canal_{first_pt[0]}_{first_pt[1]}"
+                if fid in features_dict and features_dict[fid].get("tiles") != norm_coords:
+                    fid = f"{fid}_{first_pt[0]}_{first_pt[1]}"
+
+                features_dict[fid] = {
+                    "name": w_name,
+                    "char": "~",
+                    "type": "canal",
+                    "intake": intake_pt,
+                    "terminus": terminus_pt,
+                    "tiles": norm_coords,
+                    "description": waterway_lore or f"An engineered canal diverting water from {intake_pt} to {terminus_pt}.",
+                }
+
             self.save()
 
             if act == "canal" and norm_dest and norm_src:
                 msg = (
                     f"[SUCCESS] Engineered waterworks (canal): excavated navigable channel across {len(norm_coords)} tile(s) "
                     f"at {norm_coords} linking destination {norm_dest[0]} to source waterbody {norm_src[0]} "
-                    f"under water region '{w_id}' ('{w_name}', type: '{w_type}')."
+                    f"under water region '{w_id}' ('{w_name}', type: '{w_type}'). Registered canal feature '{w_name}'."
                 )
             else:
                 msg = (
                     f"[SUCCESS] Engineered waterworks ({act}): carved {len(norm_coords)} water tile(s) ('~') "
                     f"registered to water region '{w_id}' ('{w_name}', type: '{w_type}')."
                 )
+                if act == "canal":
+                    msg += f" Registered canal feature '{w_name}'."
             if severed_road_notes:
                 msg += "\n" + "\n".join(severed_road_notes)
 

@@ -199,6 +199,49 @@ def validate_world_map(data: dict[str, Any]) -> dict[str, Any]:
     # Features: strictly empty dictionary for primordial stage
     data["features"] = {}
 
+    # Elevation Grid: 32 strings of 32 characters representing topographical heights ('0'-'9')
+    elev = data.get("elevation_grid")
+    valid_elev = False
+    if isinstance(elev, list) and len(elev) == 32:
+        if all(isinstance(row, str) and len(row) == 32 for row in elev):
+            valid_elev = True
+        elif all(isinstance(row, (list, tuple)) and len(row) == 32 for row in elev):
+            data["elevation_grid"] = [
+                "".join(str(min(9, max(0, int(val)))) for val in row)
+                for row in elev
+            ]
+            valid_elev = True
+
+    if not valid_elev:
+        REGION_BASE = {
+            "mountains": 8, "mountain": 8,
+            "cliffs": 6, "chasm": 6, "canyon": 6,
+            "hills": 4, "highland": 4,
+            "forest": 3, "jungle": 3, "woods": 3,
+            "wilderness": 2, "plains": 2, "farmland": 2, "wasteland": 2,
+            "lake": 1, "bay": 0, "swamp": 1, "wetland": 1, "bog": 1,
+            "ocean": 0, "sea": 0,
+        }
+        TERRAIN_BASE = {
+            "^": 9, "/": 7, ",": 5, "&": 4, "#": 3,
+            ":": 2, ".": 2, "%": 1, ";": 1, "~": 0,
+        }
+        generated_elev = []
+        for y in range(32):
+            row_chars = []
+            for x in range(32):
+                t_char = terrain[y][x]
+                r_type = regions.get(region[y][x], {}).get("type", "").lower()
+                r_b = REGION_BASE.get(r_type, 2)
+                t_b = TERRAIN_BASE.get(t_char, 2)
+                base = (r_b + t_b) / 2.0
+                slope = (31 - y) * 0.06
+                lvl = int(round(base + slope))
+                lvl = max(0, min(9, lvl))
+                row_chars.append(str(lvl))
+            generated_elev.append("".join(row_chars))
+        data["elevation_grid"] = generated_elev
+
     return data
 
 

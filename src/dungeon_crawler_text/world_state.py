@@ -6,6 +6,7 @@ from typing import Any, Union
 
 # Layering priority: lower draws first, higher overlays on top
 FEATURE_PRIORITY: dict[str, int] = {
+    "~": 5,   # Canal / Water Channel (drawn below civil overland structures)
     "+": 10,  # Active Road / Trade Route
     "=": 20,  # Bridge / River Crossing
     "*": 25,  # Masonry Dam / Civil Barrier
@@ -121,11 +122,20 @@ def format_world_for_llm(world_data: Union[dict[str, Any], str, Path]) -> str:
             else:
                 p_start = f"[X: {tiles[0][0]:02d}, Y: {tiles[0][1]:02d}]" if tiles else "[?]"
                 p_end = f"[X: {tiles[-1][0]:02d}, Y: {tiles[-1][1]:02d}]" if tiles else "[?]"
-                feature_lines.append(
-                    f"- ID '{key}': **{fname}** ['{fchar}'] ({ftype}, {len(tiles)} tiles)\n"
-                    f"  - Span: {p_start} <---> {p_end}\n"
-                    f"  - Coordinates: {tiles}{desc_line}"
-                )
+                if "intake" in feat and "terminus" in feat:
+                    itk = feat["intake"]
+                    tmn = feat["terminus"]
+                    feature_lines.append(
+                        f"- ID '{key}': **{fname}** ['{fchar}'] ({ftype}, {len(tiles)} tiles)\n"
+                        f"  - Intake: [X: {itk[0]:02d}, Y: {itk[1]:02d}] ---> Terminus: [X: {tmn[0]:02d}, Y: {tmn[1]:02d}]\n"
+                        f"  - Coordinates: {tiles}{desc_line}"
+                    )
+                else:
+                    feature_lines.append(
+                        f"- ID '{key}': **{fname}** ['{fchar}'] ({ftype}, {len(tiles)} tiles)\n"
+                        f"  - Span: {p_start} <---> {p_end}\n"
+                        f"  - Coordinates: {tiles}{desc_line}"
+                    )
 
     # 4. Regions Registry
     region_lines = []
