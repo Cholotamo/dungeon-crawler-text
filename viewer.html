@@ -3,1133 +3,772 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Crawler Text - World Map Viewer</title>
+  <title>dungeon_crawl_t</title>
   <style>
+    /* ═══════════════════════════════════════════════════════════
+       RETRO MONOCHROME CLI TERMINAL THEME
+       ═══════════════════════════════════════════════════════════ */
     :root {
-      --bg-dark: #0d1117;
-      --bg-panel: #161b22;
-      --bg-panel-header: #21262d;
-      --border-color: #30363d;
-      --border-hover: #58a6ff;
-      --text-main: #c9d1d9;
-      --text-muted: #8b949e;
-      --text-highlight: #58a6ff;
-      --text-gold: #f2cc60;
-      --accent-green: #3fb950;
-      --accent-red: #f85149;
-      --accent-purple: #bc8cff;
-      --tile-size: 26px;
-      --tile-gap: 2px;
+      --bg: #050505;
+      --bg-alt: #0e0e0e;
+      --fg: #b0b0b0;
+      --fg-bright: #ffffff;
+      --fg-dim: #606060;
+      --fg-dark: #2c2c2c;
+      --border: #444444;
+      --border-dim: #222222;
+      --font: "Cascadia Code", "Consolas", "IBM Plex Mono", "Courier New", monospace;
+      --tile-size: 12px;      /* Standardized compact 12px for both world & submaps */
+      --tile-gap: 0px;       /* 0px tile spacing: pure retro ASCII terminal grid */
+      --panel-height: 190px;
     }
 
-    * {
+    *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      border-radius: 0 !important;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: var(--bg-dark);
-      color: var(--text-main);
-      min-height: 100vh;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--fg);
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow-x: hidden;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    /* Header Bar */
-    header {
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      padding: 12px 20px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .header-left {
+    /* ── HEADER ── */
+    .terminal-header {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 12px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
+      flex-shrink: 0;
+      font-size: 0.78rem;
+      white-space: nowrap;
+      z-index: 10;
     }
 
-    .header-title {
-      font-size: 1.15rem;
+    .term-brand {
+      color: var(--fg-bright);
       font-weight: 700;
-      letter-spacing: 0.5px;
-      color: #fff;
+      letter-spacing: 1px;
+    }
+
+    .term-sep {
+      color: var(--fg-dark);
+    }
+
+    /* Breadcrumbs / Back button */
+    .view-breadcrumb {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .header-badge {
-      background: #1f6feb22;
-      color: #58a6ff;
-      border: 1px solid #1f6feb;
+    .btn-back {
+      background: var(--fg-bright);
+      color: #000;
+      font-weight: 700;
+      border: 1px solid var(--fg-bright);
+      font-family: var(--font);
+      font-size: 0.72rem;
       padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .header-controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px;
-    }
-
-    select, button, input[type="file"]::file-selector-button {
-      background: #21262d;
-      color: #c9d1d9;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-size: 0.85rem;
       cursor: pointer;
-      transition: all 0.15s ease;
+      display: none;
     }
 
-    select:hover, button:hover, input[type="file"]::file-selector-button:hover {
-      background: #30363d;
-      border-color: #8b949e;
-      color: #fff;
+    .btn-back.visible {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    select:focus, button:focus {
-      outline: none;
-      border-color: var(--border-hover);
-      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+    .btn-back:hover {
+      background: #ccc;
     }
 
-    .btn-primary {
-      background: #238636;
-      border-color: #2ea043;
-      color: #fff;
+    .view-title {
+      color: var(--fg);
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
       font-weight: 600;
     }
 
-    .btn-primary:hover {
-      background: #2ea043;
-      border-color: #3fb950;
-    }
-
-    /* Main Container Layout */
-    .app-layout {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 60px);
-      overflow: hidden;
-    }
-
-    /* Map Viewport Area */
-    .viewport-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: #090d13;
-      position: relative;
-    }
-
-    .toolbar-bar {
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      padding: 8px 18px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 15px;
-      font-size: 0.82rem;
-    }
-
-    .toolbar-group {
+    .epoch-control {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 2px;
+      margin-left: auto;
     }
 
-    .toolbar-label {
-      color: var(--text-muted);
-      font-weight: 500;
-      display: flex;
+    .term-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-family: var(--font);
+      font-size: 0.75rem;
+      padding: 2px 7px;
+      cursor: pointer;
+      line-height: 1.2;
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
     }
 
-    .slider-container {
+    .term-btn:hover:not(:disabled) {
+      background: var(--fg-bright);
+      color: var(--bg);
+    }
+
+    .term-btn:disabled {
+      color: var(--fg-dark);
+      border-color: var(--border-dim);
+      cursor: not-allowed;
+    }
+
+    .epoch-indicator {
+      color: var(--fg-bright);
+      font-weight: 700;
+      padding: 0 6px;
+      min-width: 120px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .header-tools {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    input[type="range"] {
-      accent-color: var(--border-hover);
-      cursor: pointer;
-      width: 80px;
-    }
-
-    .view-mode-tabs {
+    .zoom-controls {
       display: flex;
-      background: #21262d;
-      border-radius: 6px;
-      padding: 2px;
-      border: 1px solid var(--border-color);
+      gap: 2px;
     }
 
-    .view-mode-tab {
-      padding: 4px 10px;
+    .zoom-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg-dim);
+      width: 22px;
+      height: 22px;
+      font-family: var(--font);
       font-size: 0.8rem;
-      border-radius: 4px;
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-weight: 600;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
     }
 
-    .view-mode-tab.active {
-      background: #388bfd33;
-      color: #58a6ff;
-      border: 1px solid #388bfd66;
+    .zoom-btn:hover {
+      color: var(--fg-bright);
+      border-color: var(--fg-bright);
     }
 
-    .map-scroll-area {
+    /* ── MAP VIEWPORT (PERFECTLY CENTERED, NO SCROLL) ── */
+    .viewport {
       flex: 1;
       overflow: auto;
-      padding: 24px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      background: radial-gradient(circle at 50% 50%, #111722 0%, #080c12 100%);
-    }
-
-    /* Map Rendering Area */
-    .map-wrapper {
-      display: inline-flex;
-      flex-direction: column;
-      background: var(--bg-panel);
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-      user-select: none;
-    }
-
-    .side-by-side-container {
-      display: flex;
-      gap: 30px;
-      align-items: flex-start;
-    }
-
-    .map-section {
       display: flex;
       flex-direction: column;
-    }
-
-    .map-section-title {
-      font-size: 0.82rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    /* Grid & Axes */
-    .grid-with-axes {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      grid-template-rows: auto 1fr;
-    }
-
-    .origin-corner {
-      width: 28px;
-      height: 28px;
-      display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-family: ui-monospace, monospace;
-      border-right: 1px solid var(--border-color);
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .col-ruler {
-      display: flex;
-      border-bottom: 1px solid var(--border-color);
-      padding-left: 2px;
-    }
-
-    .ruler-col-cell {
-      width: calc(var(--tile-size) + var(--tile-gap));
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      font-family: ui-monospace, monospace;
-      font-size: 0.65rem;
-      line-height: 1;
-      padding-bottom: 3px;
-      color: var(--text-muted);
-      transition: color 0.1s;
-    }
-
-    .ruler-col-cell.highlight {
-      color: #fff;
-      font-weight: 700;
-      background: rgba(88, 166, 255, 0.15);
-      border-radius: 2px;
-    }
-
-    .row-ruler {
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border-color);
-      padding-top: 2px;
-    }
-
-    .ruler-row-cell {
-      height: calc(var(--tile-size) + var(--tile-gap));
-      width: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: ui-monospace, monospace;
-      font-size: 0.68rem;
-      color: var(--text-muted);
-      transition: color 0.1s;
-    }
-
-    .ruler-row-cell.highlight {
-      color: #fff;
-      font-weight: 700;
-      background: rgba(88, 166, 255, 0.15);
-      border-radius: 2px;
-    }
-
-    .tiles-grid {
-      display: grid;
-      gap: var(--tile-gap);
-      padding: 2px;
+      padding: 8px;
+      background: var(--bg);
       position: relative;
     }
 
-    /* Individual Tile */
+    .map-frame {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      width: max-content;
+      margin: auto;
+    }
+
+    .map-status-bar {
+      display: flex;
+      justify-content: space-between;
+      color: var(--fg-dim);
+      font-size: 0.65rem;
+      padding: 0 1px 3px 1px;
+      letter-spacing: 0.5px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* ── AXES & GRID (ZERO EXTRA SPACE ON RIGHT) ── */
+    .grid-container {
+      display: inline-grid;
+      grid-template-columns: auto auto;
+      grid-template-rows: auto auto;
+      border: 1px solid var(--border);
+      background: #000;
+      box-shadow: 0 0 12px rgba(0,0,0,0.8);
+      width: max-content;
+      margin: 0 auto;
+    }
+
+    .axis-origin {
+      width: 20px;
+      height: 16px;
+      border-right: 1px solid var(--border-dim);
+      border-bottom: 1px solid var(--border-dim);
+      font-size: 0.48rem;
+      color: var(--fg-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-alt);
+    }
+
+    .col-axis {
+      display: flex;
+      border-bottom: 1px solid var(--border-dim);
+      background: var(--bg-alt);
+      width: max-content;
+    }
+
+    .col-header {
+      width: var(--tile-size);
+      min-width: var(--tile-size);
+      max-width: var(--tile-size);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.46rem;
+      color: var(--fg-dim);
+      line-height: 1;
+    }
+
+    .col-header.hl {
+      color: var(--fg-bright);
+      background: #1c1c1c;
+      font-weight: 700;
+    }
+
+    .row-axis {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-dim);
+      background: var(--bg-alt);
+      width: 20px;
+    }
+
+    .row-header {
+      height: var(--tile-size);
+      min-height: var(--tile-size);
+      max-height: var(--tile-size);
+      width: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.48rem;
+      color: var(--fg-dim);
+    }
+
+    .row-header.hl {
+      color: var(--fg-bright);
+      background: #1c1c1c;
+      font-weight: 700;
+    }
+
+    .tile-matrix {
+      display: grid;
+      gap: var(--tile-gap);
+      background: #000;
+      padding: 0;
+      width: max-content;
+    }
+
     .tile {
       width: var(--tile-size);
       height: var(--tile-size);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: ui-monospace, "Cascadia Code", monospace;
-      font-size: calc(var(--tile-size) * 0.58);
-      font-weight: 700;
-      border-radius: 3px;
+      font-family: var(--font);
+      font-size: calc(var(--tile-size) * 0.72);
+      color: var(--fg);
+      background: #000;
       cursor: crosshair;
-      position: relative;
-      transition: transform 0.08s ease, box-shadow 0.08s ease, z-index 0.08s ease;
-      z-index: 1;
+      line-height: 1;
     }
 
-    .tile:hover, .tile.cross-highlight {
-      z-index: 10;
-      transform: scale(1.18);
-      box-shadow: 0 0 10px rgba(88, 166, 255, 0.8), 0 0 0 2px #fff;
+    .tile.feat {
+      color: var(--fg-bright);
+      font-weight: 700;
+    }
+
+    .tile.has-submap {
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .tile.hovered {
+      background: var(--fg) !important;
+      color: #000 !important;
     }
 
     .tile.pinned {
-      z-index: 11;
-      box-shadow: 0 0 12px rgba(242, 204, 96, 0.9), 0 0 0 2px #f2cc60;
-    }
-
-    .tile.filtered-out {
-      opacity: 0.15;
-      filter: grayscale(80%);
-    }
-
-    .tile.highlighted-match {
-      transform: scale(1.1);
-      box-shadow: 0 0 8px #f2cc60;
-      z-index: 5;
-    }
-
-    /* Feature Badge / Decorators */
-    .tile-feat-badge {
-      position: absolute;
-      top: 1px;
-      right: 1px;
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-    }
-
-    .feat-settlement {
-      box-shadow: 0 0 6px #ffd166;
-    }
-
-    .feat-city {
-      box-shadow: 0 0 8px #ff9f1c;
-      border: 1px solid #ff9f1c;
-    }
-
-    .feat-dungeon {
-      box-shadow: 0 0 8px #ff3860;
-      border: 1px solid #ff3860;
-      animation: pulse-danger 2s infinite;
-    }
-
-    @keyframes pulse-danger {
-      0% { box-shadow: 0 0 4px #ff3860; }
-      50% { box-shadow: 0 0 10px #ff3860; }
-      100% { box-shadow: 0 0 4px #ff3860; }
-    }
-
-    .feat-bridge {
-      box-shadow: 0 0 6px #ffaf7a;
-      border: 1px solid #ffaf7a;
-    }
-
-    .feat-dam {
-      box-shadow: 0 0 8px #60a5fa, inset 0 0 0 1px #3b82f6;
-      border: 1px solid #60a5fa;
-    }
-
-    /* Sidebar Inspector & Details */
-    .sidebar-panel {
-      width: 440px;
-      background: var(--bg-panel);
-      border-left: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .sidebar-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--bg-panel-header);
-    }
-
-    .sidebar-tab-btn {
-      flex: 1;
-      padding: 10px;
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--text-muted);
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .sidebar-tab-btn.active {
-      color: #fff;
-      border-bottom-color: var(--border-hover);
-      background: rgba(88, 166, 255, 0.05);
-    }
-
-    .sidebar-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* Card Panels */
-    .info-card {
-      background: #0d1117;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .card-header {
-      background: #161b22;
-      border-bottom: 1px solid var(--border-color);
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-
-    .card-body {
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      font-size: 0.84rem;
-    }
-
-    .field-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    .field-label {
-      min-width: 105px;
-      color: var(--text-muted);
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 0.4px;
-      padding-top: 2px;
-    }
-
-    .field-value {
-      flex: 1;
-      color: #fff;
-      word-break: break-word;
-    }
-
-    .glyph-chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
-      font-family: ui-monospace, monospace;
+      background: var(--fg-bright) !important;
+      color: #000 !important;
       font-weight: 700;
-      font-size: 0.95rem;
-      margin-right: 6px;
-      vertical-align: middle;
+      outline: 1px solid var(--fg-bright);
     }
 
-    .badge-tag {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 12px;
-      font-size: 0.74rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      background: #21262d;
-      color: #c9d1d9;
-      border: 1px solid var(--border-color);
-    }
-
-    .badge-tag.feat-type {
-      background: rgba(242, 204, 96, 0.15);
-      color: #f2cc60;
-      border-color: rgba(242, 204, 96, 0.4);
-    }
-
-    .badge-tag.region-type {
-      background: rgba(88, 166, 255, 0.15);
-      color: #58a6ff;
-      border-color: rgba(88, 166, 255, 0.4);
-    }
-
-    .lore-text {
-      background: rgba(255, 255, 255, 0.03);
-      border-left: 3px solid #58a6ff;
-      padding: 8px 12px;
-      border-radius: 0 4px 4px 0;
-      font-style: italic;
-      line-height: 1.45;
-      color: #e6edf3;
-      font-size: 0.83rem;
-    }
-
-    .lore-empty {
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    /* Floating Tooltip */
-    #floatingTooltip {
+    /* ── CURSOR-FOLLOWING TOOLTIP ── */
+    .cli-tooltip {
       position: fixed;
       pointer-events: none;
       z-index: 1000;
-      background: rgba(13, 17, 23, 0.95);
-      border: 1px solid #58a6ff;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 12px rgba(88, 166, 255, 0.3);
-      border-radius: 8px;
-      padding: 10px 14px;
-      width: 280px;
+      background: #000;
+      border: 1px solid var(--fg-bright);
+      padding: 3px 8px;
+      font-size: 0.72rem;
       display: none;
-      backdrop-filter: blur(8px);
-      font-size: 0.8rem;
+      white-space: nowrap;
+      line-height: 1.4;
+      box-shadow: 2px 2px 0px #000;
     }
 
     .tt-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px;
-      margin-bottom: 6px;
-    }
-
-    .tt-coord {
-      font-family: ui-monospace, monospace;
+      gap: 16px;
+      color: var(--fg-bright);
       font-weight: 700;
-      color: #58a6ff;
-      font-size: 0.85rem;
     }
 
-    .tt-grid {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 4px 8px;
-      font-size: 0.77rem;
+    .tt-biome {
+      color: var(--fg-dim);
+      font-size: 0.68rem;
     }
 
-    .tt-label {
-      color: var(--text-muted);
-      font-weight: 600;
+    /* ── RESIZE HANDLE ── */
+    .resize-bar {
+      height: 4px;
+      cursor: ns-resize;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
-    .tt-val {
-      color: #fff;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .resize-bar:hover {
+      background: var(--fg-dim);
+    }
+
+    /* ── BOTTOM PANEL (ASCII BOX-DRAWING) ── */
+    .cli-panel {
+      height: var(--panel-height);
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      margin: 0 6px 6px 6px;
+      flex-shrink: 0;
+      font-size: 0.78rem;
+      background: #000;
+    }
+
+    .box-row-top {
+      display: flex;
+      align-items: center;
+      color: var(--border);
       white-space: nowrap;
-    }
-
-    .tt-desc {
-      margin-top: 6px;
-      padding-top: 6px;
-      border-top: 1px dashed var(--border-color);
-      font-size: 0.75rem;
-      color: #e6edf3;
-      font-style: italic;
-      line-height: 1.35;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
       overflow: hidden;
-    }
-
-    /* Interactive Legend List */
-    .legend-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 10px;
-      background: #0d1117;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.12s;
-    }
-
-    .legend-item:hover {
-      border-color: var(--border-hover);
-      background: #161b22;
-      transform: translateX(3px);
-    }
-
-    .legend-item-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .legend-count {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: ui-monospace, monospace;
-    }
-
-    /* Timeline Section */
-    .timeline-entry {
-      background: #0d1117;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-
-    .timeline-title {
-      color: var(--text-gold);
-      font-weight: 700;
-      font-size: 0.9rem;
-      margin-bottom: 8px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 4px;
-    }
-
-    .timeline-body {
-      font-size: 0.8rem;
-      line-height: 1.5;
-      color: #c9d1d9;
-      white-space: pre-wrap;
-    }
-
-    /* Paste JSON Modal */
-    .modal-backdrop {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-
-    .modal-dialog {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      width: 600px;
-      max-width: 90vw;
-      box-shadow: 0 16px 36px rgba(0,0,0,0.8);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .modal-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
-    }
-
-    .modal-body {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    textarea.json-input {
+      flex-shrink: 0;
+      line-height: 1.1;
       width: 100%;
-      height: 250px;
-      background: #0d1117;
-      border: 1px solid var(--border-color);
-      color: #c9d1d9;
-      font-family: ui-monospace, monospace;
-      font-size: 0.8rem;
-      padding: 10px;
-      border-radius: 6px;
-      resize: vertical;
     }
 
-    .modal-footer {
-      padding: 12px 18px;
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
+    .box-row-top > span, .tab-trigger {
+      flex-shrink: 0;
     }
+
+    .tab-trigger {
+      background: none;
+      border: none;
+      color: var(--fg-dim);
+      font-family: var(--font);
+      font-size: 0.78rem;
+      cursor: pointer;
+      padding: 0 4px;
+      font-weight: 400;
+    }
+
+    .tab-trigger.active {
+      color: var(--fg-bright);
+      font-weight: 700;
+      background: #202020;
+    }
+
+    .tab-trigger:hover:not(.active) {
+      color: var(--fg);
+    }
+
+    .box-h-line {
+      color: var(--border);
+      overflow: hidden;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+      user-select: none;
+    }
+
+    .box-corner, .box-v-line {
+      color: var(--border);
+      width: 1ch;
+      text-align: center;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .box-row-mid {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .box-inner-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 14px;
+      line-height: 1.45;
+    }
+
+    .box-row-bottom {
+      display: flex;
+      align-items: center;
+      color: var(--border);
+      white-space: nowrap;
+      overflow: hidden;
+      flex-shrink: 0;
+      line-height: 1.1;
+      width: 100%;
+    }
+
+    /* ── PANEL TYPOGRAPHY ── */
+    .entry-headline {
+      color: var(--fg-bright);
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .timeline-item {
+      color: var(--fg);
+      margin-bottom: 4px;
+      padding-left: 10px;
+      text-indent: -10px;
+    }
+
+    .timeline-item .hl-bold {
+      color: var(--fg-bright);
+      font-weight: 700;
+    }
+
+    /* Interactive Timeline Feature Link */
+    .timeline-feat-link {
+      color: var(--fg-bright);
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: none;
+    }
+
+    .timeline-feat-link:hover {
+      background: var(--fg);
+      color: #000 !important;
+    }
+
+    .lore-section {
+      margin-bottom: 7px;
+    }
+
+    .lore-tag {
+      color: var(--fg-dim);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    .lore-body {
+      color: var(--fg);
+      border-left: 2px solid var(--border);
+      padding-left: 8px;
+      margin-top: 2px;
+      font-style: italic;
+    }
+
+    .meta-line {
+      color: var(--fg-dim);
+      font-size: 0.7rem;
+    }
+
+    .no-data {
+      color: var(--fg-dim);
+      font-style: italic;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--fg-dim); }
   </style>
 </head>
 <body>
 
-  <!-- Floating HUD Tooltip -->
-  <div id="floatingTooltip">
+  <!-- Floating Cursor-Following Tooltip -->
+  <div class="cli-tooltip" id="cliTooltip">
     <div class="tt-header">
-      <span class="tt-coord" id="ttCoord">X: 00, Y: 00</span>
-      <span class="glyph-chip" id="ttGlyph">~</span>
+      <span id="ttName">---</span>
+      <span id="ttCoords">[00, 00]</span>
     </div>
-    <div class="tt-grid">
-      <span class="tt-label">Terrain:</span>
-      <span class="tt-val" id="ttTerrain">Water (~)</span>
-
-      <span class="tt-label">Region ID:</span>
-      <span class="tt-val" id="ttRegionId">A</span>
-
-      <span class="tt-label">Region Name:</span>
-      <span class="tt-val" id="ttRegionName">Thalass-Grave</span>
-
-      <span class="tt-label">Region Type:</span>
-      <span class="tt-val" id="ttRegionType">ocean</span>
-
-      <span class="tt-label">Feature ID:</span>
-      <span class="tt-val" id="ttFeatureId">None</span>
-
-      <span class="tt-label">Feature Name:</span>
-      <span class="tt-val" id="ttFeatureName">None</span>
-
-      <span class="tt-label">Feature Type:</span>
-      <span class="tt-val" id="ttFeatureType">None</span>
-    </div>
-    <div class="tt-desc" id="ttFeatureDesc">No feature present on this tile.</div>
+    <div class="tt-biome" id="ttBiome">---</div>
   </div>
 
-  <!-- Header -->
-  <header>
-    <div class="header-left">
-      <div class="header-title">
-        <span>🗺️ Realm Cartographer</span>
-        <span class="header-badge" id="realmNameBadge">Vaelen-Thir</span>
-        <span class="badge-tag" id="epochBadge">Epoch 2</span>
-      </div>
+  <!-- Header Bar -->
+  <header class="terminal-header">
+    <span class="term-brand">dungeon_crawl_t</span>
+    <span class="term-sep">│</span>
+    
+    <div class="view-breadcrumb">
+      <button class="btn-back" id="btnBackToWorld">◄ WORLD MAP [ESC]</button>
+      <span class="view-title" id="viewTitleDisplay">CONNECTING...</span>
+    </div>
+    
+    <div class="epoch-control">
+      <button class="term-btn" id="btnPrevEpoch">◄</button>
+      <span class="epoch-indicator" id="epochIndicator">EPOCH ---</span>
+      <button class="term-btn" id="btnNextEpoch">►</button>
     </div>
 
-    <div class="header-controls">
-      <label for="mapSelect" style="font-size: 0.8rem; color: var(--text-muted);">Preset:</label>
-      <select id="mapSelect"></select>
-
-      <button id="btnOpenModal">📋 Paste JSON</button>
-
-      <label class="btn-primary" style="padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer;">
-        📂 Load JSON
-        <input type="file" id="filePicker" accept=".json" style="display: none;">
-      </label>
+    <span class="term-sep">│</span>
+    
+    <div class="header-tools">
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="btnZoomOut">-</button>
+        <button class="zoom-btn" id="btnZoomIn">+</button>
+      </div>
     </div>
   </header>
 
-  <!-- App Layout -->
-  <div class="app-layout">
-
-    <!-- Viewport Panel -->
-    <div class="viewport-panel">
-      <!-- Toolbar -->
-      <div class="toolbar-bar">
-        <div class="toolbar-group">
-          <div class="view-mode-tabs">
-            <button class="view-mode-tab active" data-mode="composite">Composite Map</button>
-            <button class="view-mode-tab" data-mode="side-by-side">Side-by-Side</button>
-            <button class="view-mode-tab" data-mode="terrain">Terrain Only</button>
-            <button class="view-mode-tab" data-mode="regions">Region Biomes</button>
-          </div>
-        </div>
-
-        <div class="toolbar-group">
-          <div class="slider-container">
-            <span class="toolbar-label">Size:</span>
-            <input type="range" id="sliderTileSize" min="16" max="44" value="26">
-            <span id="tileSizeVal" style="font-family: ui-monospace; font-size: 0.75rem; color: var(--text-muted);">26px</span>
-          </div>
-
-          <div class="slider-container">
-            <span class="toolbar-label">Gap:</span>
-            <input type="range" id="sliderTileGap" min="0" max="6" value="2">
-            <span id="tileGapVal" style="font-family: ui-monospace; font-size: 0.75rem; color: var(--text-muted);">2px</span>
-          </div>
-
-          <label class="toolbar-label" style="cursor: pointer;">
-            <input type="checkbox" id="chkGlyphs" checked> Glyphs
-          </label>
-
-          <label class="toolbar-label" style="cursor: pointer;">
-            <input type="checkbox" id="chkRulers" checked> Coordinates
-          </label>
-        </div>
+  <!-- Shared Map Viewport -->
+  <main class="viewport" id="viewport">
+    <div class="map-frame" id="mapFrame">
+      <div class="map-status-bar">
+        <span id="mapModeLabel">LOADING...</span>
+        <span id="mapDimsLabel"></span>
       </div>
-
-      <!-- Scrollable Canvas -->
-      <div class="map-scroll-area" id="mapScrollArea">
-        <div class="map-wrapper" id="mapWrapper">
-          <!-- Rendered dynamically -->
-        </div>
+      <div id="gridContainerMount">
+        <div class="no-data" style="padding: 40px;">Probing artifacts server...</div>
       </div>
     </div>
+  </main>
 
-    <!-- Sidebar Panel (Inspector & Legends) -->
-    <div class="sidebar-panel">
-      <div class="sidebar-tabs">
-        <button class="sidebar-tab-btn active" data-tab="inspector">🎯 Tile Inspector</button>
-        <button class="sidebar-tab-btn" data-tab="features">🏛️ Features (<span id="featCountTab">0</span>)</button>
-        <button class="sidebar-tab-btn" data-tab="regions">🌿 Regions (<span id="regCountTab">0</span>)</button>
-        <button class="sidebar-tab-btn" data-tab="legend">📖 Legend</button>
-        <button class="sidebar-tab-btn" data-tab="timeline">📜 Timeline</button>
-      </div>
+  <!-- Resize Handle -->
+  <div class="resize-bar" id="resizeBar"></div>
 
-      <div class="sidebar-content" id="tabContentInspector">
-        <!-- Tile Coordinates Card -->
-        <div class="info-card">
-          <div class="card-header">
-            <span>Coordinates & Position</span>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <span class="badge-tag" id="pinIndicator">Live Hover</span>
-              <button id="btnTogglePin" style="padding: 2px 8px; font-size: 0.75rem;">📌 Pin</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="field-row">
-              <span class="field-label">Tile Coord:</span>
-              <span class="field-value" style="font-family: ui-monospace; font-size: 1.1rem; color: #58a6ff; font-weight: 700;" id="inspCoord">X: --, Y: --</span>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Composite:</span>
-              <div class="field-value" style="display: flex; align-items: center;">
-                <span class="glyph-chip" id="inspCompGlyph">?</span>
-                <span id="inspCompLabel" style="font-weight: 600;">Hover over map</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Regional Biome Card -->
-        <div class="info-card">
-          <div class="card-header">
-            <span>Regional Biome</span>
-            <span class="badge-tag region-type" id="inspRegionTypeBadge">Wilderness</span>
-          </div>
-          <div class="card-body">
-            <div class="field-row">
-              <span class="field-label">Region ID:</span>
-              <span class="field-value"><code id="inspRegionId" style="background:#21262d; padding: 2px 6px; border-radius: 4px; font-weight: 700;">--</code></span>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Region Name:</span>
-              <span class="field-value" style="font-weight: 600;" id="inspRegionName">--</span>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Region Type:</span>
-              <span class="field-value" id="inspRegionType">--</span>
-            </div>
-            <div class="field-row" style="flex-direction: column; gap: 4px;">
-              <span class="field-label">Region Lore:</span>
-              <div class="lore-text" id="inspRegionLore">No lore recorded for this region.</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Terrain Card -->
-        <div class="info-card">
-          <div class="card-header">
-            <span>Natural Terrain Ground</span>
-            <span class="badge-tag" id="inspTerrainCharBadge">Char: -</span>
-          </div>
-          <div class="card-body">
-            <div class="field-row">
-              <span class="field-label">Terrain Char:</span>
-              <div class="field-value" style="display: flex; align-items: center;">
-                <span class="glyph-chip" id="inspTerrainGlyph">.</span>
-                <span id="inspTerrainChar" style="font-family: ui-monospace; font-weight: 700;">'.'</span>
-              </div>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Terrain Name:</span>
-              <span class="field-value" style="font-weight: 600;" id="inspTerrainName">--</span>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Description:</span>
-              <span class="field-value" style="color: var(--text-muted);" id="inspTerrainDesc">--</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Feature Overlay Card -->
-        <div class="info-card" id="inspFeatureCard">
-          <div class="card-header">
-            <span>Feature Landmark</span>
-            <span class="badge-tag feat-type" id="inspFeatureTypeBadge">None</span>
-          </div>
-          <div class="card-body">
-            <div class="field-row">
-              <span class="field-label">Feature ID:</span>
-              <span class="field-value"><code id="inspFeatureId" style="background:#21262d; padding: 2px 6px; border-radius: 4px;">None</code></span>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Feature Name:</span>
-              <span class="field-value" style="font-weight: 700; color: var(--text-gold);" id="inspFeatureName">None</span>
-            </div>
-            <div class="field-row">
-              <span class="field-label">Feature Type:</span>
-              <span class="field-value" id="inspFeatureType">None</span>
-            </div>
-            <div class="field-row" id="inspFeatureCharRow">
-              <span class="field-label">Feature Char:</span>
-              <div class="field-value" style="display: flex; align-items: center;">
-                <span class="glyph-chip" id="inspFeatureGlyph">-</span>
-                <span id="inspFeatureChar">None</span>
-              </div>
-            </div>
-            <div class="field-row" style="flex-direction: column; gap: 4px;">
-              <span class="field-label">Feature Lore:</span>
-              <div class="lore-text" id="inspFeatureDesc">Natural ground without constructed or discovered features.</div>
-            </div>
-            <div class="field-row" id="inspOverlapsRow" style="display: none;">
-              <span class="field-label">Underlying:</span>
-              <span class="field-value" style="font-size: 0.78rem; color: var(--text-muted);" id="inspOverlapsVal">--</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Features Tab Content -->
-      <div class="sidebar-content" id="tabContentFeatures" style="display: none;">
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">
-          Click any feature to highlight its tiles and inspect its details:
-        </div>
-        <div class="legend-list" id="featuresList"></div>
-      </div>
-
-      <!-- Regions Tab Content -->
-      <div class="sidebar-content" id="tabContentRegions" style="display: none;">
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">
-          Click any regional biome to highlight its territory:
-        </div>
-        <div class="legend-list" id="regionsList"></div>
-      </div>
-
-      <!-- Legend Tab Content -->
-      <div class="sidebar-content" id="tabContentLegend" style="display: none;">
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px;">
-          Click any terrain type to highlight corresponding tiles:
-        </div>
-        <div class="legend-list" id="legendList"></div>
-      </div>
-
-      <!-- Timeline Tab Content -->
-      <div class="sidebar-content" id="tabContentTimeline" style="display: none;">
-        <div id="timelineContainer"></div>
-      </div>
+  <!-- Bottom ASCII Panel (Shared Lore & Timeline & Legend) -->
+  <footer class="cli-panel" id="cliPanel">
+    <div class="box-row-top">
+      <span>┌─ </span>
+      <button class="tab-trigger active" id="tabBtnTimeline" data-tab="timeline">[TIMELINE]</button>
+      <span> ─┬─ </span>
+      <button class="tab-trigger" id="tabBtnLore" data-tab="lore">[LORE]</button>
+      <span> ─┬─ </span>
+      <button class="tab-trigger" id="tabBtnLegend" data-tab="legend">[LEGEND]</button>
+      <span> ─</span>
+      <span class="box-h-line" id="boxTopLine"></span>
+      <span class="box-corner">┐</span>
     </div>
-  </div>
-
-  <!-- Paste JSON Modal -->
-  <div class="modal-backdrop" id="modalPaste">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <span>Paste World Map JSON</span>
-        <button id="btnCloseModal" style="background: transparent; border: none; font-size: 1.1rem; color: var(--text-muted);">✕</button>
+    <div class="box-row-mid">
+      <span class="box-v-line">│</span>
+      <div class="box-inner-content" id="panelContent">
+        <div class="no-data">Initializing terminal...</div>
       </div>
-      <div class="modal-body">
-        <p style="font-size: 0.82rem; color: var(--text-muted);">
-          Paste any valid world map JSON artifact containing <code>terrain_grid</code>, <code>region_grid</code>, <code>regions</code>, and <code>features</code>.
-        </p>
-        <textarea class="json-input" id="jsonPasteText" placeholder='{ "name": "My Realm", "terrain_grid": [...], "region_grid": [...], "regions": {...}, "features": {...} }'></textarea>
-        <div id="pasteError" style="color: var(--accent-red); font-size: 0.8rem; display: none;"></div>
-      </div>
-      <div class="modal-footer">
-        <button id="btnCancelModal">Cancel</button>
-        <button class="btn-primary" id="btnLoadPasted">Load Map</button>
-      </div>
+      <span class="box-v-line">│</span>
     </div>
-  </div>
+    <div class="box-row-bottom">
+      <span class="box-corner">└</span>
+      <span class="box-h-line" id="boxBottomLine"></span>
+      <span class="box-corner">┘</span>
+    </div>
+  </footer>
 
   <script>
-    // Embedded Presets discovered during build
-    const PRESETS = {"primordial": {"label": "Primordial Era: The Sacred Solitude", "filename": "worldmap.json", "data": {"name": "The Sacred Solitude", "terrain_grid": ["~~~,/////////^^^^^^^^^^^^^^^^^^^", "~~;/,/////////^^^^^^^^^^^^^^^^^^", "~~;//#//////&#&^^^^^^^^^^^^^^^^^", "~~;//&#///#&#&###^^^^^^~^^^^^^^^", "~~;/&#&#&#&#&#&,,,*,^^~~^^^^^^^^", "~~;//&#&#&#&#&#*,,,,*,~^^^^^^^^^", "~~;//#&#&#&#&#&#,*,,,~~,,^^^^^^^", "~~;/#&#&#&#&#&###,,*~~,,*,^^^^^^", "~~;//#&#&#&#&#&##&,~~*,,,,*^^^^^", "~~;//&#&#&#&#&#&##~~,,,*,,,,^^^^", "~~;/&##&##&##&##&~~&*,,,,*,,^^^^", "~~;//&##&##&##&#~~##&#*,,,,*,^^^", "~~;//#&##&##&##~~#&##,..,..,.^^^", "~~;/&##&##&##&~~&##&#..,..,..,^^", "~~;//&##&##&#~~##&##&.,..,..,.^^", "~~;//#&##&##&~~&##&#.,..,..,..^^", "~~;/&##&##&##&~~&##&#..,..,..,..", "~~~,#&##&##&##&~~&##&#,..,..,..,", "~~;,;#&##&##&##&~#&##&..,..,..,.", "~~~,;,#&##&##&##~##&##....,..,..", "~~~;,;##&##&##;;~;;;&#...,..,..,", "~;~~;,&#%%%%%%;~~~~;;;..........", "~,;~~;#%%%%%%%~~~~~~~;;.........", "~~;,~;%%%%%%%~~~~~~~~~;.........", "~~~;,,%%%%%%%~~~~~~~~~;.........", "~;~~;,%%%%%%%%~~~~~~~;;.........", "~,;~~;%%%%%%%%%~~~~~;;..........", "~~;,~;%%%%%%%%%;;;;;;...........", "~~~;,;%%%%%%%%%%####............", "~;~~;,#%%%%%%%%%%###............", "~~;,~;##%%%%%%%%%%%#............", "~~~;,,####%%%%%%%%%%............"], "region_grid": ["11126666666664444444444444444444", "11122666666666444444555444444444", "11122966666699944444455544444444", "111229966699999AA444445E54444444", "1112999999999997777744EE44554444", "1112299999999997777777E444455444", "111229999999999A77777EE774445544", "111299999999999AA777EE7777444444", "111229999999999AAA7EE77777744444", "111229999999999AAABE777777774444", "1112AAAAAAAAAAAAABBA777777774444", "11122AAAAAAAAAAABBAAAA7777777444", "11122AAAAAAAAAABBAAAA88888888444", "1112AAAAAAAAAABBAAAAA88888888844", "11122AAAAAAAABBAAAAAA88888888844", "11122AAAAAAAABBAAAAA888888888844", "1112AAAAAAAAAABBAAAAA88888888888", "1113AAAAAAAAAAABBAAAAA8888888888", "11333AAAAAAAAAAABAAAAA8888888888", "113333AAAAAAAAAABAAAAA8888888888", "133333AAAAAAAACCBCCCAA8888888888", "133333AADDDDDDCCCCCCCC0000000000", "333333ADDDDDDDCCCCCCCCC000000000", "333333DDDDDDDCCCCCCCCCC000000000", "333333DDDDDDDCCCCCCCCCC000000000", "333333DDDDDDDDCCCCCCCCC000000000", "333333DDDDDDDDDCCCCCCC0000000000", "333333DDDDDDDDDCCCCCC00000000000", "333333DDDDDDDDDDAAAA000000000000", "333333ADDDDDDDDDDAAA000000000000", "333333AADDDDDDDDDDDA000000000000", "333333AAAADDDDDDDDDD000000000000"], "regions": {"0": {"name": "Unnamed Wilderness", "type": "wilderness", "lore": "Untamed and primeval wilderness connecting the distinct geographic landmarks of the realm."}, "1": {"name": "Western Ocean", "type": "ocean", "lore": "An oceanic expanse of terrible and majestic breadth, where colossal gray rollers crash against the stone palisades of the land."}, "2": {"name": "Basalt Palisades", "type": "cliffs", "lore": "Sheer, fluted basalt cliffs rising hundreds of feet above the surf, echoing with booming sea-caves and blowing cold salt spray."}, "3": {"name": "Shattered Archipelago", "type": "bay", "lore": "A wild expanse of drowned granite hills, crescent bays, and deep-water sounds littered with salt-bleached mountain timber."}, "4": {"name": "Great Cordillera", "type": "mountains", "lore": "An unyielding, serrated backbone of gneiss and granite horn-peaks permanently clad in perpetual rime and ancient snows."}, "5": {"name": "Frost Glaciers", "type": "mountains", "lore": "Great tongues of blue ice groaning as they grind mountain roots, carving profound U-shaped amphitheaters and hanging valleys."}, "6": {"name": "Northern Chasms", "type": "chasm", "lore": "Shadow-choked, bottomless defiles where the northern spine fractures, exhaling a cold mineral mist smelling of wet copper."}, "7": {"name": "Sandstone Plateau", "type": "hills", "lore": "An uplifted, wind-scoured tableland of stepped sandstone and iron-veined shale, home to dwarfed junipers and vast scree seas."}, "8": {"name": "Rolling Heather Downs", "type": "hills", "lore": "Whale-backed chalk hills draped in shifting waves of heather and gorse, topped by watchful titans of wind-sculpted stone."}, "9": {"name": "Northern Taiga", "type": "forest", "lore": "A solemn forest of spruce, hemlock, and redcedar where lichens drape every branch and moss conceals silent sinkholes."}, "A": {"name": "Primeval Broadleaf Forest", "type": "forest", "lore": "A dense mosaic canopy of colossal oaks, limes, and beeches casting an emerald gloom over decaying nurse-logs and moss."}, "B": {"name": "Great Arterial River", "type": "river", "lore": "A mighty river of clear cut beryl waters flowing over yellow gravel across the temperate plains, fed by dark leaf-steeped tributaries."}, "C": {"name": "Sweetwater Sea", "type": "lake", "lore": "A calm, crystalline inland sea revealing ancient submerged stonewort forests and massive paddle-finned fish in its depths."}, "D": {"name": "Great Delta Marshes", "type": "swamp", "lore": "A vast labyrinth of reed-forests, water-channels, and sphagnum bogs thick with fog and the rich aroma of damp loam."}, "E": {"name": "Glacial Torrent", "type": "river", "lore": "A furious, high-altitude flume of pale slate water plunging over precipices in localized rainstorms and rainbow spray."}}, "features": {}, "elevation_grid": ["22278888888889999999999999999999", "22287888888888999999999999999999", "22288588888855599999999999999999", "22288558885555555999999399999999", "22285555555555566656993399999999", "22288555555555556666563999999999", "22288454545454546466622669999999", "11284545454545444664226646999999", "11288454545454544562246666499999", "11288545454545454422666466669999", "11285445445445445225466664669999", "11288544544544542244544666646999", "11288454454454422454464464464999", "11285445445445225445444644644699", "11288544544542244544546446446499", "11177444444442244444454454454499", "11174444444444224444444544544544", "11134444444444422444445445445445", "11131444444444442444444454454454", "11131344444444442444444444544544", "11113144444444222222444445445445", "11111344222222211112223333333333", "13111142222222111111122333333333", "00130111111111111111111222222222", "00013311111111111111111222222222", "01001311111111111111111222222222", "03100111111111111111112222222222", "00130111111111111111122222222222", "00013111111111113333222222222222", "01001331111111111333222222222222", "00130133111111111113222222222222", "00002233331111111111222222222222"]}}, "epoch_1": {"label": "Epoch 1: The Sacred Solitude", "filename": "worldmap_epoch_1.json", "data": {"name": "The Sacred Solitude", "terrain_grid": ["~~~,/////////^^^^^^^^^^^^^^^^^^^", "~~;/,/////////^^^^^^^^^^^^^^^^^^", "~~;//#//////&#&^^^^^^^^^^^^^^^^^", "~~;//&#///#&#&###^^^^^^~^^^^^^^^", "~~;/&#&#&#&#&#&,,,*,^^~~^^^^^^^^", "~~;//&#&#&#&#&#*,,,,*,~^^^^^^^^^", "~~;//#&#&#&#&#&#,*,,,~~,,^^^^^^^", "~~;/#&#&#&#&#&###,,*~~,,*,^^^^^^", "~~;//#&#&#&#&#&##&,~~*,,,,*^^^^^", "~~;//&#&#&#&#&#&##~~,,,*,,,,^^^^", "~~;/&##&##&##&##&~~&*,,,,*,,^^^^", "~~;//&##&##&##&#~~##&#*,,,,*,^^^", "~~;//#&##&##&##~~#&##,..,..,.^^^", "~~;/&##&##&##&~~&##&#..,..,..,^^", "~~;//&##&##&#~~##&##&.,..,..,.^^", "~~;//#&##&##&~~&##&#.,..,..,..^^", "~~;/&##&##&##&~~&##&#..,..,..,..", "~~~,#&##&##&##&~~&##&#,..,..,..,", "~~;,;#&##&##&##&~#&##&..,..,..,.", "~~~,;,#&##&##&##~##&##....,..,..", "~~~;,;##&##&##;;~;;;&#.:::..,..,", "~;~~;,&#%%%%%%;~~~~;;;:::::.....", "~,;~~;#%%%%%%%~~~~~~~;;::::.....", "~~;,~;%%%%%%%~~~~~~~~~;::::.....", "~~~;,,%%%%%%%~~~~~~~~~;:::......", "~;~~;,%%%%%%%%~~~~~~~;;.........", "~,;~~;%%%%%%%%%~~~~~;;..........", "~~;,~;%%%%%%%%%;;;;;;...........", "~~~;,;%%%%%%%%%%####............", "~;~~;,#%%%%%%%%%%###............", "~~;,~;##%%%%%%%%%%%#............", "~~~;,,####%%%%%%%%%%............"], "region_grid": ["11126666666664444444444444444444", "11122666666666444444555444444444", "11122966666699944444455544444444", "111229966699999AA444445E54444444", "1112999999999997777744EE44554444", "1112299999999997777777E444455444", "111229999999999A77777EE774445544", "111299999999999AA777EE7777444444", "111229999999999AAA7EE77777744444", "111229999999999AAABE777777774444", "1112AAAAAAAAAAAAABBA777777774444", "11122AAAAAAAAAAABBAAAA7777777444", "11122AAAAAAAAAABBAAAA88888888444", "1112AAAAAAAAAABBAAAAA88888888844", "11122AAAAAAAABBAAAAAA88888888844", "11122AAAAAAAABBAAAAA888888888844", "1112AAAAAAAAAABBAAAAA88888888888", "1113AAAAAAAAAAABBAAAAA8888888888", "11333AAAAAAAAAAABAAAAA8888888888", "113333AAAAAAAAAABAAAAA8888888888", "133333AAAAAAAACCBCCCAA8FFF888888", "133333AADDDDDDCCCCCCCCFFFFF00000", "333333ADDDDDDDCCCCCCCCCFFFF00000", "333333DDDDDDDCCCCCCCCCCFFFF00000", "333333DDDDDDDCCCCCCCCCCFFF000000", "333333DDDDDDDDCCCCCCCCC000000000", "333333DDDDDDDDDCCCCCCC0000000000", "333333DDDDDDDDDCCCCCC00000000000", "333333DDDDDDDDDDAAAA000000000000", "333333ADDDDDDDDDDAAA000000000000", "333333AADDDDDDDDDDDA000000000000", "333333AAAADDDDDDDDDD000000000000"], "regions": {"0": {"name": "The Verdurous Marches", "type": "farmland", "lore": "A sunlit expanse of fertile black loam and rolling grasses east of the Sweetwater Sea, awakening to the rhythmic bite of iron plows and the smoke of mortal hearthfires."}, "1": {"name": "Western Ocean", "type": "ocean", "lore": "An oceanic expanse of terrible and majestic breadth, where colossal gray rollers crash against the stone palisades of the land."}, "2": {"name": "Basalt Palisades", "type": "cliffs", "lore": "Sheer, fluted basalt cliffs rising hundreds of feet above the surf, echoing with booming sea-caves and blowing cold salt spray."}, "3": {"name": "Shattered Archipelago", "type": "bay", "lore": "A wild expanse of drowned granite hills, crescent bays, and deep-water sounds littered with salt-bleached mountain timber."}, "4": {"name": "Great Cordillera", "type": "mountains", "lore": "An unyielding, serrated backbone of gneiss and granite horn-peaks permanently clad in perpetual rime and ancient snows."}, "5": {"name": "Frost Glaciers", "type": "mountains", "lore": "Great tongues of blue ice groaning as they grind mountain roots, carving profound U-shaped amphitheaters and hanging valleys."}, "6": {"name": "Northern Chasms", "type": "chasm", "lore": "Shadow-choked, bottomless defiles where the northern spine fractures, exhaling a cold mineral mist smelling of wet copper."}, "7": {"name": "Sandstone Plateau", "type": "hills", "lore": "An uplifted, wind-scoured tableland of stepped sandstone and iron-veined shale, home to dwarfed junipers and vast scree seas."}, "8": {"name": "Rolling Heather Downs", "type": "hills", "lore": "Whale-backed chalk hills draped in shifting waves of heather and gorse, topped by watchful titans of wind-sculpted stone."}, "9": {"name": "Northern Taiga", "type": "forest", "lore": "A solemn forest of spruce, hemlock, and redcedar where lichens drape every branch and moss conceals silent sinkholes."}, "A": {"name": "Primeval Broadleaf Forest", "type": "forest", "lore": "A dense mosaic canopy of colossal oaks, limes, and beeches casting an emerald gloom over decaying nurse-logs and moss."}, "B": {"name": "Great Arterial River", "type": "river", "lore": "A mighty river of clear cut beryl waters flowing over yellow gravel across the temperate plains, fed by dark leaf-steeped tributaries."}, "C": {"name": "Sweetwater Sea", "type": "lake", "lore": "A calm, crystalline inland sea revealing ancient submerged stonewort forests and massive paddle-finned fish in its depths."}, "D": {"name": "Great Delta Marshes", "type": "swamp", "lore": "A vast labyrinth of reed-forests, water-channels, and sphagnum bogs thick with fog and the rich aroma of damp loam."}, "E": {"name": "Glacial Torrent", "type": "river", "lore": "A furious, high-altitude flume of pale slate water plunging over precipices in localized rainstorms and rainbow spray."}, "F": {"name": "Eldermere Croftlands", "type": "farmland", "lore": "Tilled lacustrine blacksoil irrigated by the calm sweet waters of the great inland sea, yielding amber grain, sweet gourds, and flaxen rope."}}, "features": {"eldermere": {"name": "Eldermere", "char": "o", "type": "settlement", "tiles": [[24, 22]], "description": "The first permanent mortal haven, established along the calm eastern beaches of the Sweetwater Sea where crystal waters lap against rich alluvial meadows."}, "dun_kestrel": {"name": "Dun Kestrel", "char": "o", "type": "outpost", "tiles": [[24, 15]], "description": "A ringfort of chalk, timber, and fieldstone raised atop the crest of the Heather Downs, watching over pastoral flocks and the northern approaches."}, "the_downs_trail": {"name": "The Downs Trail", "char": "+", "type": "road", "tiles": [[24, 16], [24, 17], [24, 18], [24, 19], [24, 20], [24, 21]], "description": "A beaten trail of packed chalk and river gravel, tracing the gentle descent from the pastoral ridges of Dun Kestrel down to the fields of Eldermere."}, "the_sunken_fane": {"name": "The Sunken Fane", "char": "!", "type": "dungeon", "tiles": [[10, 24]], "description": "A primordial megalithic sanctuary of waterlogged basalt sinking into the quagmire, whispered by the first marsh-wanderers to house slumbering, ancient leviathan spirits."}, "khar_drakh": {"name": "Khar-Drakh", "char": "!", "type": "lair", "tiles": [[19, 5]], "description": "A towering monolith of vitrified black shale and sulfurous fumaroles perched upon the high sandstone shelf, where primeval wyrms roost above the canyon winds."}}, "elevation_grid": ["22278888888889999999999999999999", "22287888888888999999999999999999", "22288588888855599999999999999999", "22288558885555555999999399999999", "22285555555555566656993399999999", "22288555555555556666563999999999", "22288454545454546466622669999999", "11284545454545444664226646999999", "11288454545454544562246666499999", "11288545454545454422666466669999", "11285445445445445225466664669999", "11288544544544542244544666646999", "11288454454454422454464464464999", "11285445445445225445444644644699", "11288544544542244544546446446499", "11177444444442244444454454454499", "11174444444444224444444544544544", "11134444444444422444445445445445", "11131444444444442444444454454454", "11131344444444442444444444544544", "11113144444444222222444445445445", "11111344222222211112223333333333", "13111142222222111111122333333333", "00130111111111111111111222222222", "00013311111111111111111222222222", "01001311111111111111111222222222", "03100111111111111111112222222222", "00130111111111111111122222222222", "00013111111111113333222222222222", "01001331111111111333222222222222", "00130133111111111113222222222222", "00002233331111111111222222222222"], "timeline": ["## Epoch 1: The First Furrows and the Sunken Stone\n\n- **Eldermere (o) at [24, 22]:** Founded along the sheltered eastern shallows of the Sweetwater Sea, where migrating clans found calm drinking waters, fertile alluvial silt, and safe harbor from the wild hinterlands.\n- **Dun Kestrel (o) at [24, 15]:** Raised as a palisaded hill-redoubt upon a wind-scoured chalk knoll in the Rolling Heather Downs to corral highland flocks and watch the passes leading down from the northern ridges.\n- **The Sunken Fane (!) at [10, 24]:** Discovered by reed-gatherers deep within the mist-veiled labyrinth of the Great Delta Marshes—a submerged pre-mortal fane of cyclopean basalt that radiates an ominous, stagnant hum.\n- **Khar-Drakh (!) at [19, 5]:** Uncovered atop the high wind-sheared shelves of the Sandstone Plateau, where sulfurous crevices and vitrified stone mark the roosting crag of an ancient mountain predator.\n- **The Downs Trail [24, 16] <-> [24, 21]:** Trodden by herders and salt-merchants linking the sheep-pastures of Dun Kestrel directly to the lacustrine markets and granaries of Eldermere.\n- **Eldermere Croftlands (Domain Expansion):** Settlers cleared the fertile tallgrass along the lake margin into ditch-fed agrarian plots, planting winter rye, gourds, and flax across the eastern basin.\n- **The Verdurous Marches (Region Lore Mutation):** Once regarded as an unbroken, trackless wilderness, the eastern plains have been christened anew as mortal hearthfires take root and plows open the black lacustrine soil."], "epoch": 1}}};
-    let currentPresetKey = "epoch_1";
-    let currentWorld = null;
-    let currentMatrix = null;
-    let currentViewMode = "composite";
-    let activeFilter = null; // { type: 'terrain'|'region'|'feature', key: string }
-    let isPinned = false;
-    let pinnedCoord = null;
-
-    // Feature Overlay Hierarchy Priority (matches world_state.py)
-    const FEATURE_PRIORITY = {
-      "+": 10,  // Active Road / Trade Route
-      "=": 20,  // Bridge / River Crossing
-      "o": 30,  // Small Settlement / Outpost
-      "O": 40,  // Major City / Metropolis
-      "!": 50   // Dungeon / Ruin / Stronghold
-    };
-
-    // Canonical Terrain Specifications
+    // ═══════════════════════════════════════════════════════════
+    //  DEFINITIONS & GLYPH STYLES
+    // ═══════════════════════════════════════════════════════════
     const TERRAIN_DEFS = {
-      ".": { name: "Plains / Wilderness", desc: "Open lowlands and temperate meadows", bg: "#365328", fg: "#b4e88c", border: "#466b34" },
-      ",": { name: "Hills / Slopes", desc: "Rolling uplands and foothills", bg: "#585b24", fg: "#d7dc7b", border: "#73772f" },
-      "#": { name: "Forest / Woods", desc: "Temperate woodland and copse", bg: "#194220", fg: "#72d98d", border: "#235f2e" },
-      "&": { name: "Dense Forest / Deep Jungle", desc: "Ancient, impenetrable primeval canopy", bg: "#0d2b17", fg: "#38a169", border: "#154224" },
-      "%": { name: "Swamp / Bog / Marsh", desc: "Wetlands, mires, and sodden fens", bg: "#28372d", fg: "#82b28c", border: "#3d5345" },
-      "~": { name: "Water / River / Ocean", desc: "Cardinal waterways, seas, and lakes", bg: "#163f70", fg: "#6cb8ff", border: "#215da2" },
-      ";": { name: "Coast / Beach / Shallows", desc: "Shingle shores, sandbanks, and tidal reaches", bg: "#6d592f", fg: "#f3d178", border: "#8c723c" },
-      "^": { name: "Mountain Peak / Ridge", desc: "Towering alpine peaks and jagged crests", bg: "#424b59", fg: "#f1f5f9", border: "#586477" },
-      "/": { name: "Cliffs / Chasms / Edges", desc: "Precipitous escarpments and fissures", bg: "#392f44", fg: "#d4bef0", border: "#524362" },
-      "*": { name: "Wastelands / Dam / Barrier", desc: "Blighted, volcanic, or desolate wastes", bg: "#362426", fg: "#ff8585", border: "#54373b" },
-      ":": { name: "Farmland", desc: "Arable agricultural lands and cultivated crops", bg: "#56451e", fg: "#ffd460", border: "#78612a" }
+      ",": { name: "Grassland", desc: "Open rolling grassland" },
+      ".": { name: "Plains", desc: "Flat cleared terrain" },
+      "#": { name: "Dense Rock", desc: "Exposed rock face" },
+      "^": { name: "Mountain Peak", desc: "Alpine summit" },
+      "~": { name: "Water", desc: "Open water surface" },
+      "&": { name: "Dense Forest", desc: "Thick old-growth canopy" },
+      "%": { name: "Swamp", desc: "Boggy marshland" },
+      "/": { name: "Cliff Edge", desc: "Steep cliff or canyon wall" },
+      ";": { name: "Shore", desc: "Coastal shoreline" },
+      ":": { name: "Cleared Land", desc: "Human-altered terrain" },
+      "*": { name: "Blighted Ground", desc: "Corrupted wasteland" },
+      "+": { name: "Road", desc: "Constructed path" },
+      "=": { name: "Bridge", desc: "Crossing structure" },
+      "|": { name: "Wall", desc: "Fortification wall" },
+      "@": { name: "Dam", desc: "Water control structure" },
+      "X": { name: "Ruin", desc: "Ruined structure" },
+      "!": { name: "Dungeon", desc: "Dungeon entrance" },
+      "o": { name: "Settlement", desc: "Small settlement" },
+      "O": { name: "City", desc: "Major city" },
+      " ": { name: "Void", desc: "Empty space" }
     };
 
-    const DEFAULT_TERRAIN = {
-      name: "Unknown Ground",
-      desc: "Uncharted terrain",
-      bg: "#21262d",
-      fg: "#8b949e",
-      border: "#30363d"
+    const FEATURE_PRIORITY = {
+      "!": 1, "X": 2, "O": 3, "o": 4, "=": 5, "@": 6, "+": 20
     };
 
-    function getTerrainDef(cell) {
-      if (!cell) return DEFAULT_TERRAIN;
-      if (cell.terrainChar === "*") {
-        const isDam = (cell.topFeature && (cell.topFeature.type === "dam" || cell.topFeature.type === "barrage" || cell.topFeature.char === "*" || (cell.topFeature.name && cell.topFeature.name.toLowerCase().includes("dam")))) ||
-                      (cell.regionType === "river" || cell.regionType === "dam" || (cell.regionName && cell.regionName.toLowerCase().includes("dam")));
-        if (isDam) {
-          return {
-            name: "Masonry Dam / River Barrier",
-            desc: "Engineered heavy stone masonry barrage impounding river waters",
-            bg: "#202d3d",
-            fg: "#93c5fd",
-            border: "#3b82f6"
-          };
-        }
+    // ═══════════════════════════════════════════════════════════
+    //  STATE STORE
+    // ═══════════════════════════════════════════════════════
+    let basePath = "artifacts/";
+    const EPOCH_STORE = {};     // epochNumber -> worldmapData
+    const LOCALE_CACHE = {};    // feature_id -> dossierData
+    const KEYFRAME_CACHE = {};  // `${feature_id}_kf_${index}` -> keyframeData
+    let availableEpochs = [];
+    let currentEpoch = 1;
+    let viewMode = "composite"; // "composite" | "terrain" | "regions"
+    let currentTileSize = 12;   // Standardized 12px for both world & submap
+
+    // View state: either "world" or "submap"
+    let activeView = "world";           // "world" | "submap"
+    let activeSubmapFeatureId = null;  // e.g. "aethelford"
+    let currentMatrix = null;          // Matrix currently displayed in viewport
+    let currentMatrixWidth = 0;
+    let currentMatrixHeight = 0;
+
+    let pinnedTile = null;             // { x, y, view: "world"|"submap" } or null
+    let hoveredCell = null;            // cell object
+    let activeBottomTab = "timeline";  // "timeline" | "lore"
+
+    // ═══════════════════════════════════════════════════════════
+    //  DATA LOADER (DYNAMIC SERVER FETCH)
+    // ═══════════════════════════════════════════════════════════
+    async function initDataLoader() {
+      const candidates = ["artifacts/", "./", "../artifacts/"];
+      let detected = null;
+
+      for (const p of candidates) {
+        try {
+          const res = await fetch(p + "worldmap.json");
+          if (res.ok) {
+            detected = p;
+            const primordial = await res.json();
+            EPOCH_STORE[0] = primordial;
+            break;
+          }
+        } catch (e) {}
       }
-      return TERRAIN_DEFS[cell.terrainChar] || DEFAULT_TERRAIN;
+
+      if (!detected) {
+        document.getElementById("gridContainerMount").innerHTML =
+          `<div class="no-data" style="padding:40px; color:#f55;">
+            [ERROR: SERVER NOT REACHABLE]<br><br>
+            Please ensure you are serving this folder via a local server (e.g. <code>python -m http.server</code>).<br>
+            Could not fetch <code>worldmap.json</code> at candidates: ${candidates.join(", ")}
+          </div>`;
+        return;
+      }
+
+      basePath = detected;
+
+      // Fetch numbered epochs
+      const probePromises = [];
+      for (let ep = 1; ep <= 10; ep++) {
+        probePromises.push(
+          fetch(`${basePath}worldmap_epoch_${ep}.json`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+              if (data) {
+                const num = (data.epoch !== undefined && data.epoch !== null) ? data.epoch : ep;
+                EPOCH_STORE[num] = data;
+              }
+            })
+            .catch(() => {})
+        );
+      }
+      await Promise.all(probePromises);
+
+      availableEpochs = Object.keys(EPOCH_STORE).map(Number).sort((a, b) => a - b);
+
+      if (availableEpochs.length === 0) {
+        document.getElementById("gridContainerMount").innerHTML =
+          `<div class="no-data" style="padding:40px; color:#f55;">No worldmap epochs found.</div>`;
+        return;
+      }
+
+      currentEpoch = availableEpochs.includes(1) ? 1 : availableEpochs[0];
+
+      // Probe known locales in the background
+      await probeLocalesForCurrentEpoch();
+
+      // Render initial view
+      loadAndRenderView();
     }
 
-    const FEATURE_STYLES = {
-      "o": { label: "Civilized Outpost / Village / Fort", badgeClass: "feat-settlement", fg: "#ffd166", bg: "rgba(255, 209, 102, 0.22)", border: "#ffd166" },
-      "O": { label: "Civilized City / Citadel / Fortress", badgeClass: "feat-city", fg: "#ff9f1c", bg: "rgba(255, 159, 28, 0.28)", border: "#ff9f1c" },
-      "!": { label: "Hostile Lair / Dungeon / Ruin", badgeClass: "feat-dungeon", fg: "#ff3860", bg: "rgba(255, 56, 96, 0.28)", border: "#ff3860" },
-      "+": { label: "Road / Trade Route", badgeClass: "feat-road", fg: "#e5c093", bg: "rgba(229, 192, 147, 0.2)", border: "#e5c093" },
-      "=": { label: "Bridge / Viaduct", badgeClass: "feat-bridge", fg: "#ffaf7a", bg: "rgba(255, 175, 122, 0.25)", border: "#ffaf7a" },
-      "*": { label: "Masonry Dam / Barrier", badgeClass: "feat-dam", fg: "#93c5fd", bg: "rgba(59, 130, 246, 0.25)", border: "#3b82f6" }
-    };
+    async function probeLocalesForCurrentEpoch() {
+      const worldData = EPOCH_STORE[currentEpoch];
+      if (!worldData || !worldData.features) return;
 
-    // Canonical Region Biome Color Palette
-    const REGION_PALETTE = {
-      "0": { bg: "#1f2937", fg: "#9ca3af", border: "#374151" }, // Wilderness
-      "A": { bg: "#1e3a8a", fg: "#93c5fd", border: "#2563eb" }, // Ocean
-      "B": { bg: "#4c1d95", fg: "#c4b5fd", border: "#6d28d9" }, // Cliffs
-      "C": { bg: "#0369a1", fg: "#7dd3fc", border: "#0284c7" }, // Bay
-      "D": { bg: "#334155", fg: "#cbd5e1", border: "#475569" }, // Mountains
-      "E": { bg: "#581c87", fg: "#d8b4fe", border: "#7e22ce" }, // Chasm
-      "F": { bg: "#0284c7", fg: "#bae6fd", border: "#0369a1" }, // River
-      "G": { bg: "#0891b2", fg: "#a5f3fc", border: "#0e7490" }, // Lake
-      "H": { bg: "#14532d", fg: "#86efac", border: "#166534" }, // Swamp
-      "I": { bg: "#166534", fg: "#bbf7d0", border: "#15803d" }, // Forest
-      "J": { bg: "#854d0e", fg: "#fde047", border: "#a16207" }, // Hills
-      "K": { bg: "#7f1d1d", fg: "#fca5a5", border: "#991b1b" }, // Wasteland
-      "f": { bg: "#b45309", fg: "#fde68a", border: "#d97706" }  // Farmland
-    };
+      const featIds = Object.keys(worldData.features);
+      const fetches = featIds.map(async (fId) => {
+        if (LOCALE_CACHE[fId] !== undefined) return;
+        try {
+          const res = await fetch(`${basePath}locales/${fId}/dossier.json`);
+          if (res.ok) {
+            LOCALE_CACHE[fId] = await res.json();
+          } else {
+            LOCALE_CACHE[fId] = null;
+          }
+        } catch (e) {
+          LOCALE_CACHE[fId] = null;
+        }
+      });
 
-    function getRegionColors(regId) {
-      if (REGION_PALETTE[regId]) return REGION_PALETTE[regId];
-      // Generate deterministic vibrant hue
-      const charCode = regId.charCodeAt(0) || 65;
-      const hue = (charCode * 137.5) % 360;
-      return {
-        bg: `hsl(${hue}, 45%, 22%)`,
-        fg: `hsl(${hue}, 85%, 75%)`,
-        border: `hsl(${hue}, 60%, 40%)`
-      };
+      await Promise.all(fetches);
+      if (activeView === "world") {
+        renderCurrentMatrix();
+      }
     }
 
-    // Process World Data into Complete Matrix
-    function processWorld(world) {
-      const terrainGrid = world.terrain_grid || [];
-      const regionGrid = world.region_grid || [];
-      const regions = world.regions || {};
-      const features = world.features || {};
+    // ═══════════════════════════════════════════════════════════
+    //  DATA PROCESSING (WORLD & LOCALE MAPS)
+    // ═══════════════════════════════════════════════════════
+    function getTerrainDef(ch) {
+      return TERRAIN_DEFS[ch] || { name: "Uncharted", desc: "Unknown territory" };
+    }
+
+    function processMapData(data, isSubmap = false) {
+      const terrainGrid = data.terrain_grid || [];
+      const regionGrid = data.region_grid || data.district_grid || [];
+      const regions = data.regions || data.districts || {};
+      const features = data.features || {};
 
       const height = terrainGrid.length;
       const width = height > 0 ? terrainGrid[0].length : 0;
@@ -1138,52 +777,43 @@
       for (let y = 0; y < height; y++) {
         const row = [];
         for (let x = 0; x < width; x++) {
-          const tChar = terrainGrid[y] ? terrainGrid[y][x] : " ";
-          const rId = (regionGrid[y] && regionGrid[y][x]) ? regionGrid[y][x] : "0";
-          const rInfo = regions[rId] || { name: "Unnamed Wilderness", type: "wilderness" };
-
+          const tc = (terrainGrid[y] && terrainGrid[y][x]) || " ";
+          const rId = (regionGrid[y] && regionGrid[y][x]) || "0";
+          const rInfo = regions[rId] || { name: isSubmap ? "Outskirts" : "Wilderness", type: isSubmap ? "district" : "wilderness", lore: "" };
           row.push({
-            x,
-            y,
-            terrainChar: tChar,
+            x, y,
+            terrainChar: tc,
             regionId: rId,
-            regionName: rInfo.name || `Region ${rId}`,
-            regionType: rInfo.type || "wilderness",
+            regionName: rInfo.name || "Unnamed",
+            regionType: rInfo.type || (isSubmap ? "district" : "wilderness"),
             regionLore: rInfo.lore || rInfo.description || "",
             features: [],
             topFeature: null,
-            compositeChar: tChar
+            compositeChar: tc,
+            isSubmap
           });
         }
         matrix.push(row);
       }
 
-      // Layer features in priority order
-      const sortedFeatEntries = Object.entries(features).map(([id, feat]) => ({
+      // Layer features by priority. Normalize description & lore!
+      const sorted = Object.entries(features).map(([id, feat]) => ({
         id,
-        ...feat
-      })).sort((a, b) => {
-        const prioA = FEATURE_PRIORITY[a.char] ?? 25;
-        const prioB = FEATURE_PRIORITY[b.char] ?? 25;
-        return prioA - prioB;
-      });
+        ...feat,
+        description: feat.description || feat.lore || ""
+      })).sort((a, b) => (FEATURE_PRIORITY[a.char] || 25) - (FEATURE_PRIORITY[b.char] || 25));
 
-      sortedFeatEntries.forEach(feat => {
+      sorted.forEach(feat => {
         let tiles = feat.tiles || [];
-        if ((!tiles || tiles.length === 0) && feat.pos) {
-          tiles = [feat.pos];
-        } else if (tiles.length > 0 && typeof tiles[0] === "number") {
-          tiles = [tiles];
-        }
+        if ((!tiles || tiles.length === 0) && feat.pos) tiles = [feat.pos];
+        if (tiles.length > 0 && typeof tiles[0] === "number") tiles = [tiles];
 
-        tiles.forEach(pt => {
-          const x = pt[0];
-          const y = pt[1];
-          if (y >= 0 && y < height && x >= 0 && x < width) {
-            const cell = matrix[y][x];
+        tiles.forEach(([px, py]) => {
+          if (py >= 0 && py < height && px >= 0 && px < width) {
+            const cell = matrix[py][px];
             cell.features.push(feat);
             cell.topFeature = feat;
-            cell.compositeChar = String(feat.char || "o")[0];
+            cell.compositeChar = (feat.char || "o")[0];
           }
         });
       });
@@ -1191,807 +821,931 @@
       return { matrix, width, height };
     }
 
-    // Populate Presets in Dropdown
-    function initPresetsDropdown() {
-      const select = document.getElementById("mapSelect");
-      select.innerHTML = "";
-      Object.entries(PRESETS).forEach(([key, preset]) => {
-        const opt = document.createElement("option");
-        opt.value = key;
-        opt.textContent = preset.label;
-        if (key === currentPresetKey) opt.selected = true;
-        select.appendChild(opt);
-      });
+    // ═══════════════════════════════════════════════════════════
+    //  VIEW RENDERING (SWITCHABLE SINGLE WINDOW)
+    // ═══════════════════════════════════════════════════════
+    async function loadAndRenderView() {
+      document.getElementById("epochIndicator").textContent =
+        currentEpoch === 0 ? "PRIMORDIAL" : `EPOCH ${currentEpoch}`;
 
-      select.addEventListener("change", (e) => {
-        loadPreset(e.target.value);
-      });
-    }
+      const idx = availableEpochs.indexOf(currentEpoch);
+      document.getElementById("btnPrevEpoch").disabled = (idx <= 0);
+      document.getElementById("btnNextEpoch").disabled = (idx >= availableEpochs.length - 1);
 
-    function loadPreset(key) {
-      if (!PRESETS[key]) return;
-      currentPresetKey = key;
-      const select = document.getElementById("mapSelect");
-      select.value = key;
-      loadWorldData(PRESETS[key].data);
-    }
-
-    function loadWorldData(world) {
-      currentWorld = world;
-      const processed = processWorld(world);
-      currentMatrix = processed.matrix;
-
-      // Update Header Badges
-      document.getElementById("realmNameBadge").textContent = world.name || "Unknown Realm";
-      const epoch = world.epoch !== undefined ? world.epoch : (world.name && world.name.includes("Epoch") ? "Historical" : 0);
-      document.getElementById("epochBadge").textContent = `Epoch ${epoch}`;
-
-      // Update Tab Counts
-      const featCount = Object.keys(world.features || {}).length;
-      const regCount = Object.keys(world.regions || {}).length;
-      document.getElementById("featCountTab").textContent = featCount;
-      document.getElementById("regCountTab").textContent = regCount;
-
-      renderView();
-      renderFeaturesTab();
-      renderRegionsTab();
-      renderLegendTab();
-      renderTimelineTab();
-
-      // Reset pin or inspect default interesting tile (e.g. first feature or center)
-      if (featCount > 0) {
-        const firstFeat = Object.values(world.features)[0];
-        const pt = (firstFeat.tiles && firstFeat.tiles[0]) || firstFeat.pos || [0, 0];
-        inspectTile(pt[0], pt[1], false);
+      if (activeView === "submap" && activeSubmapFeatureId) {
+        await loadAndRenderSubmapView();
       } else {
-        inspectTile(0, 0, false);
+        loadAndRenderWorldView();
       }
+
+      updateBottomPanel();
     }
 
-    // Render Map Grids
-    function renderView() {
-      const wrapper = document.getElementById("mapWrapper");
-      wrapper.innerHTML = "";
+    function loadAndRenderWorldView() {
+      activeView = "world";
+      activeSubmapFeatureId = null;
 
-      if (!currentMatrix || currentMatrix.length === 0) {
-        wrapper.innerHTML = "<div style='color: var(--text-muted); padding: 40px;'>No map data loaded.</div>";
+      // Update Header
+      document.getElementById("btnBackToWorld").classList.remove("visible");
+      const worldData = EPOCH_STORE[currentEpoch];
+      const realmName = worldData ? (worldData.name || "THE REALM").toUpperCase() : "UNEXPLORED";
+      document.getElementById("viewTitleDisplay").textContent = `WORLD: ${realmName}`;
+
+      if (worldData) {
+        const processed = processMapData(worldData, false);
+        currentMatrix = processed.matrix;
+        currentMatrixWidth = processed.width;
+        currentMatrixHeight = processed.height;
+      } else {
+        currentMatrix = null;
+      }
+
+      applyTileSize(currentTileSize);
+
+      document.getElementById("mapModeLabel").textContent = "[WORLD MAP]";
+      document.getElementById("mapDimsLabel").textContent = `[${currentMatrixWidth}x${currentMatrixHeight}]`;
+
+      renderCurrentMatrix();
+      probeLocalesForCurrentEpoch();
+    }
+
+    async function loadAndRenderSubmapView() {
+      activeView = "submap";
+      const fId = activeSubmapFeatureId;
+
+      // Update Header
+      document.getElementById("btnBackToWorld").classList.add("visible");
+
+      // 1. Ensure dossier is loaded
+      if (!LOCALE_CACHE[fId]) {
+        try {
+          const res = await fetch(`${basePath}locales/${fId}/dossier.json`);
+          if (res.ok) LOCALE_CACHE[fId] = await res.json();
+        } catch (e) {}
+      }
+
+      const dossier = LOCALE_CACHE[fId];
+      if (!dossier) {
+        document.getElementById("viewTitleDisplay").textContent = `SUBMAP: ${fId.toUpperCase()} [NOT FOUND]`;
+        document.getElementById("gridContainerMount").innerHTML =
+          `<div class="no-data" style="padding:40px;">No sub-map dossier found for location: ${fId}</div>`;
         return;
       }
 
-      const height = currentMatrix.length;
-      const width = currentMatrix[0].length;
-      const showRulers = document.getElementById("chkRulers").checked;
-      const showGlyphs = document.getElementById("chkGlyphs").checked;
+      // 2. Find best keyframe for currentEpoch
+      let targetKeyframeIndex = null;
+      let matchedEpoch = null;
+      const keyframes = dossier.keyframes || [];
+      const sortedKfs = [...keyframes].sort((a, b) => a.epoch - b.epoch);
 
-      if (currentViewMode === "side-by-side") {
-        const container = document.createElement("div");
-        container.className = "side-by-side-container";
-
-        const compSec = createMapSection("Composite Map (Terrain + Features)", "composite", width, height, showRulers, showGlyphs);
-        const regSec = createMapSection("Region Grid (Biome IDs)", "regions", width, height, showRulers, showGlyphs);
-
-        container.appendChild(compSec);
-        container.appendChild(regSec);
-        wrapper.appendChild(container);
-      } else {
-        let title = "Composite Map (Terrain + Features)";
-        if (currentViewMode === "terrain") title = "Natural Terrain Ground";
-        if (currentViewMode === "regions") title = "Region Biomes Grid";
-
-        const sec = createMapSection(title, currentViewMode, width, height, showRulers, showGlyphs);
-        wrapper.appendChild(sec);
+      for (const kf of sortedKfs) {
+        if (kf.epoch <= currentEpoch) {
+          targetKeyframeIndex = kf.keyframe_index;
+          matchedEpoch = kf.epoch;
+        }
       }
+
+      if (targetKeyframeIndex === null) {
+        document.getElementById("viewTitleDisplay").textContent = `SUBMAP: ${fId.toUpperCase()} [UNFORMED]`;
+        document.getElementById("mapModeLabel").textContent = `[SUBMAP: ${fId.toUpperCase()} // UNFORMED]`;
+        document.getElementById("mapDimsLabel").textContent = `[--x--]`;
+
+        document.getElementById("gridContainerMount").innerHTML =
+          `<div class="no-data" style="text-align:center; padding: 40px;">
+            [UNFORMED IN EPOCH ${currentEpoch}]<br><br>
+            This site first emerges in Epoch ${dossier.first_seen_epoch}.<br>
+            Use [◄] or [►] above (or arrow keys) to cycle epochs freely.
+          </div>`;
+        currentMatrix = null;
+        return;
+      }
+
+      // 3. Fetch keyframe JSON
+      const cacheKey = `${fId}_kf_${targetKeyframeIndex}`;
+      let kfData = KEYFRAME_CACHE[cacheKey];
+
+      if (!kfData) {
+        try {
+          const res = await fetch(`${basePath}locales/${fId}/localemap_keyframe_${targetKeyframeIndex}.json`);
+          if (res.ok) {
+            kfData = await res.json();
+            KEYFRAME_CACHE[cacheKey] = kfData;
+          }
+        } catch (e) {}
+      }
+
+      if (!kfData) {
+        document.getElementById("gridContainerMount").innerHTML =
+          `<div class="no-data" style="padding:40px;">Failed to load keyframe ${targetKeyframeIndex} for ${fId}.</div>`;
+        currentMatrix = null;
+        return;
+      }
+
+      // 4. Process submap matrix
+      const processed = processMapData(kfData, true);
+      currentMatrix = processed.matrix;
+      currentMatrixWidth = processed.width;
+      currentMatrixHeight = processed.height;
+
+      const locName = (kfData.name || fId).toUpperCase();
+      document.getElementById("viewTitleDisplay").textContent = `SUBMAP: ${locName} [EPOCH ${matchedEpoch}]`;
+      document.getElementById("mapModeLabel").textContent = `[SUBMAP: ${locName}]`;
+      document.getElementById("mapDimsLabel").textContent = `[${currentMatrixWidth}x${currentMatrixHeight}]`;
+
+      applyTileSize(currentTileSize);
+
+      renderCurrentMatrix();
     }
 
-    function createMapSection(titleText, mode, width, height, showRulers, showGlyphs) {
-      const sec = document.createElement("div");
-      sec.className = "map-section";
+    // ═══════════════════════════════════════════════════════════
+    //  MATRIX RENDERING (ZERO EXTRA SPACE ON RIGHT)
+    // ═══════════════════════════════════════════════════════
+    function renderCurrentMatrix() {
+      const mount = document.getElementById("gridContainerMount");
+      mount.innerHTML = "";
 
-      const title = document.createElement("div");
-      title.className = "map-section-title";
-      title.innerHTML = `<span>${titleText}</span><span style="font-family: ui-monospace; font-size: 0.72rem;">${width}x${height}</span>`;
-      sec.appendChild(title);
-
-      const gridBox = document.createElement("div");
-      gridBox.className = "grid-with-axes";
-
-      // Origin
-      if (showRulers) {
-        const origin = document.createElement("div");
-        origin.className = "origin-corner";
-        origin.textContent = "Y\\X";
-        gridBox.appendChild(origin);
-
-        // Column Ruler (Top)
-        const colRuler = document.createElement("div");
-        colRuler.className = "col-ruler";
-        colRuler.id = `colRuler_${mode}`;
-        for (let x = 0; x < width; x++) {
-          const cell = document.createElement("div");
-          cell.className = "ruler-col-cell";
-          cell.dataset.x = x;
-          const tens = Math.floor(x / 10);
-          const ones = x % 10;
-          cell.innerHTML = `<span>${tens}</span><span>${ones}</span>`;
-          colRuler.appendChild(cell);
-        }
-        gridBox.appendChild(colRuler);
-
-        // Row Ruler (Left)
-        const rowRuler = document.createElement("div");
-        rowRuler.className = "row-ruler";
-        rowRuler.id = `rowRuler_${mode}`;
-        for (let y = 0; y < height; y++) {
-          const cell = document.createElement("div");
-          cell.className = "ruler-row-cell";
-          cell.dataset.y = y;
-          cell.textContent = String(y).padStart(2, "0");
-          rowRuler.appendChild(cell);
-        }
-        gridBox.appendChild(rowRuler);
+      if (!currentMatrix || currentMatrix.length === 0) {
+        return;
       }
 
-      // Tiles Grid
-      const tilesGrid = document.createElement("div");
-      tilesGrid.className = "tiles-grid";
-      tilesGrid.style.gridTemplateColumns = `repeat(${width}, var(--tile-size))`;
-      tilesGrid.style.gridTemplateRows = `repeat(${height}, var(--tile-size))`;
+      const w = currentMatrixWidth;
+      const h = currentMatrixHeight;
 
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
+      const container = document.createElement("div");
+      container.className = "grid-container";
+
+      // Origin
+      const origin = document.createElement("div");
+      origin.className = "axis-origin";
+      origin.textContent = "Y\\X";
+      container.appendChild(origin);
+
+      // Col ruler (X axis)
+      const colAxis = document.createElement("div");
+      colAxis.className = "col-axis";
+      colAxis.id = "colAxis";
+      for (let x = 0; x < w; x++) {
+        const c = document.createElement("div");
+        c.className = "col-header";
+        c.dataset.x = x;
+        c.innerHTML = `<span>${Math.floor(x / 10)}</span><span>${x % 10}</span>`;
+        colAxis.appendChild(c);
+      }
+      container.appendChild(colAxis);
+
+      // Row ruler (Y axis)
+      const rowAxis = document.createElement("div");
+      rowAxis.className = "row-axis";
+      rowAxis.id = "rowAxis";
+      for (let y = 0; y < h; y++) {
+        const r = document.createElement("div");
+        r.className = "row-header";
+        r.dataset.y = y;
+        r.textContent = String(y).padStart(2, "0");
+        rowAxis.appendChild(r);
+      }
+      container.appendChild(rowAxis);
+
+      // Tile matrix
+      const matrixEl = document.createElement("div");
+      matrixEl.className = "tile-matrix";
+      matrixEl.id = "tileMatrix";
+      matrixEl.style.gridTemplateColumns = `repeat(${w}, var(--tile-size))`;
+      matrixEl.style.gridTemplateRows = `repeat(${h}, var(--tile-size))`;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
           const cell = currentMatrix[y][x];
           const tile = document.createElement("div");
           tile.className = "tile";
           tile.dataset.x = x;
           tile.dataset.y = y;
-          tile.dataset.mode = mode;
 
-          // Determine Display Glyph and Color Scheme
-          let glyph = "";
-          let bgColor = "#161b22";
-          let fgColor = "#fff";
-          let borderColor = "transparent";
+          tile.textContent = cell.compositeChar;
 
-          const tDef = getTerrainDef(cell);
-
-          if (mode === "composite") {
-            glyph = cell.compositeChar;
-            bgColor = tDef.bg;
-            fgColor = tDef.fg;
-            borderColor = tDef.border;
-
-            if (cell.topFeature) {
-              const fStyle = FEATURE_STYLES[cell.topFeature.char];
-              if (fStyle) {
-                fgColor = fStyle.fg;
-                tile.classList.add(fStyle.badgeClass);
-                tile.style.borderColor = fStyle.border;
-              }
-            }
-          } else if (mode === "terrain") {
-            glyph = cell.terrainChar;
-            bgColor = tDef.bg;
-            fgColor = tDef.fg;
-            borderColor = tDef.border;
-          } else if (mode === "regions") {
-            glyph = cell.regionId;
-            const rStyle = getRegionColors(cell.regionId);
-            bgColor = rStyle.bg;
-            fgColor = rStyle.fg;
-            borderColor = rStyle.border;
-          }
-
-          tile.style.backgroundColor = bgColor;
-          tile.style.color = fgColor;
-          if (borderColor !== "transparent") {
-            tile.style.border = `1px solid ${borderColor}`;
-          }
-
-          if (showGlyphs) {
-            tile.textContent = glyph;
-          }
-
-          // Check if active filter matches
-          if (activeFilter) {
-            let match = false;
-            if (activeFilter.type === "terrain" && cell.terrainChar === activeFilter.key) match = true;
-            if (activeFilter.type === "region" && cell.regionId === activeFilter.key) match = true;
-            if (activeFilter.type === "feature" && cell.features.some(f => f.id === activeFilter.key)) match = true;
-
-            if (match) {
-              tile.classList.add("highlighted-match");
-            } else {
-              tile.classList.add("filtered-out");
+          if (cell.topFeature) {
+            tile.classList.add("feat");
+            if (activeView === "world" && LOCALE_CACHE[cell.topFeature.id]) {
+              tile.classList.add("has-submap");
             }
           }
 
-          // Interaction Listeners
-          tile.addEventListener("mouseenter", (e) => {
-            handleTileHover(cell, e);
-          });
+          if (pinnedTile && pinnedTile.x === x && pinnedTile.y === y && pinnedTile.view === activeView) {
+            tile.classList.add("pinned");
+          }
 
-          tile.addEventListener("mousemove", (e) => {
-            positionTooltip(e);
-          });
-
-          tile.addEventListener("mouseleave", () => {
-            handleTileLeave();
-          });
-
-          tile.addEventListener("click", () => {
-            togglePinTile(cell.x, cell.y);
-          });
-
-          tilesGrid.appendChild(tile);
+          matrixEl.appendChild(tile);
         }
       }
 
-      gridBox.appendChild(tilesGrid);
-      sec.appendChild(gridBox);
-      return sec;
+      container.appendChild(matrixEl);
+
+      // Events
+      matrixEl.addEventListener("mousemove", handleMatrixMouseMove);
+      matrixEl.addEventListener("mouseleave", handleMatrixMouseLeave);
+      matrixEl.addEventListener("click", handleMatrixClick);
+
+      mount.appendChild(container);
     }
 
-    // Hover & Tooltip Handling
-    const tooltip = document.getElementById("floatingTooltip");
+    // ═══════════════════════════════════════════════════════════
+    //  TOOLTIP (CURSOR-FOLLOWING MINIMAL BOX)
+    // ═══════════════════════════════════════════════════════
+    function updateTooltip(cell, e) {
+      const tt = document.getElementById("cliTooltip");
+      const td = getTerrainDef(cell.terrainChar);
+      const glyph = cell.compositeChar;
+      const mainName = cell.topFeature ? cell.topFeature.name : td.name;
+      const coords = `[${String(cell.x).padStart(2, "0")}, ${String(cell.y).padStart(2, "0")}]`;
 
-    function handleTileHover(cell, event) {
-      highlightCrosshairs(cell.x, cell.y, true);
-      updateTooltip(cell);
-      positionTooltip(event);
-      tooltip.style.display = "block";
+      document.getElementById("ttName").textContent = `${glyph} ${mainName}`;
+      document.getElementById("ttCoords").textContent = coords;
+      document.getElementById("ttBiome").textContent = cell.regionName;
 
-      if (!isPinned) {
-        inspectTile(cell.x, cell.y, false);
-      }
+      tt.style.display = "block";
+
+      const pad = 12;
+      let x = e.clientX + pad;
+      let y = e.clientY + pad;
+
+      const w = tt.offsetWidth || 180;
+      const h = tt.offsetHeight || 40;
+
+      if (x + w > window.innerWidth - 6) x = e.clientX - w - pad;
+      if (y + h > window.innerHeight - 6) y = e.clientY - h - pad;
+
+      tt.style.left = `${Math.max(4, x)}px`;
+      tt.style.top = `${Math.max(4, y)}px`;
     }
 
-    function handleTileLeave() {
-      highlightCrosshairs(null, null, false);
-      tooltip.style.display = "none";
-      if (isPinned && pinnedCoord) {
-        inspectTile(pinnedCoord.x, pinnedCoord.y, true);
-      }
+    function hideTooltip() {
+      document.getElementById("cliTooltip").style.display = "none";
     }
 
-    function positionTooltip(event) {
-      const pad = 14;
-      let left = event.clientX + pad;
-      let top = event.clientY + pad;
+    // ═══════════════════════════════════════════════════════════
+    //  INTERACTIONS (HOVER, PIN, CLICK-TO-ENTER)
+    // ═══════════════════════════════════════════════════════
+    function handleMatrixMouseMove(e) {
+      const tile = e.target.closest(".tile");
+      if (!tile || !currentMatrix) return;
 
-      const ttWidth = tooltip.offsetWidth || 280;
-      const ttHeight = tooltip.offsetHeight || 180;
+      const x = parseInt(tile.dataset.x, 10);
+      const y = parseInt(tile.dataset.y, 10);
+      if (y >= currentMatrix.length || x >= currentMatrix[0].length) return;
 
-      if (left + ttWidth > window.innerWidth - 10) {
-        left = event.clientX - ttWidth - pad;
-      }
-      if (top + ttHeight > window.innerHeight - 10) {
-        top = event.clientY - ttHeight - pad;
-      }
-
-      tooltip.style.left = `${Math.max(10, left)}px`;
-      tooltip.style.top = `${Math.max(10, top)}px`;
-    }
-
-    function updateTooltip(cell) {
-      const tDef = getTerrainDef(cell);
-
-      document.getElementById("ttCoord").textContent = `X: ${String(cell.x).padStart(2, "0")}, Y: ${String(cell.y).padStart(2, "0")}`;
-      const ttGlyph = document.getElementById("ttGlyph");
-      ttGlyph.textContent = cell.compositeChar;
-      ttGlyph.style.background = tDef.bg;
-      ttGlyph.style.color = cell.topFeature ? (FEATURE_STYLES[cell.topFeature.char]?.fg || tDef.fg) : tDef.fg;
-
-      document.getElementById("ttTerrain").textContent = `${tDef.name} ('${cell.terrainChar}')`;
-      document.getElementById("ttRegionId").textContent = cell.regionId;
-      document.getElementById("ttRegionName").textContent = cell.regionName;
-      document.getElementById("ttRegionType").textContent = cell.regionType;
-
-      if (cell.topFeature) {
-        document.getElementById("ttFeatureId").textContent = cell.topFeature.id;
-        document.getElementById("ttFeatureName").textContent = cell.topFeature.name || cell.topFeature.id;
-        document.getElementById("ttFeatureType").textContent = cell.topFeature.type || "feature";
-        document.getElementById("ttFeatureDesc").textContent = cell.topFeature.description || "No description provided.";
-      } else {
-        document.getElementById("ttFeatureId").textContent = "None";
-        document.getElementById("ttFeatureName").textContent = "None";
-        document.getElementById("ttFeatureType").textContent = "None";
-        document.getElementById("ttFeatureDesc").textContent = cell.regionLore || "No feature present on this tile.";
-      }
-    }
-
-    function highlightCrosshairs(x, y, active) {
-      document.querySelectorAll(".ruler-col-cell").forEach(el => {
-        if (active && parseInt(el.dataset.x, 10) === x) {
-          el.classList.add("highlight");
-        } else {
-          el.classList.remove("highlight");
-        }
-      });
-
-      document.querySelectorAll(".ruler-row-cell").forEach(el => {
-        if (active && parseInt(el.dataset.y, 10) === y) {
-          el.classList.add("highlight");
-        } else {
-          el.classList.remove("highlight");
-        }
-      });
-
-      // Cross-highlight matching tile across views in side-by-side mode
-      document.querySelectorAll(".tile").forEach(t => {
-        if (active && parseInt(t.dataset.x, 10) === x && parseInt(t.dataset.y, 10) === y) {
-          t.classList.add("cross-highlight");
-        } else {
-          t.classList.remove("cross-highlight");
-        }
-      });
-    }
-
-    // Tile Inspection in Sidebar
-    function inspectTile(x, y, pinned) {
-      if (!currentMatrix || y >= currentMatrix.length || x >= currentMatrix[0].length) return;
       const cell = currentMatrix[y][x];
-      const tDef = getTerrainDef(cell);
+      hoveredCell = cell;
 
-      // Pin indicator
-      const pinBadge = document.getElementById("pinIndicator");
-      const pinBtn = document.getElementById("btnTogglePin");
-      if (pinned) {
-        pinBadge.textContent = "Pinned 📌";
-        pinBadge.style.color = "#f2cc60";
-        pinBadge.style.borderColor = "#f2cc60";
-        pinBtn.textContent = "🔓 Unpin";
-      } else {
-        pinBadge.textContent = "Live Hover";
-        pinBadge.style.color = "#58a6ff";
-        pinBadge.style.borderColor = "#58a6ff";
-        pinBtn.textContent = "📌 Pin";
-      }
+      // Hover visual
+      const matrixEl = document.getElementById("tileMatrix");
+      const prev = matrixEl.querySelector(".tile.hovered");
+      if (prev) prev.classList.remove("hovered");
+      tile.classList.add("hovered");
 
-      // Coordinates & Composite
-      document.getElementById("inspCoord").textContent = `X: ${String(cell.x).padStart(2, "0")}, Y: ${String(cell.y).padStart(2, "0")}`;
-      const compGlyph = document.getElementById("inspCompGlyph");
-      compGlyph.textContent = cell.compositeChar;
-      compGlyph.style.background = tDef.bg;
-      compGlyph.style.color = cell.topFeature ? (FEATURE_STYLES[cell.topFeature.char]?.fg || tDef.fg) : tDef.fg;
+      // Rulers crosshairs
+      highlightCrosshairs(x, y);
 
-      const compLabel = cell.topFeature ?
-        `${cell.topFeature.name || cell.topFeature.id} [${cell.topFeature.char}] on ${tDef.name}` :
-        `${tDef.name} ('${cell.terrainChar}')`;
-      document.getElementById("inspCompLabel").textContent = compLabel;
+      // Tooltip
+      updateTooltip(cell, e);
 
-      // Regional Biome
-      document.getElementById("inspRegionId").textContent = cell.regionId;
-      document.getElementById("inspRegionName").textContent = cell.regionName;
-      document.getElementById("inspRegionType").textContent = cell.regionType;
-      document.getElementById("inspRegionTypeBadge").textContent = cell.regionType;
-      const inspRegionLore = document.getElementById("inspRegionLore");
-      if (inspRegionLore) {
-        inspRegionLore.textContent = cell.regionLore || "No lore recorded for this region.";
-        inspRegionLore.className = cell.regionLore ? "lore-text" : "lore-empty";
-      }
-
-      // Terrain Ground
-      document.getElementById("inspTerrainChar").textContent = `'${cell.terrainChar}'`;
-      document.getElementById("inspTerrainName").textContent = tDef.name;
-      document.getElementById("inspTerrainDesc").textContent = tDef.desc;
-      document.getElementById("inspTerrainCharBadge").textContent = `Char: '${cell.terrainChar}'`;
-
-      const terrGlyph = document.getElementById("inspTerrainGlyph");
-      terrGlyph.textContent = cell.terrainChar;
-      terrGlyph.style.background = tDef.bg;
-      terrGlyph.style.color = tDef.fg;
-
-      // Features Overlay
-      const featCard = document.getElementById("inspFeatureCard");
-      const featGlyph = document.getElementById("inspFeatureGlyph");
-      const overlapsRow = document.getElementById("inspOverlapsRow");
-
-      if (cell.topFeature) {
-        const f = cell.topFeature;
-        const fStyle = FEATURE_STYLES[f.char];
-        document.getElementById("inspFeatureId").textContent = f.id;
-        document.getElementById("inspFeatureName").textContent = f.name || f.id;
-        document.getElementById("inspFeatureType").textContent = f.type || "feature";
-        document.getElementById("inspFeatureTypeBadge").textContent = f.type || "feature";
-        document.getElementById("inspFeatureChar").textContent = `'${f.char}' (${fStyle?.label || 'Custom Feature'})`;
-        document.getElementById("inspFeatureDesc").textContent = f.description || "No lore recorded for this feature.";
-        document.getElementById("inspFeatureDesc").className = "lore-text";
-
-        featGlyph.textContent = f.char;
-        featGlyph.style.background = fStyle ? fStyle.bg : "#21262d";
-        featGlyph.style.color = fStyle ? fStyle.fg : "#f2cc60";
-
-        if (cell.features.length > 1) {
-          overlapsRow.style.display = "flex";
-          const otherNames = cell.features.filter(o => o.id !== f.id).map(o => `${o.name || o.id} (${o.type})`).join(", ");
-          document.getElementById("inspOverlapsVal").textContent = otherNames;
-        } else {
-          overlapsRow.style.display = "none";
-        }
-      } else {
-        document.getElementById("inspFeatureId").textContent = "None";
-        document.getElementById("inspFeatureName").textContent = "None";
-        document.getElementById("inspFeatureType").textContent = "None";
-        document.getElementById("inspFeatureTypeBadge").textContent = "None";
-        document.getElementById("inspFeatureChar").textContent = "None";
-        document.getElementById("inspFeatureDesc").textContent = "Natural pristine terrain with no registered structures, trails, or discovered landmarks.";
-        document.getElementById("inspFeatureDesc").className = "lore-empty";
-        featGlyph.textContent = "-";
-        featGlyph.style.background = "#21262d";
-        featGlyph.style.color = "var(--text-muted)";
-        overlapsRow.style.display = "none";
-      }
-
-      // Update pinned class on tiles
-      document.querySelectorAll(".tile").forEach(t => {
-        if (pinned && parseInt(t.dataset.x, 10) === x && parseInt(t.dataset.y, 10) === y) {
-          t.classList.add("pinned");
-        } else {
-          t.classList.remove("pinned");
-        }
-      });
-    }
-
-    function togglePinTile(x, y) {
-      if (isPinned && pinnedCoord && pinnedCoord.x === x && pinnedCoord.y === y) {
-        isPinned = false;
-        pinnedCoord = null;
-        inspectTile(x, y, false);
-      } else {
-        isPinned = true;
-        pinnedCoord = { x, y };
-        inspectTile(x, y, true);
+      // Live lore update if not pinned
+      if (!pinnedTile && activeBottomTab === "lore") {
+        renderLore();
       }
     }
 
-    // Render Tab Contents
-    function renderFeaturesTab() {
-      const list = document.getElementById("featuresList");
-      list.innerHTML = "";
-      if (!currentWorld || !currentWorld.features) return;
-
-      const feats = Object.entries(currentWorld.features);
-      if (feats.length === 0) {
-        list.innerHTML = "<div style='color: var(--text-muted); font-size: 0.85rem; padding: 10px;'>No features registered in this era.</div>";
-        return;
+    function handleMatrixMouseLeave() {
+      const matrixEl = document.getElementById("tileMatrix");
+      if (matrixEl) {
+        const prev = matrixEl.querySelector(".tile.hovered");
+        if (prev) prev.classList.remove("hovered");
       }
+      highlightCrosshairs(null, null);
+      hideTooltip();
+      hoveredCell = null;
 
-      feats.forEach(([id, f]) => {
-        const item = document.createElement("div");
-        item.className = "legend-item";
-        if (activeFilter && activeFilter.type === "feature" && activeFilter.key === id) {
-          item.style.borderColor = "var(--border-hover)";
-        }
-
-        const fStyle = FEATURE_STYLES[f.char];
-        let tiles = f.tiles || [];
-        if ((!tiles || tiles.length === 0) && f.pos) tiles = [f.pos];
-        const count = tiles.length;
-
-        item.innerHTML = `
-          <div class="legend-item-left">
-            <span class="glyph-chip" style="background: ${fStyle ? fStyle.bg : '#21262d'}; color: ${fStyle ? fStyle.fg : '#f2cc60'};">${f.char || 'o'}</span>
-            <div>
-              <div style="font-weight: 600; color: #fff;">${f.name || id}</div>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">${f.type || 'feature'}</div>
-            </div>
-          </div>
-          <span class="legend-count">${count} ${count === 1 ? 'tile' : 'tiles'}</span>
-        `;
-
-        item.addEventListener("click", () => {
-          toggleFilter("feature", id);
-          if (tiles.length > 0) {
-            const pt = tiles[0];
-            togglePinTile(pt[0], pt[1]);
-            document.querySelector(`[data-tab="inspector"]`).click();
-          }
-        });
-
-        list.appendChild(item);
-      });
+      // Clear or reset lore when unpinned cursor leaves grid!
+      if (!pinnedTile && activeBottomTab === "lore") {
+        renderLore();
+      }
     }
 
-    function renderRegionsTab() {
-      const list = document.getElementById("regionsList");
-      list.innerHTML = "";
-      if (!currentWorld || !currentWorld.regions) return;
+    async function handleMatrixClick(e) {
+      const tile = e.target.closest(".tile");
+      if (!tile || !currentMatrix) return;
 
-      // Count tiles per region
-      const counts = {};
-      if (currentMatrix) {
-        currentMatrix.forEach(row => {
-          row.forEach(cell => {
-            counts[cell.regionId] = (counts[cell.regionId] || 0) + 1;
-          });
-        });
-      }
+      const x = parseInt(tile.dataset.x, 10);
+      const y = parseInt(tile.dataset.y, 10);
+      if (y >= currentMatrix.length || x >= currentMatrix[0].length) return;
 
-      Object.entries(currentWorld.regions).sort((a, b) => a[0].localeCompare(b[0])).forEach(([rId, r]) => {
-        const item = document.createElement("div");
-        item.className = "legend-item";
-        if (activeFilter && activeFilter.type === "region" && activeFilter.key === rId) {
-          item.style.borderColor = "var(--border-hover)";
-        }
+      const cell = currentMatrix[y][x];
 
-        const rStyle = getRegionColors(rId);
-        const count = counts[rId] || 0;
-        const lore = r.lore || r.description || "";
-        const loreHtml = lore ? `<div style="font-size: 0.72rem; color: #8b949e; font-style: italic; margin-top: 3px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${lore}</div>` : "";
-
-        item.innerHTML = `
-          <div class="legend-item-left">
-            <span class="glyph-chip" style="background: ${rStyle.bg}; color: ${rStyle.fg}; border: 1px solid ${rStyle.border};">${rId}</span>
-            <div>
-              <div style="font-weight: 600; color: #fff;">${r.name || 'Unnamed'}</div>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">${r.type || 'wilderness'}</div>
-              ${loreHtml}
-            </div>
-          </div>
-          <span class="legend-count">${count} tiles</span>
-        `;
-
-        item.addEventListener("click", () => {
-          toggleFilter("region", rId);
-        });
-
-        list.appendChild(item);
-      });
-    }
-
-    function renderLegendTab() {
-      const list = document.getElementById("legendList");
-      list.innerHTML = "";
-
-      // Count terrain tiles
-      const counts = {};
-      if (currentMatrix) {
-        currentMatrix.forEach(row => {
-          row.forEach(cell => {
-            counts[cell.terrainChar] = (counts[cell.terrainChar] || 0) + 1;
-          });
-        });
-      }
-
-      Object.entries(TERRAIN_DEFS).forEach(([char, def]) => {
-        const count = counts[char] || 0;
-        const item = document.createElement("div");
-        item.className = "legend-item";
-        if (activeFilter && activeFilter.type === "terrain" && activeFilter.key === char) {
-          item.style.borderColor = "var(--border-hover)";
-        }
-
-        item.innerHTML = `
-          <div class="legend-item-left">
-            <span class="glyph-chip" style="background: ${def.bg}; color: ${def.fg}; border: 1px solid ${def.border};">${char}</span>
-            <div>
-              <div style="font-weight: 600; color: #fff;">${def.name}</div>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">${def.desc}</div>
-            </div>
-          </div>
-          <span class="legend-count">${count} tiles</span>
-        `;
-
-        item.addEventListener("click", () => {
-          toggleFilter("terrain", char);
-        });
-
-        list.appendChild(item);
-      });
-    }
-
-    function renderTimelineTab() {
-      const container = document.getElementById("timelineContainer");
-      container.innerHTML = "";
-      if (!currentWorld) return;
-
-      const timeline = currentWorld.timeline;
-      if (!timeline || timeline.length === 0) {
-        container.innerHTML = "<div style='color: var(--text-muted); font-size: 0.85rem; padding: 10px;'>No recorded timeline entries in this artifact.</div>";
-        return;
-      }
-
-      const entries = Array.isArray(timeline) ? timeline : [String(timeline)];
-      entries.forEach((entry, idx) => {
-        const card = document.createElement("div");
-        card.className = "timeline-entry";
-
-        let title = `Epoch Record #${idx + 1}`;
-        let text = entry;
-        if (typeof entry === "string" && entry.startsWith("## Epoch")) {
-          const lines = entry.split("\n");
-          title = lines[0].replace(/^##\s*/, "");
-          text = lines.slice(1).join("\n").trim();
-        }
-
-        card.innerHTML = `
-          <div class="timeline-title">${title}</div>
-          <div class="timeline-body">${text}</div>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function toggleFilter(type, key) {
-      if (activeFilter && activeFilter.type === type && activeFilter.key === key) {
-        activeFilter = null;
-      } else {
-        activeFilter = { type, key };
-      }
-      renderView();
-      renderFeaturesTab();
-      renderRegionsTab();
-      renderLegendTab();
-    }
-
-    // DOM & Event Bindings
-    document.addEventListener("DOMContentLoaded", () => {
-      initPresetsDropdown();
-
-      // Load initial map
-      if (currentPresetKey && PRESETS[currentPresetKey]) {
-        loadWorldData(PRESETS[currentPresetKey].data);
-      }
-
-      // Pin button listener
-      document.getElementById("btnTogglePin").addEventListener("click", () => {
-        if (isPinned) {
-          isPinned = false;
-          pinnedCoord = null;
-          inspectTile(0, 0, false);
-        } else {
-          isPinned = true;
-          const coordEl = document.getElementById("inspCoord").textContent;
-          const match = coordEl.match(/X:\s*(\d+),\s*Y:\s*(\d+)/);
-          if (match) {
-            pinnedCoord = { x: parseInt(match[1], 10), y: parseInt(match[2], 10) };
-            inspectTile(pinnedCoord.x, pinnedCoord.y, true);
-          }
-        }
-      });
-
-      // View Mode Switcher
-      document.querySelectorAll(".view-mode-tab").forEach(tab => {
-        tab.addEventListener("click", (e) => {
-          document.querySelectorAll(".view-mode-tab").forEach(t => t.classList.remove("active"));
-          e.target.classList.add("active");
-          currentViewMode = e.target.dataset.mode;
-          renderView();
-        });
-      });
-
-      // Sliders & Toggles
-      const sliderSize = document.getElementById("sliderTileSize");
-      const valSize = document.getElementById("tileSizeVal");
-      sliderSize.addEventListener("input", (e) => {
-        document.documentElement.style.setProperty("--tile-size", `${e.target.value}px`);
-        valSize.textContent = `${e.target.value}px`;
-      });
-
-      const sliderGap = document.getElementById("sliderTileGap");
-      const valGap = document.getElementById("tileGapVal");
-      sliderGap.addEventListener("input", (e) => {
-        document.documentElement.style.setProperty("--tile-gap", `${e.target.value}px`);
-        valGap.textContent = `${e.target.value}px`;
-      });
-
-      document.getElementById("chkGlyphs").addEventListener("change", renderView);
-      document.getElementById("chkRulers").addEventListener("change", renderView);
-
-      // Sidebar Tabs
-      document.querySelectorAll(".sidebar-tab-btn").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-          document.querySelectorAll(".sidebar-tab-btn").forEach(b => b.classList.remove("active"));
-          e.target.classList.add("active");
-
-          const tab = e.target.dataset.tab;
-          document.getElementById("tabContentInspector").style.display = tab === "inspector" ? "flex" : "none";
-          document.getElementById("tabContentFeatures").style.display = tab === "features" ? "flex" : "none";
-          document.getElementById("tabContentRegions").style.display = tab === "regions" ? "flex" : "none";
-          document.getElementById("tabContentLegend").style.display = tab === "legend" ? "flex" : "none";
-          document.getElementById("tabContentTimeline").style.display = tab === "timeline" ? "flex" : "none";
-        });
-      });
-
-      // File Picker (JSON)
-      const filePicker = document.getElementById("filePicker");
-      filePicker.addEventListener("change", (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
+      // On World Map: If clicking a feature with a sub-map, enter the sub-map!
+      if (activeView === "world" && cell.topFeature) {
+        const fId = cell.topFeature.id;
+        if (LOCALE_CACHE[fId] === undefined) {
           try {
-            const parsed = JSON.parse(evt.target.result);
-            const key = `uploaded_${Date.now()}`;
-            PRESETS[key] = {
-              label: `Loaded: ${parsed.name || file.name}`,
-              filename: file.name,
-              data: parsed
-            };
-            currentPresetKey = key;
-            initPresetsDropdown();
-            loadWorldData(parsed);
+            const res = await fetch(`${basePath}locales/${fId}/dossier.json`);
+            LOCALE_CACHE[fId] = res.ok ? await res.json() : null;
           } catch (err) {
-            alert(`Error parsing JSON file: ${err.message}`);
+            LOCALE_CACHE[fId] = null;
           }
-        };
-        reader.readAsText(file);
-      });
-
-      // Drag & Drop on scroll area
-      const dropTarget = document.getElementById("mapScrollArea");
-      dropTarget.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      });
-      dropTarget.addEventListener("drop", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-          const file = e.dataTransfer.files[0];
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            try {
-              const parsed = JSON.parse(evt.target.result);
-              const key = `dragged_${Date.now()}`;
-              PRESETS[key] = {
-                label: `Loaded: ${parsed.name || file.name}`,
-                filename: file.name,
-                data: parsed
-              };
-              currentPresetKey = key;
-              initPresetsDropdown();
-              loadWorldData(parsed);
-            } catch (err) {
-              alert(`Error parsing JSON file: ${err.message}`);
-            }
-          };
-          reader.readAsText(file);
         }
-      });
 
-      // Modal Dialog Listeners
-      const modal = document.getElementById("modalPaste");
-      document.getElementById("btnOpenModal").addEventListener("click", () => {
-        document.getElementById("pasteError").style.display = "none";
-        document.getElementById("jsonPasteText").value = "";
-        modal.style.display = "flex";
-      });
-
-      const closeModal = () => {
-        modal.style.display = "none";
-      };
-      document.getElementById("btnCloseModal").addEventListener("click", closeModal);
-      document.getElementById("btnCancelModal").addEventListener("click", closeModal);
-
-      document.getElementById("btnLoadPasted").addEventListener("click", () => {
-        const text = document.getElementById("jsonPasteText").value.trim();
-        const errEl = document.getElementById("pasteError");
-        if (!text) {
-          errEl.textContent = "Please enter world map JSON text.";
-          errEl.style.display = "block";
+        if (LOCALE_CACHE[fId]) {
+          activeSubmapFeatureId = fId;
+          pinnedTile = null;
+          hoveredCell = null;
+          hideTooltip();
+          await loadAndRenderSubmapView();
+          updateBottomPanel();
           return;
         }
-        try {
-          const parsed = JSON.parse(text);
-          if (!parsed.terrain_grid || !Array.isArray(parsed.terrain_grid)) {
-            throw new Error("JSON must contain a 'terrain_grid' array.");
+      }
+
+      // Otherwise: Pin lock this tile to inspect its lore
+      if (pinnedTile && pinnedTile.x === x && pinnedTile.y === y && pinnedTile.view === activeView) {
+        pinnedTile = null;
+      } else {
+        pinnedTile = { x, y, view: activeView };
+      }
+
+      // Update tile pinned class
+      const matrixEl = document.getElementById("tileMatrix");
+      if (matrixEl) {
+        matrixEl.querySelectorAll(".tile").forEach(t => {
+          const tx = parseInt(t.dataset.x, 10);
+          const ty = parseInt(t.dataset.y, 10);
+          t.classList.toggle("pinned", pinnedTile && pinnedTile.x === tx && pinnedTile.y === ty);
+        });
+      }
+
+      if (pinnedTile && (activeBottomTab === "timeline" || activeBottomTab === "legend")) {
+        setBottomTab("lore");
+      } else if (activeBottomTab === "lore") {
+        renderLore();
+      }
+    }
+
+    function highlightCrosshairs(x, y) {
+      const colAxis = document.getElementById("colAxis");
+      const rowAxis = document.getElementById("rowAxis");
+
+      if (colAxis) {
+        colAxis.querySelectorAll(".col-header").forEach(c => {
+          c.classList.toggle("hl", x !== null && parseInt(c.dataset.x, 10) === x);
+        });
+      }
+      if (rowAxis) {
+        rowAxis.querySelectorAll(".row-header").forEach(r => {
+          r.classList.toggle("hl", y !== null && parseInt(r.dataset.y, 10) === y);
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  FEATURE RESOLVER (LOOKUP FEATURE IN TIMELINE BULLETS)
+    // ═══════════════════════════════════════════════════════════
+    function findFeatureForTimelineLine(boldText, line, worldData) {
+      if (!worldData || !worldData.features) return null;
+
+      const feats = Object.entries(worldData.features).map(([id, f]) => ({
+        id,
+        name: f.name || id,
+        tiles: f.tiles || (f.pos ? [f.pos] : []),
+        char: f.char,
+        intake: f.intake,
+        terminus: f.terminus
+      })).sort((a, b) => b.name.length - a.name.length);
+
+      const bLower = boldText.toLowerCase();
+
+      // 1. Direct name match inside bold text
+      for (const f of feats) {
+        if (bLower.includes(f.name.toLowerCase())) {
+          return f;
+        }
+      }
+
+      // 2. Specific aliases / keywords
+      for (const f of feats) {
+        if (f.id === "mire_tomb_mor_ghul" && (bLower.includes("mor-ghul") || bLower.includes("mor_ghul"))) {
+          return f;
+        }
+        if (f.id === "canal_17_10" && (bLower.includes("ward-fosse") || bLower.includes("canal"))) {
+          return f;
+        }
+      }
+
+      // 3. Coordinate matching in line
+      const coordMatches = line.matchAll(/\[\s*(\d+)\s*,\s*(\d+)\s*\]/g);
+      for (const match of coordMatches) {
+        const cx = parseInt(match[1], 10);
+        const cy = parseInt(match[2], 10);
+        for (const f of feats) {
+          if (f.tiles.some(([tx, ty]) => tx === cx && ty === cy)) {
+            return f;
           }
-          const key = `pasted_${Date.now()}`;
-          PRESETS[key] = {
-            label: `Pasted: ${parsed.name || 'Custom Map'}`,
-            filename: "pasted.json",
-            data: parsed
-          };
-          currentPresetKey = key;
-          initPresetsDropdown();
-          loadWorldData(parsed);
-          closeModal();
-        } catch (err) {
-          errEl.textContent = `JSON Parse Error: ${err.message}`;
-          errEl.style.display = "block";
+          if (f.intake && f.intake[0] === cx && f.intake[1] === cy) return f;
+          if (f.terminus && f.terminus[0] === cx && f.terminus[1] === cy) return f;
+        }
+      }
+
+      // 4. Feature ID match
+      for (const f of feats) {
+        const cleanId = f.id.replace(/_/g, " ");
+        if (bLower.includes(cleanId)) {
+          return f;
+        }
+      }
+
+      return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  BOTTOM PANEL: TIMELINE TAB (CURRENT EPOCH ONLY)
+    // ═══════════════════════════════════════════════════════
+    function renderTimeline() {
+      const content = document.getElementById("panelContent");
+      const worldData = EPOCH_STORE[currentEpoch];
+
+      if (!worldData || !worldData.timeline) {
+        if (currentEpoch === 0) {
+          content.innerHTML =
+            `<div class="entry-headline">PRIMORDIAL ERA // THE UNMEASURED EXPANSE</div>
+             <div class="no-data">Untamed age before mortal memory. No recorded historical events.</div>`;
+          return;
+        }
+        content.innerHTML = `<div class="no-data">No timeline events recorded for Epoch ${currentEpoch}.</div>`;
+        return;
+      }
+
+      const timeline = Array.isArray(worldData.timeline) ? worldData.timeline : [String(worldData.timeline)];
+
+      let epochEntry = null;
+      for (const entry of timeline) {
+        if (typeof entry === "string") {
+          const match = entry.match(/Epoch\s*(\d+)/i);
+          if (match && parseInt(match[1], 10) === currentEpoch) {
+            epochEntry = entry;
+            break;
+          }
+        }
+      }
+
+      if (!epochEntry) {
+        epochEntry = timeline[timeline.length - 1] || "";
+      }
+
+      const lines = epochEntry.split("\n");
+      let headline = `EPOCH ${currentEpoch} CHRONICLE`;
+      const bullets = [];
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        if (line.startsWith("##")) {
+          headline = line.replace(/^##\s*/, "").toUpperCase();
+        } else {
+          let clean = line.startsWith("-") ? line.replace(/^-\s*/, "") : line;
+          clean = clean.replace(/\*\*([^*]+)\*\*/g, (match, p1) => {
+            const matchedFeat = findFeatureForTimelineLine(p1, line, worldData);
+            if (matchedFeat) {
+              return `<span class="timeline-feat-link" data-feat-id="${matchedFeat.id}">${escapeHtml(p1)}</span>`;
+            }
+            return `<span class="hl-bold">${escapeHtml(p1)}</span>`;
+          });
+          bullets.push(clean);
+        }
+      }
+
+      let html = `<div class="entry-headline">► ${escapeHtml(headline)}</div>`;
+      if (bullets.length === 0) {
+        html += `<div class="no-data">No specific events recorded in this chronicle.</div>`;
+      } else {
+        bullets.forEach(b => {
+          html += `<div class="timeline-item">> ${b}</div>`;
+        });
+      }
+
+      content.innerHTML = html;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  BOTTOM PANEL: LORE TAB (LOCALE OVERVIEW OR TILE LORE)
+    // ═══════════════════════════════════════════════════════
+    function renderLore() {
+      const content = document.getElementById("panelContent");
+      let cell = null;
+
+      // 1. Check pinned tile first
+      if (pinnedTile && pinnedTile.view === activeView && currentMatrix) {
+        if (pinnedTile.y < currentMatrix.length && pinnedTile.x < currentMatrix[0].length) {
+          cell = currentMatrix[pinnedTile.y][pinnedTile.x];
+        }
+      } 
+      // 2. Otherwise check currently hovered tile
+      else if (hoveredCell) {
+        cell = hoveredCell;
+      }
+
+      // If a tile is hovered or pinned, show that tile's lore:
+      if (cell) {
+        const isSubmap = cell.isSubmap;
+        const contextPrefix = isSubmap ? `[SUBMAP: ${activeSubmapFeatureId.toUpperCase()}] ` : `[WORLD MAP] `;
+        let html = `<div class="meta-line">${contextPrefix}COORDINATES [${cell.x}, ${cell.y}] ${pinnedTile ? ' // [PINNED (CLICK TILE TO UNLOCK)]' : ''}</div>`;
+
+        // Feature Lore
+        if (cell.topFeature) {
+          const f = cell.topFeature;
+          const featureLore = f.description || f.lore || "No specific lore recorded for this feature in this epoch.";
+          html += `
+            <div class="lore-section" style="margin-top:4px;">
+              <div class="lore-tag">${isSubmap ? 'LOCAL FEATURE' : 'FEATURE'} (EPOCH ${currentEpoch})</div>
+              <div class="entry-headline">${escapeHtml(f.name || f.id)} [${(f.char || "o").toUpperCase()}] &mdash; ${escapeHtml(f.type || "site").toUpperCase()}</div>
+              <div class="lore-body">${escapeHtml(featureLore)}</div>
+            </div>
+          `;
+        }
+
+        // Region / District Lore
+        const regionTypeLabel = isSubmap ? "DISTRICT" : "REGION";
+        html += `
+          <div class="lore-section">
+            <div class="lore-tag">${regionTypeLabel} (EPOCH ${currentEpoch})</div>
+            <div class="entry-headline">${escapeHtml(cell.regionName)} [ID: ${cell.regionId}] &mdash; ${escapeHtml(cell.regionType || "biome").toUpperCase()}</div>
+            ${cell.regionLore ? `<div class="lore-body">${escapeHtml(cell.regionLore)}</div>` : ''}
+          </div>
+        `;
+
+        // Terrain Info
+        const td = getTerrainDef(cell.terrainChar);
+        html += `
+          <div class="lore-section">
+            <div class="lore-tag">TERRAIN</div>
+            <div style="color:var(--fg);">${escapeHtml(td.name)} ['${cell.terrainChar}'] &mdash; ${escapeHtml(td.desc)}</div>
+          </div>
+        `;
+
+        content.innerHTML = html;
+        return;
+      }
+
+      // 3. No tile is hovered or pinned:
+      if (activeView === "submap" && activeSubmapFeatureId) {
+        renderLocaleOverviewLore();
+      } else {
+        const worldData = EPOCH_STORE[currentEpoch];
+        const realmName = worldData ? (worldData.name || "THE REALM").toUpperCase() : "THE REALM";
+        content.innerHTML =
+          `<div class="meta-line">[WORLD MAP // ${realmName} // EPOCH ${currentEpoch}]</div>
+           <div class="no-data" style="margin-top: 8px;">
+             Hover over any map tile to inspect lore, or click to lock selection.
+           </div>`;
+      }
+    }
+
+    function renderLocaleOverviewLore() {
+      const content = document.getElementById("panelContent");
+      const fId = activeSubmapFeatureId;
+      const dossier = LOCALE_CACHE[fId];
+
+      let kfData = null;
+      if (dossier && dossier.keyframes) {
+        const sorted = [...dossier.keyframes].sort((a, b) => a.epoch - b.epoch);
+        let matchedKf = null;
+        for (const kf of sorted) {
+          if (kf.epoch <= currentEpoch) matchedKf = kf;
+        }
+        if (matchedKf) {
+          kfData = KEYFRAME_CACHE[`${fId}_kf_${matchedKf.keyframe_index}`];
+        }
+      }
+
+      const worldFeat = (EPOCH_STORE[currentEpoch] && EPOCH_STORE[currentEpoch].features) ?
+        EPOCH_STORE[currentEpoch].features[fId] : null;
+
+      const titleName = (kfData && kfData.name) || (worldFeat && worldFeat.name) || fId.replace(/_/g, " ").toUpperCase();
+      const siteType = (kfData && kfData.type) || (worldFeat && worldFeat.type) || "SITE";
+
+      let html = `<div class="meta-line">[LOCALE DOSSIER] ${titleName.toUpperCase()} &mdash; ${siteType.toUpperCase()} (EPOCH ${currentEpoch})</div>`;
+
+      // Summary
+      const summary = (kfData && kfData.context && kfData.context.summary) ||
+                      (worldFeat && (worldFeat.description || worldFeat.lore)) ||
+                      "No overview recorded for this epoch.";
+      html += `
+        <div class="lore-section" style="margin-top:4px;">
+          <div class="lore-tag">LOCALE SUMMARY</div>
+          <div class="lore-body">${escapeHtml(summary)}</div>
+        </div>
+      `;
+
+      // Host Region
+      if (kfData && kfData.context && (kfData.context.host_region || kfData.context.host_region_lore)) {
+        html += `
+          <div class="lore-section">
+            <div class="lore-tag">HOST REGION // ENVIRONMENT</div>
+            <div style="color:var(--fg-bright); font-weight:600; font-size:0.72rem;">${escapeHtml(kfData.context.host_region || "")}</div>
+            ${kfData.context.host_region_lore ? `<div class="lore-body">${escapeHtml(kfData.context.host_region_lore)}</div>` : ""}
+          </div>
+        `;
+      }
+
+      // Architectural rationale
+      if (kfData && kfData.context && kfData.context.architectural_rationale) {
+        html += `
+          <div class="lore-section">
+            <div class="lore-tag">ARCHITECTURAL RATIONALE</div>
+            <div class="lore-body">${escapeHtml(kfData.context.architectural_rationale)}</div>
+          </div>
+        `;
+      }
+
+      // World relations & trade
+      if (kfData && kfData.context && kfData.context.world_relations) {
+        html += `
+          <div class="lore-section">
+            <div class="lore-tag">WORLD RELATIONS & TRADE</div>
+            <div class="lore-body">${escapeHtml(kfData.context.world_relations)}</div>
+          </div>
+        `;
+      }
+
+      content.innerHTML = html;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  BOTTOM PANEL: LEGEND TAB (MAP GLYPHS & REFERENCE)
+    // ═══════════════════════════════════════════════════════════
+    function renderLegend() {
+      const content = document.getElementById("panelContent");
+      if (!content) return;
+
+      let html = `
+        <div class="meta-line">[CARTOGRAPHY REFERENCE // MAP GLYPHS & NOTATION]</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 6px;">
+          <div class="lore-section">
+            <div class="lore-tag">CIVILIZATION & SITES</div>
+            <div class="lore-body" style="line-height: 1.6;">
+              <div><span class="hl-bold">['O']</span> <strong>City</strong> &mdash; Major regional capital / provincial hub</div>
+              <div><span class="hl-bold">['o']</span> <strong>Settlement</strong> &mdash; Town, hamlet, or redoubt (Click to open Submap)</div>
+              <div><span class="hl-bold">['!']</span> <strong>Dungeon</strong> &mdash; Underworld descent, vault, or perilous site</div>
+              <div><span class="hl-bold">['X']</span> <strong>Ruin</strong> &mdash; Ancient fallen structure or necropolis</div>
+              <div><span class="hl-bold">['+']</span> <strong>Road</strong> &mdash; Paved highway or arterial trade route</div>
+              <div><span class="hl-bold">['=']</span> <strong>Bridge</strong> &mdash; Crossing over river, chasm, or fosse</div>
+              <div><span class="hl-bold">['|']</span> <strong>Wall</strong> &mdash; Defensive rampart, palisade, or bastion</div>
+              <div><span class="hl-bold">['@']</span> <strong>Dam</strong> &mdash; Water regulation or reservoir barrier</div>
+            </div>
+          </div>
+
+          <div class="lore-section">
+            <div class="lore-tag">NATURAL TERRAIN</div>
+            <div class="lore-body" style="line-height: 1.6;">
+              <div><span class="hl-bold">['~']</span> <strong>Water</strong> &mdash; Ocean, lake, or major waterway</div>
+              <div><span class="hl-bold">['^']</span> <strong>Mountain</strong> &mdash; Alpine summit or crag</div>
+              <div><span class="hl-bold">['#']</span> <strong>Dense Rock</strong> &mdash; Exposed stone, cliffs, or scree</div>
+              <div><span class="hl-bold">['&amp;']</span> <strong>Forest</strong> &mdash; Ancient canopy or dense timber</div>
+              <div><span class="hl-bold">['%']</span> <strong>Swamp</strong> &mdash; Marshland, bog, or mire</div>
+              <div><span class="hl-bold">[',']</span> <strong>Grassland</strong> &mdash; Rolling downs or savanna</div>
+              <div><span class="hl-bold">['.']</span> <strong>Plains</strong> &mdash; Flat cleared expanse or scrub</div>
+              <div><span class="hl-bold">[';']</span> <strong>Shore</strong> &mdash; Coastal littoral or beach</div>
+              <div><span class="hl-bold">['*']</span> <strong>Blight</strong> &mdash; Corrupted soil or tainted ground</div>
+            </div>
+          </div>
+
+          <div class="lore-section">
+            <div class="lore-tag">NAVIGATION & CONTROLS</div>
+            <div class="lore-body" style="line-height: 1.6;">
+              <div><span class="hl-bold">[CLICK TILE]</span> Pin tile & inspect details in LORE tab</div>
+              <div><span class="hl-bold">[CLICK SITE]</span> Seamlessly transition into Locale Submap</div>
+              <div><span class="hl-bold">[ESC]</span> Return from Submap to World Map / Unpin tile</div>
+              <div><span class="hl-bold">[◄ / ►]</span> or <span class="hl-bold">[H / L]</span> Cycle Epochs (0 to 5)</div>
+              <div><span class="hl-bold">[- / +]</span> Adjust map tile zoom</div>
+              <div><span class="hl-bold">[CHRONICLE]</span> Hover feature names in Timeline to highlight on map</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      content.innerHTML = html;
+    }
+
+    function updateBottomPanel() {
+      if (activeBottomTab === "timeline") {
+        renderTimeline();
+      } else if (activeBottomTab === "legend") {
+        renderLegend();
+      } else {
+        renderLore();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  ZOOM / TILE SIZE CONTROLS
+    // ═══════════════════════════════════════════════════════════
+    function applyTileSize(px) {
+      currentTileSize = Math.max(9, Math.min(28, px));
+      document.documentElement.style.setProperty("--tile-size", `${currentTileSize}px`);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  ASCII BOX BORDER DYNAMICS
+    // ═══════════════════════════════════════════════════════════
+    function initAsciiBoxBorders() {
+      const topEl = document.getElementById("boxTopLine");
+      const btmEl = document.getElementById("boxBottomLine");
+      const dashes = "─".repeat(800);
+      if (topEl) topEl.textContent = dashes;
+      if (btmEl) btmEl.textContent = dashes;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SETUP & EVENT HANDLERS
+    // ═══════════════════════════════════════════════════════
+    function setupEventHandlers() {
+      const cycleEpoch = (dir) => {
+        const idx = availableEpochs.indexOf(currentEpoch);
+        const newIdx = idx + dir;
+        if (newIdx >= 0 && newIdx < availableEpochs.length) {
+          currentEpoch = availableEpochs[newIdx];
+          pinnedTile = null;
+          hoveredCell = null;
+          loadAndRenderView();
+        }
+      };
+
+      document.getElementById("btnPrevEpoch").addEventListener("click", () => cycleEpoch(-1));
+      document.getElementById("btnNextEpoch").addEventListener("click", () => cycleEpoch(1));
+
+      // Back to world map button
+      document.getElementById("btnBackToWorld").addEventListener("click", () => {
+        pinnedTile = null;
+        hoveredCell = null;
+        loadAndRenderWorldView();
+        updateBottomPanel();
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "h" || e.key === "H") {
+          cycleEpoch(-1);
+          e.preventDefault();
+        } else if (e.key === "ArrowRight" || e.key === "l" || e.key === "L") {
+          cycleEpoch(1);
+          e.preventDefault();
+        } else if (e.key === "Escape") {
+          if (activeView === "submap") {
+            pinnedTile = null;
+            hoveredCell = null;
+            loadAndRenderWorldView();
+            updateBottomPanel();
+          } else if (pinnedTile) {
+            pinnedTile = null;
+            renderCurrentMatrix();
+            if (activeBottomTab === "lore") renderLore();
+          }
+          e.preventDefault();
+        } else if (e.key === "+" || e.key === "=") {
+          applyTileSize(currentTileSize + 1);
+        } else if (e.key === "-" || e.key === "_") {
+          applyTileSize(currentTileSize - 1);
         }
       });
+
+      // Zoom controls
+      document.getElementById("btnZoomIn").addEventListener("click", () => applyTileSize(currentTileSize + 1));
+      document.getElementById("btnZoomOut").addEventListener("click", () => applyTileSize(currentTileSize - 1));
+
+      // Bottom panel tabs
+      const setBottomTab = (tab) => {
+        activeBottomTab = tab;
+        document.getElementById("tabBtnTimeline").classList.toggle("active", tab === "timeline");
+        document.getElementById("tabBtnLore").classList.toggle("active", tab === "lore");
+        document.getElementById("tabBtnLegend").classList.toggle("active", tab === "legend");
+        updateBottomPanel();
+      };
+
+      document.getElementById("tabBtnTimeline").addEventListener("click", () => setBottomTab("timeline"));
+      document.getElementById("tabBtnLore").addEventListener("click", () => setBottomTab("lore"));
+      document.getElementById("tabBtnLegend").addEventListener("click", () => setBottomTab("legend"));
+
+      // Bottom panel vertical resize handle
+      const resizeBar = document.getElementById("resizeBar");
+      let isResizing = false;
+
+      resizeBar.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        e.preventDefault();
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+        const newH = window.innerHeight - e.clientY;
+        if (newH > 80 && newH < window.innerHeight * 0.7) {
+          document.documentElement.style.setProperty("--panel-height", `${newH}px`);
+        }
+      });
+
+      document.addEventListener("mouseup", () => {
+        isResizing = false;
+      });
+
+      // Timeline Feature Hover & Click Delegation
+      const panelContent = document.getElementById("panelContent");
+
+      panelContent.addEventListener("mouseover", (e) => {
+        const link = e.target.closest(".timeline-feat-link");
+        if (!link || activeView !== "world") return;
+
+        const featId = link.dataset.featId;
+        const worldData = EPOCH_STORE[currentEpoch];
+        if (!worldData || !worldData.features || !worldData.features[featId]) return;
+
+        const feat = worldData.features[featId];
+        const tiles = feat.tiles || (feat.pos ? [feat.pos] : []);
+        if (tiles.length === 0) return;
+
+        const matrixEl = document.getElementById("tileMatrix");
+        if (!matrixEl) return;
+
+        // Highlight all tiles of this feature in the world map (same colors as hover)
+        tiles.forEach(([tx, ty]) => {
+          const tile = matrixEl.querySelector(`.tile[data-x="${tx}"][data-y="${ty}"]`);
+          if (tile) {
+            tile.classList.add("hovered");
+          }
+        });
+
+        // Highlight ruler crosshairs for primary coordinate
+        highlightCrosshairs(tiles[0][0], tiles[0][1]);
+      });
+
+      panelContent.addEventListener("mouseout", (e) => {
+        const link = e.target.closest(".timeline-feat-link");
+        if (!link || activeView !== "world") return;
+
+        const matrixEl = document.getElementById("tileMatrix");
+        if (matrixEl) {
+          matrixEl.querySelectorAll(".tile.hovered").forEach(t => t.classList.remove("hovered"));
+        }
+        highlightCrosshairs(null, null);
+      });
+
+      panelContent.addEventListener("click", async (e) => {
+        const link = e.target.closest(".timeline-feat-link");
+        if (!link || activeView !== "world") return;
+
+        const featId = link.dataset.featId;
+        const worldData = EPOCH_STORE[currentEpoch];
+        if (!worldData || !worldData.features || !worldData.features[featId]) return;
+
+        const feat = worldData.features[featId];
+
+        // If location has a submap, open it directly!
+        if (LOCALE_CACHE[featId] === undefined) {
+          try {
+            const res = await fetch(`${basePath}locales/${featId}/dossier.json`);
+            LOCALE_CACHE[featId] = res.ok ? await res.json() : null;
+          } catch (err) {
+            LOCALE_CACHE[featId] = null;
+          }
+        }
+
+        if (LOCALE_CACHE[featId]) {
+          activeSubmapFeatureId = featId;
+          pinnedTile = null;
+          hoveredCell = null;
+          hideTooltip();
+          await loadAndRenderSubmapView();
+          updateBottomPanel();
+          return;
+        }
+
+        // If no submap, pin feature's tile and show its lore
+        const tiles = feat.tiles || (feat.pos ? [feat.pos] : []);
+        if (tiles.length > 0) {
+          pinnedTile = { x: tiles[0][0], y: tiles[0][1], view: "world" };
+          renderCurrentMatrix();
+          setBottomTab("lore");
+        }
+      });
+
+      // Initialize ASCII Box Borders
+      initAsciiBoxBorders();
+    }
+
+    // Boot
+    document.addEventListener("DOMContentLoaded", () => {
+      setupEventHandlers();
+      initDataLoader();
     });
   </script>
 </body>
