@@ -54,6 +54,7 @@
       font-size: 0.78rem;
       white-space: nowrap;
       z-index: 10;
+      flex-wrap: wrap;
     }
 
     .term-brand {
@@ -71,6 +72,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .btn-back {
@@ -101,6 +104,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       font-weight: 600;
+      min-width: 0;
     }
 
     .epoch-control {
@@ -199,12 +203,25 @@
     .map-status-bar {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       color: var(--fg-dim);
       font-size: 0.65rem;
       padding: 0 1px 3px 1px;
       letter-spacing: 0.5px;
       width: 100%;
       box-sizing: border-box;
+    }
+
+    .map-name-label {
+      color: var(--fg-bright);
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-align: center;
+      flex: 1;
+      padding: 0 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     /* ── AXES & GRID (ZERO EXTRA SPACE ON RIGHT) ── */
@@ -575,6 +592,7 @@
     <div class="map-frame" id="mapFrame">
       <div class="map-status-bar">
         <span id="mapModeLabel">LOADING...</span>
+        <span id="mapNameLabel" class="map-name-label"></span>
         <span id="mapDimsLabel"></span>
       </div>
       <div id="gridContainerMount">
@@ -876,7 +894,7 @@
       document.getElementById("btnBackToWorld").classList.remove("visible");
       const worldData = EPOCH_STORE[currentEpoch];
       const realmName = worldData ? (worldData.name || "THE REALM").toUpperCase() : "UNEXPLORED";
-      document.getElementById("viewTitleDisplay").textContent = `WORLD: ${realmName}`;
+      document.getElementById("viewTitleDisplay").textContent = "";
 
       if (worldData) {
         const processed = processMapData(worldData, false);
@@ -890,6 +908,7 @@
       applyTileSize(currentTileSize);
 
       document.getElementById("mapModeLabel").textContent = "[WORLD MAP]";
+      document.getElementById("mapNameLabel").textContent = realmName;
       document.getElementById("mapDimsLabel").textContent = `[${currentMatrixWidth}x${currentMatrixHeight}]`;
 
       renderCurrentMatrix();
@@ -914,7 +933,9 @@
 
       const dossier = LOCALE_CACHE[fId];
       if (!dossier) {
-        document.getElementById("viewTitleDisplay").textContent = `SUBMAP: ${fId.toUpperCase()} [NOT FOUND]`;
+        document.getElementById("viewTitleDisplay").textContent = "";
+        document.getElementById("mapModeLabel").textContent = "[SUBMAP]";
+        document.getElementById("mapNameLabel").textContent = `${fId.toUpperCase()} [NOT FOUND]`;
         document.getElementById("gridContainerMount").innerHTML =
           `<div class="no-data" style="padding:40px;">No sub-map dossier found for location: ${fId}</div>`;
         return;
@@ -934,8 +955,9 @@
       }
 
       if (targetKeyframeIndex === null) {
-        document.getElementById("viewTitleDisplay").textContent = `SUBMAP: ${fId.toUpperCase()} [UNFORMED]`;
-        document.getElementById("mapModeLabel").textContent = `[SUBMAP: ${fId.toUpperCase()} // UNFORMED]`;
+        document.getElementById("viewTitleDisplay").textContent = "";
+        document.getElementById("mapModeLabel").textContent = "[SUBMAP]";
+        document.getElementById("mapNameLabel").textContent = `${fId.toUpperCase()} [UNFORMED]`;
         document.getElementById("mapDimsLabel").textContent = `[--x--]`;
 
         document.getElementById("gridContainerMount").innerHTML =
@@ -976,8 +998,9 @@
       currentMatrixHeight = processed.height;
 
       const locName = (kfData.name || fId).toUpperCase();
-      document.getElementById("viewTitleDisplay").textContent = `SUBMAP: ${locName} [EPOCH ${matchedEpoch}]`;
-      document.getElementById("mapModeLabel").textContent = `[SUBMAP: ${locName}]`;
+      document.getElementById("viewTitleDisplay").textContent = "";
+      document.getElementById("mapModeLabel").textContent = "[SUBMAP]";
+      document.getElementById("mapNameLabel").textContent = `${locName} [EP ${matchedEpoch}]`;
       document.getElementById("mapDimsLabel").textContent = `[${currentMatrixWidth}x${currentMatrixHeight}]`;
 
       applyTileSize(currentTileSize);
