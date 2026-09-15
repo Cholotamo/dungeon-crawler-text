@@ -1,0 +1,257 @@
+{
+  "feature_id": "mire_tomb_mor_ghul",
+  "world_coords": [
+    16,
+    13
+  ],
+  "first_seen_epoch": 1,
+  "latest_epoch": 5,
+  "total_keyframes": 5,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 1,
+      "char": "!",
+      "name": "The Mire-Tomb of Mor-Ghul",
+      "type": "dungeon",
+      "description": "A half-submerged necropolis amidst the stagnant oxbows of the Drowned Clearings, where witch-fires dance over moss-choked sarcophagi and primeval spirits whisper.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "genesis"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "7",
+          "name": "The Drowned Clearings",
+          "type": "lake",
+          "lore": "A tangled web of oxbow lakes, glassy freshwater sheets, and reed-choked marshes where water-lilies bear the weight of nesting herons."
+        },
+        "terrain_char": "%",
+        "terrain_label": "swamp_marsh",
+        "terrain_slice": [
+          "%~%",
+          "~%~",
+          "#~%"
+        ],
+        "region_slice": [
+          "777",
+          "777",
+          "477"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "4",
+            "name": "The Greenwood Vault",
+            "type": "forest",
+            "tile_count": 1,
+            "relative_position": "SOUTH & WEST BORDER (1 tiles)",
+            "lore": "An unbroken canopy of moss-cloaked hemlocks and broad oaks, newly pierced along the Silver Channel by mortal woodcutters and the tilled crofts of Aethelford.",
+            "historical_context": "Active region in Epoch 1."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": null
+    },
+    {
+      "keyframe_index": 1,
+      "epoch": 2,
+      "char": "!",
+      "name": "The Mire-Tomb of Mor-Ghul",
+      "type": "dungeon",
+      "description": "A half-submerged necropolis amidst the stagnant oxbows of the Drowned Clearings, where witch-fires dance over moss-choked sarcophagi and primeval spirits whisper.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "7",
+          "name": "The Drowned Clearings",
+          "type": "lake",
+          "lore": "A haunted wilderness of stagnant oxbow lakes and reed marshes where witch-fires burn brighter since mortal axes approached from the north, its drowned crypts whispering with restless malevolence."
+        },
+        "terrain_char": "%",
+        "terrain_label": "swamp_marsh",
+        "terrain_slice": [
+          "%~%",
+          "~%~",
+          "#~%"
+        ],
+        "region_slice": [
+          "777",
+          "777",
+          "477"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "4",
+            "name": "The Greenwood Vault",
+            "type": "forest",
+            "tile_count": 1,
+            "relative_position": "SOUTH & WEST BORDER (1 tiles)",
+            "lore": "An ancient expanse of moss-cloaked hemlocks and colossal oaks, now cleaved by the Silver Span and the corduroy logs of the Sylvan Trace as woodcutters push their fortified frontier into the eastern gloom.",
+            "historical_context": "Active region in Epoch 2."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 2,
+      "epoch": 3,
+      "char": "!",
+      "name": "The Necropolis of Mor-Ghul",
+      "type": "dungeon",
+      "description": "The shattered cyclopean gates have burst, unsealing the submerged necropolis beneath the oxbows. Ancient wight-lords and risen drowned legions now stir within its obsidian vaults, projecting a chilling death-fog across the scarred forest.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "name_mutation ('The Mire-Tomb of Mor-Ghul' -> 'The Necropolis of Mor-Ghul')",
+        "domain_mutation (Region '7' -> 'D')",
+        "terrain_mutation ('%' -> '*')"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "D",
+          "name": "The Blighted Mire",
+          "type": "wasteland",
+          "lore": "A petrified desolation of necrotic ash and calcified roots, where the shattered wards of Mor-Ghul bleed ancient malevolence into the withered fens, choking the waterways with poisoned silt and unhallowed spirits."
+        },
+        "terrain_char": "*",
+        "terrain_label": "wasteland",
+        "terrain_slice": [
+          "*~*",
+          "~*~",
+          "*~*"
+        ],
+        "region_slice": [
+          "D7D",
+          "7D7",
+          "D7D"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "7",
+            "name": "The Drowned Clearings",
+            "type": "lake",
+            "tile_count": 4,
+            "relative_position": "LOCAL_SURROUNDINGS (4 tiles)",
+            "lore": "A forsaken expanse of stagnant oxbows where the water runs black with necromantic ash, unhallowed corpse-candles burn in perpetual fog, and restless spirits wail beneath weeping willows draped in calcified rot.",
+            "historical_context": "Active region in Epoch 3."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "Region '7' (The Drowned Clearings) -> Region 'D' (The Blighted Mire)",
+        "terrain_transition": "'%' (swamp_marsh) -> '*' (wasteland)",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 3,
+      "epoch": 4,
+      "char": "!",
+      "name": "The Necropolis of Mor-Ghul",
+      "type": "dungeon",
+      "description": "The shattered cyclopean gates have burst, unsealing the submerged necropolis beneath the oxbows. Ancient wight-lords and risen drowned legions now stir within its obsidian vaults, projecting a chilling death-fog across the scarred forest.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "D",
+          "name": "The Blighted Mire",
+          "type": "wasteland",
+          "lore": "A petrified desolation of necrotic ash and calcified roots, where the shattered wards of Mor-Ghul bleed ancient malevolence into the withered fens, choking the waterways with poisoned silt and unhallowed spirits."
+        },
+        "terrain_char": "*",
+        "terrain_label": "wasteland",
+        "terrain_slice": [
+          "*~*",
+          "~*~",
+          "*~*"
+        ],
+        "region_slice": [
+          "D7D",
+          "7D7",
+          "D7D"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "7",
+            "name": "The Drowned Clearings",
+            "type": "lake",
+            "tile_count": 4,
+            "relative_position": "LOCAL_SURROUNDINGS (4 tiles)",
+            "lore": "A forsaken expanse of stagnant oxbows where the water runs black with necromantic ash, unhallowed corpse-candles burn in perpetual fog, and restless spirits wail beneath weeping willows draped in calcified rot.",
+            "historical_context": "Active region in Epoch 4."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 4,
+      "epoch": 5,
+      "char": "!",
+      "name": "The Necropolis of Mor-Ghul",
+      "type": "dungeon",
+      "description": "The shattered cyclopean gates have burst, unsealing the submerged necropolis beneath the oxbows. Ancient wight-lords and risen drowned legions now stir within its obsidian vaults, projecting a chilling death-fog across the scarred forest.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "D",
+          "name": "The Blighted Mire",
+          "type": "wasteland",
+          "lore": "A petrified desolation of necrotic ash and calcified roots, where the shattered wards of Mor-Ghul bleed ancient malevolence into the withered fens, choking the waterways with poisoned silt and unhallowed spirits."
+        },
+        "terrain_char": "*",
+        "terrain_label": "wasteland",
+        "terrain_slice": [
+          "*~*",
+          "~*~",
+          "*~*"
+        ],
+        "region_slice": [
+          "D7D",
+          "7D7",
+          "D7D"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "7",
+            "name": "The Drowned Clearings",
+            "type": "lake",
+            "tile_count": 4,
+            "relative_position": "LOCAL_SURROUNDINGS (4 tiles)",
+            "lore": "A forsaken expanse of stagnant oxbows where the water runs black with necromantic ash, unhallowed corpse-candles burn in perpetual fog, and restless spirits wail beneath weeping willows draped in calcified rot.",
+            "historical_context": "Active region in Epoch 5."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    }
+  ]
+}

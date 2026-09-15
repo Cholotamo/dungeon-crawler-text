@@ -1,0 +1,229 @@
+{
+  "feature_id": "eaveshold",
+  "name": "Eaveshold",
+  "type": "settlement",
+  "epoch": 3,
+  "keyframe_index": 1,
+  "context": {
+    "summary": "Transformed from a peaceful lumber camp into a desperate, heavily fortified forward bastion. Iron-banded oak palisades, moat-ditches, and watchful marsh-wardens maintain a harrowing vigil along the southern tree-line against the horrors drifting out of the Blighted Mire.",
+    "host_region": "The Greenwood Vault (Forest)",
+    "host_region_lore": "The ancient canopy of giant hemlocks and towering oaks is gripped by rising dread, as cold necrotic mists drift northward from the corrupted fens to claw at the sharpened palisades of Eaveshold.",
+    "scale_profile": "Small / Fortified Outpost (Barricaded forward bastion. Compact layout reinforced with flooded moat-ditches, iron-banded hemlock palisades, and elevated sentinel bastions to withstand necrotic miasma from the Blighted Mire.)",
+    "perimeters": [
+      {
+        "border": "NORTH BORDER",
+        "description": "The Northern Ribs (Mountains)",
+        "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers."
+      },
+      {
+        "border": "SOUTH BORDER",
+        "description": "The Blighted Mire & Corrupted Fens",
+        "lore": "A withered, ash-choked swamp oozing necrotic miasma from the unsealed crypts of Mor-Ghul, spewing restless spirits and drowned wights toward the southern tree-line."
+      },
+      {
+        "border": "EAST & WEST BORDERS",
+        "description": "Transition into host region (The Greenwood Vault — Forest).",
+        "lore": "An ancient expanse of hemlocks and oaks gripped by lingering necrotic vapors drifting north from the corrupted fens."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "WEST",
+        "road": "The Sylvan Trace (Road)",
+        "road_lore": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, heavily patrolled by armed couriers supplying the bastion at Eaveshold.",
+        "destination": "Leads toward The Silver Span (Bridge)",
+        "destination_lore": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+      },
+      {
+        "direction": "SOUTH",
+        "road": "The Fen Sally Path (Path)",
+        "road_lore": "A narrow corduroy causeway crossing the flooded moat-trench into the ash-choked southern buffer, used by marsh-wardens scouting the edge of the Blighted Mire.",
+        "destination": "Leads toward The Necropolis of Mor-Ghul (Ruin)",
+        "destination_lore": "The shattered crypts of an ancient undead sovereign, projecting an aura of bone-chilling dread and spewing drowned wights northward."
+      }
+    ],
+    "world_relations": "Eaveshold now acts as a crucial defensive bulwark for the western heartlands, receiving iron, weapons, and seasoned troops via the Sylvan Trace from Aethelford while sending back intelligence on the movements of the undead horde emerging from Mor-Ghul.",
+    "architectural_rationale": "In response to the rupture of Mor-Ghul's crypts, Eaveshold was rapidly retrofitted into a barricaded bastion. A flooded moat-trench was dug along the southern perimeter, a southern sally port was cut through the fortified palisades, and internal saw pits were repurposed to fabricate spiked barricades."
+  },
+  "terrain_grid": [
+    "^^^^^^^^^^^^^^^^",
+    "^^^^:^:^^^:^^^^^",
+    ",,:,&,,,::,&,,,,",
+    ",,&##########&,,",
+    ",,&#........#&,,",
+    ",,&#..++++..#&,,",
+    ",,&#..+..+..#&,,",
+    "+++/+++++++/#&,,",
+    ",,&#..+..+..#&,,",
+    ",,&#..++++..#&,,",
+    ",,&####/#####&,,",
+    ";;;;;;;=;;;;;;;;",
+    ",,&&&&,+;;;,&&&&",
+    "&&&&&&&&;;&&&&&&",
+    "&&&&&&&&&&&&&&&&",
+    "&&&&&&&&&&&&&&&&"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0044444444440000",
+    "0043333322240000",
+    "0043333322240000",
+    "0043331111140000",
+    "1111111111140000",
+    "0043331122240000",
+    "0043332222240000",
+    "0044444444440000",
+    "0044444444440000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Necrotic Borderlands",
+      "type": "buffer",
+      "lore": "Unzoned forest wilderness where creeping death-fog drifts from the Blighted Mire, bounded north by the Northern Ribs."
+    },
+    "1": {
+      "name": "The Staging Thoroughfare",
+      "type": "square",
+      "lore": "The main corduroy thoroughfare and staging yard inside the outpost, heavily traversed by marsh wardens and defense supply wagons."
+    },
+    "2": {
+      "name": "Defensive Works & Saw Pits",
+      "type": "crafts",
+      "lore": "Saw pits, tool smithies, and timber yards converted to mass-producing defensive barricades, iron-bound stakes, and siege barriers."
+    },
+    "3": {
+      "name": "Vigil & Warden Quarters",
+      "type": "residential",
+      "lore": "Timber barracks and dugout shelters housing woodcutters, trackers, and marsh wardens stationed along the perilous border."
+    },
+    "4": {
+      "name": "Palisade Ramparts & Moat",
+      "type": "keep",
+      "lore": "Iron-banded hemlock-log palisades, elevated sentinel bastions, and a flooded moat-trench guarding against necrotic incursions."
+    }
+  },
+  "features": {
+    "sylvan_gate": {
+      "name": "Iron-Banded Sylvan Gate",
+      "type": "gate",
+      "char": "G",
+      "tiles": [
+        [
+          3,
+          7
+        ]
+      ],
+      "lore": "Reinforced with heavy iron straps and oak baulks, this gate seals the western corduroy road against necrotic incursions."
+    },
+    "mire_sentinel_tower": {
+      "name": "Mire Sentinel Bastion",
+      "type": "watchtower",
+      "char": "W",
+      "tiles": [
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "lore": "An elevated oak-and-iron bastion outfitted with pitch cauldrons, heavy ballistas, and signal horns to alert the garrison of creeping death-fog."
+    },
+    "pioneer_hearth": {
+      "name": "Warden's Vigil Hearth",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          4,
+          5
+        ]
+      ],
+      "lore": "A stone-lined hearth where marsh wardens dry wet gear, brew hemlock-bark tonic, and maintain constant flame against necrotic chills."
+    },
+    "sylvan_saw_pit": {
+      "name": "Defensive Saw Pit",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          9,
+          8
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          9
+        ]
+      ],
+      "lore": "Reconfigured from timber export to rapidly shape sharpened barricade stakes, moat revetments, and heavy palisade timbers."
+    },
+    "logging_smithy": {
+      "name": "Bastion Forge & Smithy",
+      "type": "smithy",
+      "char": "K",
+      "tiles": [
+        [
+          10,
+          4
+        ],
+        [
+          10,
+          5
+        ]
+      ],
+      "lore": "A busy forge refitting woodcutters' axes into battle blades, hammering iron palisade straps, and forging iron gate-bars."
+    },
+    "sylvan_trace_staging": {
+      "name": "Garrison Staging Yard",
+      "type": "market",
+      "char": "T",
+      "tiles": [
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          7
+        ]
+      ],
+      "lore": "The corduroy staging square where supply sleds from Aethelford unload grain, iron, and pitch while defense patrols assemble."
+    },
+    "flooded_moat_trench": {
+      "name": "Flooded Moat Trench & Causeway",
+      "type": "keep",
+      "char": "M",
+      "tiles": [
+        [
+          6,
+          11
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          8,
+          11
+        ]
+      ],
+      "lore": "A broad ditch filled with stagnant marsh water surrounding the southern palisade, spanned by a narrow wooden causeway to deter necrotic wights."
+    }
+  }
+}

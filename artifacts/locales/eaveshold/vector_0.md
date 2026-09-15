@@ -1,0 +1,23 @@
+# Locale Evolution Vector: Eaveshold
+
+## Global Developments
+- **Dun Kestrel:** Enriched by the thriving wool trade along the Downs-Way, rich quarrying of white chalk-stone, and the unification of the highland clans under a sovereign High Thane, the timber redoubt was refortified with cyclopean ashlar ramparts, watchtowers, and deep grain vaults, ascending as the supreme highland citadel.
+- **The Hollow Polders (Waterworks):** To nourish the swelling urban populace of Dun Kestrel, clan engineers dug a vast network of drainage trenches, sluices, and earthen dykes across the northern brim of the Peat-Hollow Bogs,, and, reclaiming stagnant mire into fertile black-loam farmlands.
+- **The Hollow-Trace:** A graded track of crushed limestone and packed chalk carved down the western cliffs of Dun Kestrel to convey carts of seed, harvested grains, and peat fuel between the high citadel and the newly reclaimed polders.
+- **The Blighted Mire (Domain Expansion):** The ancient wards binding the Mire-Tomb of Mor-Ghul finally ruptured under centuries of decay, unsealing the subterranean crypts and unleashing a catastrophic wave of necrotic miasma that withered the surrounding oxbows, cypresses, and hemlocks into a calcified ash-choked wasteland.
+- **The Necropolis of Mor-Ghul:** Awakened from dormant myth into an active terror, the shattered cyclopean gates now spew forth drowned wights and restless spirits, projecting an aura of bone-chilling dread across the lower basin.
+- **Eaveshold:** Hastily upgraded from an open pioneer logging outpost into a grim, barricaded forward bastion ringed with iron-spiked palisades and flooded moat-trenches, where mortal sentinels keep desperate vigil against the death-fog creeping northward from the Blighted Mire.
+- **The Undulating Downs (Region Lore Mutation):** Transformed from quiet, wind-scoured sheep-pastures into a consolidated highland power ruled from high white-chalk citadels and supported by terraced barley fields and disciplined clan garrisons.
+- **The Peat-Hollow Bogs (Region Lore Mutation):** Severely altered along their northern perimeter by mortal drainage works and turf-cutting, provoking ferocious swamp-predators to flee deeper into the southern fens.
+- **The Drowned Clearings (Region Lore Mutation):** Corrupted by the eruption of Mor-Ghul, the peaceful oxbows and hanging willows have mutated into poisoned black waters choked with necrotic silt, where unhallowed corpse-candles burn amidst drifting bone-dust.
+- **The Greenwood Vault (Region Lore Mutation):** The primeval peace of the eastern timberlands is smothered by lingering fear as cold necrotic vapors drift through the ancient hemlock canopy, testing the iron resolve of the wardens at Eaveshold.
+
+---
+
+## Locale (Eaveshold) Developments
+
+### Locale Lore New Development
+"Transformed from a peaceful lumber camp into a desperate, heavily fortified forward bastion. Iron-banded oak palisades, moat-ditches, and watchful marsh-wardens maintain a harrowing vigil along the southern tree-line against the horrors drifting out of the Blighted Mire."
+
+### Host Region Lore New Development
+"The ancient canopy of giant hemlocks and towering oaks is gripped by rising dread, as cold necrotic mists drift northward from the corrupted fens to claw at the sharpened palisades of Eaveshold."

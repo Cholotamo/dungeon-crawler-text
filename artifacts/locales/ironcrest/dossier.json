@@ -1,0 +1,125 @@
+{
+  "feature_id": "ironcrest",
+  "world_coords": [
+    5,
+    1
+  ],
+  "first_seen_epoch": 4,
+  "latest_epoch": 5,
+  "total_keyframes": 2,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 4,
+      "char": "o",
+      "name": "Ironcrest",
+      "type": "outpost",
+      "description": "A fortified highland mining redoubt established in the shadow of the Northern Ribs, founded by the High Thane of Dun Kestrel to mine rich veins of magnetite iron and quarry dark slate for the highland citadel.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "genesis"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Once pastoral sheep-walks and lonely bluffs, the highlands have unified under the High Thane of Dun Kestrel into a fortified domain of white-chalk bastions, limestone quarries, terraced barley fields, and disciplined border companies."
+        },
+        "terrain_char": ",",
+        "terrain_label": "hills",
+        "terrain_slice": [
+          ",,,",
+          ",,,",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "iron_trace",
+          "road_name": "The Iron-Trace",
+          "road_type": "road",
+          "gate_approach": "SOUTH",
+          "description": "A steep, graded wagon-track of crushed limestone and basalt ballast linking the high citadel of Dun Kestrel with the northern iron mines of Ironcrest.",
+          "destination": {
+            "feature_id": "dun_kestrel",
+            "name": "Dun Kestrel",
+            "type": "citadel",
+            "description": "Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne."
+          },
+          "destination_coord": [
+            5,
+            3
+          ]
+        }
+      ],
+      "delta_from_previous": null
+    },
+    {
+      "keyframe_index": 1,
+      "epoch": 5,
+      "char": "O",
+      "name": "Ironcrest",
+      "type": "citadel",
+      "description": "Elevated from a frontier mining redoubt into a sovereign mountain fortress-citadel. Crowned with cyclopean slate ramparts, soaring blast furnaces, and deep labyrinthine adits delved into the roots of the Northern Ribs, Ironcrest now stands as the supreme industrial and martial bastion of the highland clans, supplying cold-forged magnetite steel to the entire realm.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "char_mutation (o -> O)",
+        "type_mutation ('outpost' -> 'citadel')"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Anchored between the twin sovereign citadels of Dun Kestrel and Ironcrest, the high rolling chalklands have transformed into a fortified highland realm of martial discipline, deep limestone quarries, terraced barley slopes, and rumbling iron-wains traversing the paved trace."
+        },
+        "terrain_char": ",",
+        "terrain_label": "hills",
+        "terrain_slice": [
+          ",,,",
+          ",,,",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "iron_trace",
+          "road_name": "The Iron-Trace",
+          "road_type": "road",
+          "gate_approach": "SOUTH",
+          "description": "A steep, graded wagon-track of crushed limestone and basalt ballast linking the high citadel of Dun Kestrel with the northern iron mines of Ironcrest.",
+          "destination": {
+            "feature_id": "dun_kestrel",
+            "name": "Dun Kestrel",
+            "type": "citadel",
+            "description": "Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne."
+          },
+          "destination_coord": [
+            5,
+            3
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "'o' (outpost) -> 'O' (citadel)",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    }
+  ]
+}

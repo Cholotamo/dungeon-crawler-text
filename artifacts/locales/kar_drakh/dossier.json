@@ -1,0 +1,253 @@
+{
+  "feature_id": "kar_drakh",
+  "world_coords": [
+    26,
+    5
+  ],
+  "first_seen_epoch": 1,
+  "latest_epoch": 5,
+  "total_keyframes": 5,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 1,
+      "char": "!",
+      "name": "Kar-Drakh",
+      "type": "dungeon",
+      "description": "A colossal, cyclopean gatehouse hewn into the sheer precipice of the Red Sandstone Canyon, sealed by rune-carved basalt doors whose creators vanished before the dawn of mortal speech.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "genesis"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "2",
+          "name": "Red Sandstone Canyon",
+          "type": "cliffs",
+          "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+        },
+        "terrain_char": "/",
+        "terrain_label": "cliff_chasm",
+        "terrain_slice": [
+          "~~/",
+          "~/^",
+          "~/,"
+        ],
+        "region_slice": [
+          "222",
+          "221",
+          "221"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 2,
+            "relative_position": "SOUTH & EAST BORDER (2 tiles)",
+            "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers.",
+            "historical_context": "Active region in Epoch 1."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": null
+    },
+    {
+      "keyframe_index": 1,
+      "epoch": 2,
+      "char": "!",
+      "name": "Kar-Drakh",
+      "type": "dungeon",
+      "description": "A colossal, cyclopean gatehouse hewn into the sheer precipice of the Red Sandstone Canyon, sealed by rune-carved basalt doors whose creators vanished before the dawn of mortal speech.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "2",
+          "name": "Red Sandstone Canyon",
+          "type": "cliffs",
+          "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+        },
+        "terrain_char": "/",
+        "terrain_label": "cliff_chasm",
+        "terrain_slice": [
+          "~~/",
+          "~/^",
+          "~/,"
+        ],
+        "region_slice": [
+          "222",
+          "221",
+          "221"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 2,
+            "relative_position": "SOUTH & EAST BORDER (2 tiles)",
+            "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers.",
+            "historical_context": "Active region in Epoch 2."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 2,
+      "epoch": 3,
+      "char": "!",
+      "name": "Kar-Drakh",
+      "type": "dungeon",
+      "description": "A colossal, cyclopean gatehouse hewn into the sheer precipice of the Red Sandstone Canyon, sealed by rune-carved basalt doors whose creators vanished before the dawn of mortal speech.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "2",
+          "name": "Red Sandstone Canyon",
+          "type": "cliffs",
+          "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+        },
+        "terrain_char": "/",
+        "terrain_label": "cliff_chasm",
+        "terrain_slice": [
+          "~~/",
+          "~/^",
+          "~/,"
+        ],
+        "region_slice": [
+          "222",
+          "221",
+          "221"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 2,
+            "relative_position": "SOUTH & EAST BORDER (2 tiles)",
+            "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers.",
+            "historical_context": "Active region in Epoch 3."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 3,
+      "epoch": 4,
+      "char": "!",
+      "name": "Kar-Drakh",
+      "type": "dungeon",
+      "description": "A colossal, cyclopean gatehouse hewn into the sheer precipice of the Red Sandstone Canyon, sealed by rune-carved basalt doors whose creators vanished before the dawn of mortal speech.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "2",
+          "name": "Red Sandstone Canyon",
+          "type": "cliffs",
+          "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+        },
+        "terrain_char": "/",
+        "terrain_label": "cliff_chasm",
+        "terrain_slice": [
+          "~~/",
+          "~/^",
+          "~/,"
+        ],
+        "region_slice": [
+          "222",
+          "221",
+          "221"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 2,
+            "relative_position": "SOUTH & EAST BORDER (2 tiles)",
+            "lore": "The desolate granite precipices and alpine screes of the southern ribs now echo with the clang of pickaxes and the smoke of charcoal bloomery furnaces, as miners from Dun Kestrel delve deep into rich veins of magnetite iron.",
+            "historical_context": "Active region in Epoch 4."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 4,
+      "epoch": 5,
+      "char": "!",
+      "name": "Kar-Drakh",
+      "type": "dungeon",
+      "description": "A colossal, cyclopean gatehouse hewn into the sheer precipice of the Red Sandstone Canyon, sealed by rune-carved basalt doors whose creators vanished before the dawn of mortal speech.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "2",
+          "name": "Red Sandstone Canyon",
+          "type": "cliffs",
+          "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+        },
+        "terrain_char": "/",
+        "terrain_label": "cliff_chasm",
+        "terrain_slice": [
+          "~~/",
+          "~/^",
+          "~/,"
+        ],
+        "region_slice": [
+          "222",
+          "221",
+          "221"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 2,
+            "relative_position": "SOUTH & EAST BORDER (2 tiles)",
+            "lore": "The desolate alpine screes and towering granite crags now thunder day and night with the deep tremors of heavy excavation, blast furnaces, and cascading slag-sluices, as the newly elevated citadel of Ironcrest delves labyrinthine adits into the ancient mountain roots to harvest vast deposits of black magnetite iron and dark roofing slate.",
+            "historical_context": "Active region in Epoch 5."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    }
+  ]
+}

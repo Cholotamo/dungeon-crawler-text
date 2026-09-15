@@ -1,0 +1,214 @@
+{
+  "feature_id": "mire_tomb_mor_ghul",
+  "name": "The Necropolis of Mor-Ghul",
+  "type": "dungeon",
+  "epoch": 3,
+  "keyframe_index": 2,
+  "context": {
+    "summary": "Unsealed by ruptured wards, the half-submerged necropolis has awakened into an active necrotic locus, spewers of cold death-fog and drowned wights across black-silt oxbows.",
+    "host_region": "The Drowned Clearings (Lake)",
+    "host_region_lore": "A petrified desolation of necrotic ash and calcified roots, where the shattered wards of Mor-Ghul bleed ancient malevolence into the withered fens, choking the waterways with poisoned silt and unhallowed spirits.",
+    "scale_profile": "Expanded Subterranean Necropolis & Ruptured Crypt Complex",
+    "perimeters": [
+      {
+        "border": "SOUTH & WEST BORDER",
+        "description": "The Greenwood Vault (Forest)",
+        "lore": "The primeval peace of the eastern timberlands is smothered by lingering fear as cold necrotic vapors drift through the ancient hemlock canopy, testing the iron resolve of the wardens at Eaveshold."
+      },
+      {
+        "border": "NORTH & EAST BORDERS",
+        "description": "The Drowned Clearings (Lake)",
+        "lore": "A forsaken expanse of stagnant oxbows where the water runs black with necromantic ash, unhallowed corpse-candles burn in perpetual fog, and restless spirits wail beneath weeping willows draped in calcified rot."
+      },
+      {
+        "border": "LOCAL_SURROUNDINGS (4 tiles)",
+        "description": "The Drowned Clearings",
+        "lore": "New neighboring biome appeared: A forsaken expanse of stagnant oxbows where the water runs black with necromantic ash, unhallowed corpse-candles burn in perpetual fog, and restless spirits wail beneath weeping willows draped in calcified rot."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "Perimeter",
+        "road": "None",
+        "destination": "Wilderness Traversal",
+        "destination_lore": "Traversed only by desperate tomb-raiders or grim wardens from Eaveshold braving the necrotic vapors."
+      }
+    ],
+    "world_relations": "The rupture of Mor-Ghul's wards has sent shockwaves through the basin, forcing Eaveshold to transform into a heavily fortified frontier bastion against roving drowned legions. Timber cutting along the Sylvan Trace has ground to a halt as necrotic miasma poisons the hemlock groves.",
+    "architectural_rationale": "The ancient stone entryways have been blasted open by subterranean necrotic surges, shattering the cyclopean gate structure and corrupting the surrounding flora into ash and calcified scree. Decay has rotted the wooden boardwalk spans, while the inner chambers flare with violent death-fire."
+  },
+  "terrain_grid": [
+    "~~~~~~~~~~;;;&&&",
+    "~~~~~~~;;;;;&&&&",
+    "~~~~~;;######;;;",
+    "~~~;;;##....####",
+    "~~;;;##......#.#",
+    "~~;;;##../##...#",
+    "~;;;+===+##/...#",
+    "~;;;+;;;+/.....#",
+    "&;;;+;;;+#.....#",
+    "&&:++===+#.....#",
+    "&&::&;;;:.../###",
+    "&:..:&;;/......#",
+    "&:..:&&&+......#",
+    "&:..:&&&+......#",
+    "&&&&&&&&+:......",
+    "&&&&&&&&+:......"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000004444440000",
+    "0000004444440555",
+    "0000004444440555",
+    "0000004444440555",
+    "0002222222225555",
+    "0002222223333330",
+    "0002222223333330",
+    "1112222223333330",
+    "1111222223333330",
+    "1111111111111110",
+    "1111111111111110",
+    "1111111111111110",
+    "1111111111111110",
+    "1111111111111110"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Drowned Margins",
+      "type": "buffer",
+      "lore": "Poisoned black oxbow waters of the Drowned Clearings and withered timberlands of the Greenwood Vault choked with calcified rot."
+    },
+    "1": {
+      "name": "Ash-Choked Approach",
+      "type": "antechamber",
+      "lore": "A withered trail of calcified roots and necrotic ash winding toward the shattered gates of the necropolis."
+    },
+    "2": {
+      "name": "Ruined Wight-Courtyard",
+      "type": "hall",
+      "lore": "A half-submerged plaza of black silt and rotting boardwalks where drowned legionaries gather under death-fog."
+    },
+    "3": {
+      "name": "Vaults of the Wight-Lord",
+      "type": "crypt",
+      "lore": "Shattered cyclopean stone chambers where unsealed sarcophagi radiate intense, bone-chilling cold."
+    },
+    "4": {
+      "name": "Unsealed Necrotic Catacombs",
+      "type": "catacomb",
+      "lore": "Flooded lower passages overflowing with black ash-silt, unhallowed corpse-candles, and ancient votive offerings."
+    },
+    "5": {
+      "name": "Sanctum of Mor-Ghul",
+      "type": "sanctum",
+      "lore": "The high obsidian chamber where the primeval spirit altar burns with unholy death-fire above the waterline."
+    }
+  },
+  "features": {
+    "outer_threshold": {
+      "name": "Shattered Threshold Arch",
+      "type": "threshold",
+      "char": "T",
+      "tiles": [
+        [
+          8,
+          11
+        ]
+      ],
+      "lore": "A cracked stone archway dripping with calcified ash and lingering necrotic mist, marking the boundary to the unsealed tombs."
+    },
+    "sarcophagus": {
+      "name": "Ruptured Sarcophagus of Mor-Ghul",
+      "type": "sarcophagus",
+      "char": "S",
+      "tiles": [
+        [
+          12,
+          8
+        ]
+      ],
+      "lore": "The cyclopean stone lid has been cast aside, revealing the dark void from which Lord Mor-Ghul commands his risen legions."
+    },
+    "spirit_altar": {
+      "name": "Altar of the Wight-Lord",
+      "type": "altar",
+      "char": "A",
+      "tiles": [
+        [
+          14,
+          4
+        ]
+      ],
+      "lore": "A towering monolithic slab pulsing with cold necrotic aura, surrounded by bone-dust and dark offerings."
+    },
+    "votive_basin": {
+      "name": "Overflowing Necrotic Basin",
+      "type": "basin",
+      "char": "B",
+      "tiles": [
+        [
+          8,
+          3
+        ]
+      ],
+      "lore": "A stone basin overflowing with black necrotic silt and swirling corpse-candles."
+    },
+    "witch_brazier": {
+      "name": "Flaring Death-Fire Brazier",
+      "type": "brazier",
+      "char": "F",
+      "tiles": [
+        [
+          10,
+          8
+        ]
+      ],
+      "lore": "An ancient iron brazier roaring with violent green-white death-fire that casts long, twisted shadows."
+    },
+    "oxbow_boardwalk": {
+      "name": "Rotting Ash Boardwalk",
+      "type": "bridge",
+      "char": "W",
+      "tiles": [
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          7,
+          9
+        ]
+      ],
+      "lore": "Charred and decaying timber spans half-sunk into black, ash-choked shallows."
+    },
+    "cyclopean_breach": {
+      "name": "The Shattered Cyclopean Gate",
+      "type": "ingress",
+      "char": "G",
+      "tiles": [
+        [
+          10,
+          10
+        ]
+      ],
+      "lore": "Massive ashlar gateposts blasted apart by necrotic surges, opening a gaping breach into the inner crypt vaults."
+    }
+  }
+}

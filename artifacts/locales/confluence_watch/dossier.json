@@ -1,0 +1,66 @@
+{
+  "feature_id": "confluence_watch",
+  "world_coords": [
+    14,
+    22
+  ],
+  "first_seen_epoch": 5,
+  "latest_epoch": 5,
+  "total_keyframes": 1,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 5,
+      "char": "o",
+      "name": "Confluence Watch",
+      "type": "outpost",
+      "description": "A heavily fortified river-bastion and naval station established on the cleared peninsula at the confluence of the Silver Channel and the Jade River. Garrisoned by veteran river-marines from Aethelford and clad in magnetite armor from Ironcrest, the redoubt commands the great river junction with heavy ballista batteries and iron-grated docks, severing the southern drift of necrotic horrors from Mor-Ghul and opening safe navigation toward the southern sea.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "genesis"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "4",
+          "name": "The Greenwood Vault",
+          "type": "forest",
+          "lore": "The ancient hemlock canopy remains dense and primeval, but its shadowed solitude is now bookended by mortal steel—anchored in the northeast by the battlements of Eaveshold and in the deep south by the water-gates of Confluence Watch, whose lumbermen fell giant river-trunks to supply the shipwrights of the lower basin."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          "#~~",
+          "..~",
+          "&#~"
+        ],
+        "region_slice": [
+          "438",
+          "448",
+          "448"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "8",
+            "name": "The Silent Meeting",
+            "type": "river",
+            "tile_count": 3,
+            "relative_position": "EAST BORDER (3 tiles)",
+            "lore": "The primeval solitude of the great sister-confluence has yielded to the ring of iron and the splash of heavy oars; armed river-galleys and stone water-gates from Confluence Watch now patrol the swirling silver and jade eddies, maintaining vigilant quarantine against the poisoned runoff and wandering wights of the northern marshes.",
+            "historical_context": "Active region in Epoch 5."
+          },
+          {
+            "id": "3",
+            "name": "The Silver Channel",
+            "type": "river",
+            "tile_count": 1,
+            "relative_position": "NORTH BORDER (1 tiles)",
+            "lore": "A majestic, half-league-wide river carrying mountain runoff through a fractured piedmont of rolling hills into the primeval basin.",
+            "historical_context": "Active region in Epoch 5."
+          }
+        ]
+      },
+      "connected_roads": [],
+      "delta_from_previous": null
+    }
+  ]
+}

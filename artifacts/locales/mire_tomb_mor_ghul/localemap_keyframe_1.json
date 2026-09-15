@@ -1,0 +1,197 @@
+{
+  "feature_id": "mire_tomb_mor_ghul",
+  "name": "The Mire-Tomb of Mor-Ghul",
+  "type": "dungeon",
+  "epoch": 2,
+  "keyframe_index": 1,
+  "context": {
+    "summary": "A half-submerged necropolis amidst the stagnant oxbows of the Drowned Clearings, where witch-fires flare with renewed, wrathful intensity as mortal logging advances from the north.",
+    "host_region": "The Drowned Clearings (Lake)",
+    "host_region_lore": "A haunted wilderness of stagnant oxbow lakes and reed marshes where witch-fires burn brighter since mortal axes approached from the north, its drowned crypts whispering with restless malevolence.",
+    "scale_profile": "Compact Subterranean & Submerged Necropolis",
+    "perimeters": [
+      {
+        "border": "SOUTH & WEST BORDER",
+        "description": "The Greenwood Vault (Forest)",
+        "lore": "An ancient expanse of moss-cloaked hemlocks and colossal oaks, now cleaved by the Silver Span and the corduroy logs of the Sylvan Trace as woodcutters push their fortified frontier into the eastern gloom."
+      },
+      {
+        "border": "NORTH & EAST BORDERS",
+        "description": "Transition into host region (The Drowned Clearings — Lake).",
+        "lore": "A haunted wilderness of stagnant oxbow lakes and reed marshes where witch-fires burn brighter since mortal axes approached from the north, its drowned crypts whispering with restless malevolence."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "Perimeter",
+        "road": "None",
+        "destination": "Wilderness Traversal",
+        "destination_lore": "None. (Isolated wilderness site; entry is via local terrain traversal)."
+      }
+    ],
+    "world_relations": "Though isolated amidst swampy oxbows, the tomb's restless spirits have been agitated by mortal expansion along the Sylvan Trace and Eaveshold. Lumber crews and tomb-raiders tread carefully, seeking rare witch-fire moss and ancient relics while fending off marsh horrors.",
+    "architectural_rationale": "The physical structure remains anchored in its ancient stone masonry and timber boardwalks, but the surrounding mire and forest reflect increased spirit disturbance and mortal intrusion along the southern approaches."
+  },
+  "terrain_grid": [
+    "~~~~~~~~~~;;;&&&",
+    "~~~~~~~;;;;;&&&&",
+    "~~~~~;;######;;;",
+    "~~~;;;##....####",
+    "~~;;;##......#.#",
+    "~~;;;##../##...#",
+    "~;;;+===+##/...#",
+    "~;;;+;;;+/.....#",
+    "&;;;+;;;+#.....#",
+    "&&,++===+#.....#",
+    "&&,+,&;;;###/###",
+    "&,,,,&;;/......#",
+    "&,,,,&&&+......#",
+    "&,,,,&&&+......#",
+    "&&&&&&&&+,,,,,,,",
+    "&&&&&&&&+,,,,,,,"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000004444440000",
+    "0000004444440555",
+    "0000004444440555",
+    "0000004444440555",
+    "0002222222225555",
+    "0002222223333330",
+    "0002222223333330",
+    "1112222223333330",
+    "1111222223333330",
+    "1111111111111110",
+    "1111111111111110",
+    "1111111111111110",
+    "1111111111111110",
+    "1111111111111110"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Drowned Margins",
+      "type": "buffer",
+      "lore": "Stagnant oxbow waters of the Drowned Clearings to the north and east, and the cleaved timberlands of the Greenwood Vault to the south and west."
+    },
+    "1": {
+      "name": "Overgrown Approach",
+      "type": "antechamber",
+      "lore": "A mud-soaked trail winding through mossy trees and submerged stones toward the tomb's outer threshold."
+    },
+    "2": {
+      "name": "Flooded Courtyard",
+      "type": "hall",
+      "lore": "A half-submerged stone plaza choked with reeds, shallows, and decaying wooden boardwalks."
+    },
+    "3": {
+      "name": "Crypt of Mor-Ghul",
+      "type": "crypt",
+      "lore": "Ancient stone chambers illuminated by intensified green witch-fires, where restless spirits whisper among lichen-encrusted sarcophagi."
+    },
+    "4": {
+      "name": "Submerged Catacombs",
+      "type": "catacomb",
+      "lore": "Flooded lower passages filled with stagnant water, glowing witch-fire moss, and ancient votive niches."
+    },
+    "5": {
+      "name": "Inner Sanctum",
+      "type": "sanctum",
+      "lore": "The high chamber resting above the waterline on a natural stone outcrop, housing the primeval spirit altar."
+    }
+  },
+  "features": {
+    "outer_threshold": {
+      "name": "The Moss-Draped Threshold",
+      "type": "threshold",
+      "char": "T",
+      "tiles": [
+        [
+          8,
+          11
+        ]
+      ],
+      "lore": "A weather-worn stone archway choked with damp lichen, marking the outer boundary between the wild forest and the mire-tomb."
+    },
+    "sarcophagus": {
+      "name": "Lichen-Encrusted Sarcophagus of Mor-Ghul",
+      "type": "sarcophagus",
+      "char": "S",
+      "tiles": [
+        [
+          12,
+          8
+        ]
+      ],
+      "lore": "A massive stone tomb carved with ancient runes, wrapped in glowing green moss and dancing witch-fires."
+    },
+    "spirit_altar": {
+      "name": "Altar of the Primeval Spirit",
+      "type": "altar",
+      "char": "A",
+      "tiles": [
+        [
+          14,
+          4
+        ]
+      ],
+      "lore": "A raised monolithic slab where spirits of the drowned marsh are invoked, adorned with votive reeds and dried water-lilies."
+    },
+    "votive_basin": {
+      "name": "Submerged Votive Basin",
+      "type": "basin",
+      "char": "B",
+      "tiles": [
+        [
+          8,
+          3
+        ]
+      ],
+      "lore": "A sunken stone basin fed by oxbow waters, holding shimmering witch-fire residue and tarnish-green copper offerings."
+    },
+    "witch_brazier": {
+      "name": "Witch-Fire Brazier",
+      "type": "brazier",
+      "char": "F",
+      "tiles": [
+        [
+          10,
+          8
+        ]
+      ],
+      "lore": "An ancient iron basin crackling with cold, ethereal green flame that illuminates the dark crypt without heat."
+    },
+    "oxbow_boardwalk": {
+      "name": "Oxbow Boardwalk Bridge",
+      "type": "bridge",
+      "char": "W",
+      "tiles": [
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          7,
+          9
+        ]
+      ],
+      "lore": "Decaying timber spans lashed over stagnant shallows, providing passage across the flooded oxbow waters."
+    }
+  }
+}

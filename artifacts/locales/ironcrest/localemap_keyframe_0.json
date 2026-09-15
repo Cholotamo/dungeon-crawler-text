@@ -1,0 +1,168 @@
+{
+  "feature_id": "ironcrest",
+  "name": "Ironcrest",
+  "type": "settlement",
+  "epoch": 4,
+  "context": {
+    "summary": "A compact, fortified highland mining outpost established in the shadow of the Northern Ribs to mine magnetite iron and quarry dark slate.",
+    "host_region": "The Undulating Downs (Hills)",
+    "host_region_lore": "Once pastoral sheep-walks and lonely bluffs, the highlands have unified under the High Thane of Dun Kestrel into a fortified domain of white-chalk bastions, limestone quarries, terraced barley fields, and disciplined border companies.",
+    "scale_profile": "Small / Compact (Fledgling cluster. Small structural footprint with a high proportion of surrounding natural terrain, open yards, and frontier buffer.)",
+    "perimeters": [
+      {
+        "border": "ALL BORDERS",
+        "description": "Transition into host region (The Undulating Downs — Hills).",
+        "lore": "Once pastoral sheep-walks and lonely bluffs, the highlands have unified under the High Thane of Dun Kestrel into a fortified domain of white-chalk bastions, limestone quarries, terraced barley fields, and disciplined border companies."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "SOUTH",
+        "road": "The Iron-Trace (Road)",
+        "road_lore": "A steep, graded wagon-track of crushed limestone and basalt ballast linking the high citadel of Dun Kestrel with the northern iron mines of Ironcrest.",
+        "destination": "Leads toward Dun Kestrel (Citadel)",
+        "destination_lore": "Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne."
+      }
+    ],
+    "world_relations": "Ironcrest functions as the primary material engine for Dun Kestrel, supplying dark slate for citadel roofing and rich magnetite iron for arms, armor, and structural ironwork along the steep Iron-Trace wagon road.",
+    "architectural_rationale": "The outpost is tightly enclosed by chalk-ashlar and timber palisades built into the mountain base. Mining shafts and slate benches press directly against the northern rock face, while smelting kilns, barracks, and wagon yards surround a central courtyard connected directly to the southern gatehouse and the Iron-Trace road."
+  },
+  "terrain_grid": [
+    "^^^^^^^^^^^^^^^^",
+    "^^^:::^^^^:::^^^",
+    "^^::...M....::^^",
+    "^:#####+######:^",
+    "^#.....+......#^",
+    "^#.+S++++++K..#^",
+    ":#.....+......#:",
+    ":#.....+......#:",
+    ",#.....+......#,",
+    ",#.+B++++++W..#,",
+    ",#.....+......#,",
+    ",:#####G######:,",
+    "::::::+++:::::::",
+    ",,,,,,:+:,,,,,,,",
+    ",,,,,,:+:,,,,,,,",
+    ",,,,,,:+:,,,,,,,"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000000200000000",
+    "0022222233333300",
+    "0222222233333330",
+    "0222222233333330",
+    "0222222233333330",
+    "0111111111111110",
+    "0111111111111110",
+    "0444444444444440",
+    "0444444444444440",
+    "0044444444444400",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Chalk Bluffs",
+      "type": "buffer",
+      "lore": "Unzoned limestone bluffs and rolling downs surrounding the outpost, marked by wild sheep-walks and scree slopes."
+    },
+    "1": {
+      "name": "Redoubt Staging Courtyard",
+      "type": "square",
+      "lore": "A graveled, timber-braced yard where heavy ore wagons are loaded, weighed, and prepared for transit along the Iron-Trace."
+    },
+    "2": {
+      "name": "Magnetite Incline & Slate Quarry",
+      "type": "crafts",
+      "lore": "Shored shaft mouths and quarry terraces extracting dark slate slabs and rich magnetite veins from the roots of the Northern Ribs."
+    },
+    "3": {
+      "name": "Assay Kilns & Smelting Hearth",
+      "type": "crafts",
+      "lore": "High-heat stone furnaces and blacksmith hearths where magnetite ore is assayed and iron quarrying tools are forged."
+    },
+    "4": {
+      "name": "Garrison Hold & Iron Gatehouse",
+      "type": "keep",
+      "lore": "A fortified chalk-ashlar gatehouse and timber barracks housing the High Thane's border guards and mining overseers."
+    }
+  },
+  "features": {
+    "magnetite_mine_shaft": {
+      "name": "Northern Ribs Mine Incline",
+      "type": "mine_shaft",
+      "char": "M",
+      "tiles": [
+        [
+          7,
+          2
+        ]
+      ],
+      "lore": "A timber-shored shaft driving deep into the highland ridge to extract high-purity magnetite iron for Dun Kestrel."
+    },
+    "slate_quarry_saw": {
+      "name": "Highland Slate Works",
+      "type": "quarry",
+      "char": "S",
+      "tiles": [
+        [
+          4,
+          5
+        ]
+      ],
+      "lore": "Open cutting benches and wedge-frames where dark slate is split into roofing shingles and structural slabs for the citadel."
+    },
+    "smelting_hearth": {
+      "name": "Assay Kiln & Tool Smithy",
+      "type": "smithy",
+      "char": "K",
+      "tiles": [
+        [
+          11,
+          5
+        ]
+      ],
+      "lore": "Draft-boosted masonry furnaces used to test iron ore purity and repair heavy steel drills, picks, and wagon axles."
+    },
+    "garrison_barracks": {
+      "name": "Border Company Quarters",
+      "type": "barracks",
+      "char": "B",
+      "tiles": [
+        [
+          4,
+          9
+        ]
+      ],
+      "lore": "Reinforced chalk-ashlar barracks providing quarters and armaments for the disciplined guards stationed by the High Thane."
+    },
+    "wagon_depot": {
+      "name": "Iron-Trace Wagon Yard",
+      "type": "depot",
+      "char": "W",
+      "tiles": [
+        [
+          11,
+          9
+        ]
+      ],
+      "lore": "A heavy-timber staging barn where ballast wagons and draft oxen assemble before hauling iron and slate south."
+    },
+    "iron_gatehouse": {
+      "name": "The South Iron Gatehouse",
+      "type": "gatehouse",
+      "char": "G",
+      "tiles": [
+        [
+          7,
+          11
+        ]
+      ],
+      "lore": "A thick chalk-and-timber barrier controlling access between the Iron-Trace wagon road and the interior mine yard."
+    }
+  },
+  "keyframe_index": 0
+}

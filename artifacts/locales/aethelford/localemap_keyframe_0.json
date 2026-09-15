@@ -1,0 +1,166 @@
+{
+  "feature_id": "aethelford",
+  "name": "Aethelford",
+  "type": "settlement",
+  "epoch": 1,
+  "context": {
+    "summary": "A pioneer river-haven and timber stockade founded on the western bank of the Silver Channel, guarding the primeval crossing into the Greenwood Vault.",
+    "host_region": "Aethelford Crofts (Cleared_Land)",
+    "host_region_lore": "Tilled river-silt crofts and barley strips wrested from the ancient hemlocks of the Greenwood Vault, watered by the Silver Channel.",
+    "scale_profile": "Small / Compact (Fledgling cluster. Small structural footprint with a high proportion of surrounding natural terrain, open yards, and frontier buffer.)",
+    "perimeters": [
+      {
+        "border": "NORTH BORDER",
+        "description": "The Greenwood Vault (Forest)",
+        "lore": "An unbroken canopy of moss-cloaked hemlocks and broad oaks, newly pierced along the Silver Channel by mortal woodcutters and the tilled crofts of Aethelford."
+      },
+      {
+        "border": "SOUTH & EAST BORDER",
+        "description": "The Silver Channel (River)",
+        "lore": "A majestic, half-league-wide river carrying mountain runoff through a fractured piedmont of rolling hills into the primeval basin."
+      },
+      {
+        "border": "WEST BORDERS",
+        "description": "Transition into host region (Aethelford Crofts — Cleared_Land).",
+        "lore": "Tilled river-silt crofts and barley strips wrested from the ancient hemlocks of the Greenwood Vault, watered by the Silver Channel."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "NORTH",
+        "road": "The Downs-Way (Road)",
+        "road_lore": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+        "destination": "Leads toward Dun Kestrel (Settlement)",
+        "destination_lore": "A hill-clan redoubt perched atop the chalk bluffs of the Undulating Downs, encircled by timber palisades and pastoral sheep-runs."
+      }
+    ],
+    "world_relations": "Aethelford channels harvested hemlock timber up the Downs-Way to Dun Kestrel in exchange for pastoral wool, mutton, and chalk, while shipping surplus river-silt barley down the Silver Channel.",
+    "architectural_rationale": "The timber palisade guards the northern perimeter against primeval forest hazards, while the central thoroughfare connects the Downs-Way directly to the timber sawmill, barley granary, and southern river wharf."
+  },
+  "terrain_grid": [
+    "&&&,,,,&+&,,,,&&",
+    "&&&,,,,&+&,,,,&&",
+    "&&&,,###/###,,&&",
+    ":::,,...|...,,,&",
+    ":::,,...|...,,,&",
+    ":::..+++.+++..,~",
+    ":::..+.+++.+..,~",
+    ":::..+++.+++..;;",
+    ",,,..+++.+++..;;",
+    ",,,..+++====~~;;",
+    ",,,,..++.++=~~~~",
+    ",,,,:::::::~~~~~",
+    ";;;;:::::::~~~~~",
+    "~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~"
+  ],
+  "district_grid": [
+    "0000000030000000",
+    "0000000030000000",
+    "0000001111100000",
+    "4440011111110000",
+    "4440011111110000",
+    "4441111111111100",
+    "4441111111111100",
+    "4441111111111100",
+    "0001111111111100",
+    "0001111122222000",
+    "0000111222220000",
+    "0000444440000000",
+    "0000444440000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Wilderness",
+      "type": "buffer",
+      "lore": "The dense hemlock canopy of the Greenwood Vault to the north and the wide, churning currents of the Silver Channel to the south and east."
+    },
+    "1": {
+      "name": "Stockade Enclosure & Yard",
+      "type": "residential",
+      "lore": "A compact timber-walled haven housing pioneer lodgings, a central hearth fire, and timber processing yards."
+    },
+    "2": {
+      "name": "Silver Channel Wharf",
+      "type": "harbor",
+      "lore": "A heavy oak river landing and timber pier where rafts, barges, and ferries dock along the Silver Channel."
+    },
+    "3": {
+      "name": "Downs-Way Trailhead",
+      "type": "square",
+      "lore": "The north gate approach where crushed limestone from the Undulating Downs meets Aethelford's palisade."
+    },
+    "4": {
+      "name": "Silver-Silt Crofts",
+      "type": "farmland",
+      "lore": "Fertile riverbank barley strips and tilled soil wrested from the forest edge."
+    }
+  },
+  "features": {
+    "north_gate": {
+      "name": "Downs-Way Gatehouse",
+      "type": "gate",
+      "char": "/",
+      "tiles": [
+        [
+          8,
+          2
+        ]
+      ],
+      "lore": "A stout double-timber gate guarding the northern entry into Aethelford along the Downs-Way road from Dun Kestrel."
+    },
+    "pioneer_hearth": {
+      "name": "Aethelford Pioneer Lodge",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          8,
+          5
+        ]
+      ],
+      "lore": "A massive flagstone hearth and log hall serving as the settlement's meeting place, shelter, and central warmth."
+    },
+    "sawmill": {
+      "name": "Greenwood Sawmill & Yard",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          5,
+          6
+        ]
+      ],
+      "lore": "A water-assisted pit saw mill that processes hemlock and oak timber felled in the Greenwood Vault for export and construction."
+    },
+    "granary": {
+      "name": "Barley Granary & Store",
+      "type": "granary",
+      "char": "G",
+      "tiles": [
+        [
+          10,
+          6
+        ]
+      ],
+      "lore": "A stilted timber storehouse holding dried river-silt barley and preserved winter rations harvested from local crofts."
+    },
+    "river_wharf": {
+      "name": "Silver Channel Wharf",
+      "type": "docks",
+      "char": "D",
+      "tiles": [
+        [
+          7,
+          10
+        ]
+      ],
+      "lore": "A reinforced log wharf and boardwalk facilitating river transport and trade with downriver settlements."
+    }
+  },
+  "keyframe_index": 0
+}

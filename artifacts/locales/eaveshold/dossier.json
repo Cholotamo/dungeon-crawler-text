@@ -1,0 +1,315 @@
+{
+  "feature_id": "eaveshold",
+  "world_coords": [
+    16,
+    9
+  ],
+  "first_seen_epoch": 2,
+  "latest_epoch": 5,
+  "total_keyframes": 4,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 2,
+      "char": "o",
+      "name": "Eaveshold",
+      "type": "settlement",
+      "description": "A fortified palisade outpost and pioneer logging haven established at the eastern edge of the cleared trace, keeping vigil against the unquiet horrors of the southern mire.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "genesis"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "4",
+          "name": "The Greenwood Vault",
+          "type": "forest",
+          "lore": "An ancient expanse of moss-cloaked hemlocks and colossal oaks, now cleaved by the Silver Span and the corduroy logs of the Sylvan Trace as woodcutters push their fortified frontier into the eastern gloom."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",^,",
+          "&.#",
+          "###"
+        ],
+        "region_slice": [
+          "111",
+          "444",
+          "444"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 3,
+            "relative_position": "NORTH BORDER (3 tiles)",
+            "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers.",
+            "historical_context": "Active region in Epoch 2."
+          }
+        ]
+      },
+      "connected_roads": [
+        {
+          "road_id": "sylvan_trace",
+          "road_name": "The Sylvan Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, driven through the dense timber to supply the frontier watch at Eaveshold.",
+          "destination": {
+            "feature_id": "silver_span",
+            "name": "The Silver Span",
+            "type": "bridge",
+            "description": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+          },
+          "destination_coord": [
+            14,
+            9
+          ]
+        }
+      ],
+      "delta_from_previous": null
+    },
+    {
+      "keyframe_index": 1,
+      "epoch": 3,
+      "char": "o",
+      "name": "Eaveshold",
+      "type": "settlement",
+      "description": "Transformed from a peaceful lumber camp into a desperate, heavily fortified forward bastion. Iron-banded oak palisades, moat-ditches, and watchful marsh-wardens maintain a harrowing vigil along the southern tree-line against the horrors drifting out of the Blighted Mire.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "4",
+          "name": "The Greenwood Vault",
+          "type": "forest",
+          "lore": "The ancient canopy of giant hemlocks and towering oaks is gripped by rising dread, as cold necrotic mists drift northward from the corrupted fens to claw at the sharpened palisades of Eaveshold."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",^,",
+          "&.#",
+          "###"
+        ],
+        "region_slice": [
+          "111",
+          "444",
+          "444"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 3,
+            "relative_position": "NORTH BORDER (3 tiles)",
+            "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers.",
+            "historical_context": "Active region in Epoch 3."
+          }
+        ]
+      },
+      "connected_roads": [
+        {
+          "road_id": "sylvan_trace",
+          "road_name": "The Sylvan Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, driven through the dense timber to supply the frontier watch at Eaveshold.",
+          "destination": {
+            "feature_id": "silver_span",
+            "name": "The Silver Span",
+            "type": "bridge",
+            "description": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+          },
+          "destination_coord": [
+            14,
+            9
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 2,
+      "epoch": 4,
+      "char": "O",
+      "name": "Eaveshold",
+      "type": "citadel",
+      "description": "Elevated from a beleaguered frontier stockade into a sovereign marcher citadel. Shielded behind the rushing waters of the Ward-Fosse, Eaveshold's towering granite ramparts, ballista turrets, and consecrated beacon-fires stand as the unyielding shield of the Greenwood against the horrors of Mor-Ghul.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "char_mutation (o -> O)",
+        "type_mutation ('settlement' -> 'citadel')"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "4",
+          "name": "The Greenwood Vault",
+          "type": "forest",
+          "lore": "Though ancient shadows linger beneath the towering hemlocks, the dread of the creeping blight is held at bay by the rushing torrent of the Ward-Fosse, while mortal crofts and stone battlements at Eaveshold assert dominion over the eastern timberlands."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",^,",
+          "&.:",
+          "~~~"
+        ],
+        "region_slice": [
+          "111",
+          "44E",
+          "FFF"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 3,
+            "relative_position": "NORTH BORDER (3 tiles)",
+            "lore": "The desolate granite precipices and alpine screes of the southern ribs now echo with the clang of pickaxes and the smoke of charcoal bloomery furnaces, as miners from Dun Kestrel delve deep into rich veins of magnetite iron.",
+            "historical_context": "Active region in Epoch 4."
+          },
+          {
+            "id": "F",
+            "name": "The Ward-Fosse",
+            "type": "canal",
+            "tile_count": 3,
+            "relative_position": "SOUTH BORDER (3 tiles)",
+            "lore": "A deep, rapid defensive diversion channel carved east from the Silver Channel along the southern perimeter of Eaveshold, creating an impassable barrier of rushing mountain water that repels necrotic spirits and isolates the Blighted Mire.",
+            "historical_context": "Active region in Epoch 4."
+          },
+          {
+            "id": "E",
+            "name": "The Marcher Garths",
+            "type": "farmland",
+            "tile_count": 1,
+            "relative_position": "EAST BORDER (1 tiles)",
+            "lore": "Irrigated barley and rye fields carved from the eastern hemlock woods, fed by diversion ditches from the Ward-Fosse to nourish the garrison citadel of Eaveshold.",
+            "historical_context": "Active region in Epoch 4."
+          }
+        ]
+      },
+      "connected_roads": [
+        {
+          "road_id": "sylvan_trace",
+          "road_name": "The Sylvan Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, driven through the dense timber to supply the frontier watch at Eaveshold.",
+          "destination": {
+            "feature_id": "silver_span",
+            "name": "The Silver Span",
+            "type": "bridge",
+            "description": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+          },
+          "destination_coord": [
+            14,
+            9
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "'o' (settlement) -> 'O' (citadel)",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 3,
+      "epoch": 5,
+      "char": "O",
+      "name": "Eaveshold",
+      "type": "citadel",
+      "description": "Elevated from a beleaguered frontier stockade into a sovereign marcher citadel. Shielded behind the rushing waters of the Ward-Fosse, Eaveshold's towering granite ramparts, ballista turrets, and consecrated beacon-fires stand as the unyielding shield of the Greenwood against the horrors of Mor-Ghul.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "4",
+          "name": "The Greenwood Vault",
+          "type": "forest",
+          "lore": "The ancient hemlock canopy remains dense and primeval, but its shadowed solitude is now bookended by mortal steel—anchored in the northeast by the battlements of Eaveshold and in the deep south by the water-gates of Confluence Watch, whose lumbermen fell giant river-trunks to supply the shipwrights of the lower basin."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",^,",
+          "&.:",
+          "~~~"
+        ],
+        "region_slice": [
+          "111",
+          "44E",
+          "FFF"
+        ],
+        "neighborhood_regions": [
+          {
+            "id": "1",
+            "name": "The Northern Ribs",
+            "type": "mountains",
+            "tile_count": 3,
+            "relative_position": "NORTH BORDER (3 tiles)",
+            "lore": "The desolate alpine screes and towering granite crags now thunder day and night with the deep tremors of heavy excavation, blast furnaces, and cascading slag-sluices, as the newly elevated citadel of Ironcrest delves labyrinthine adits into the ancient mountain roots to harvest vast deposits of black magnetite iron and dark roofing slate.",
+            "historical_context": "Active region in Epoch 5."
+          },
+          {
+            "id": "F",
+            "name": "The Ward-Fosse",
+            "type": "canal",
+            "tile_count": 3,
+            "relative_position": "SOUTH BORDER (3 tiles)",
+            "lore": "A deep, rapid defensive diversion channel carved east from the Silver Channel along the southern perimeter of Eaveshold, creating an impassable barrier of rushing mountain water that repels necrotic spirits and isolates the Blighted Mire.",
+            "historical_context": "Active region in Epoch 5."
+          },
+          {
+            "id": "E",
+            "name": "The Marcher Garths",
+            "type": "farmland",
+            "tile_count": 1,
+            "relative_position": "EAST BORDER (1 tiles)",
+            "lore": "Irrigated barley and rye fields carved from the eastern hemlock woods, fed by diversion ditches from the Ward-Fosse to nourish the garrison citadel of Eaveshold.",
+            "historical_context": "Active region in Epoch 5."
+          }
+        ]
+      },
+      "connected_roads": [
+        {
+          "road_id": "sylvan_trace",
+          "road_name": "The Sylvan Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, driven through the dense timber to supply the frontier watch at Eaveshold.",
+          "destination": {
+            "feature_id": "silver_span",
+            "name": "The Silver Span",
+            "type": "bridge",
+            "description": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+          },
+          "destination_coord": [
+            14,
+            9
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    }
+  ]
+}

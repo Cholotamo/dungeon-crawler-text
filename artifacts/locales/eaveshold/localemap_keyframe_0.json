@@ -1,0 +1,197 @@
+{
+  "feature_id": "eaveshold",
+  "name": "Eaveshold",
+  "type": "settlement",
+  "epoch": 2,
+  "context": {
+    "summary": "A fortified palisade outpost and pioneer logging haven established at the eastern edge of the cleared trace, keeping vigil against the unquiet horrors of the southern mire.",
+    "host_region": "The Greenwood Vault (Forest)",
+    "host_region_lore": "An ancient expanse of moss-cloaked hemlocks and colossal oaks, now cleaved by the Silver Span and the corduroy logs of the Sylvan Trace as woodcutters push their fortified frontier into the eastern gloom.",
+    "scale_profile": "Small / Compact (Fledgling cluster. Small structural footprint with a high proportion of surrounding natural terrain, open yards, and frontier buffer.)",
+    "perimeters": [
+      {
+        "border": "NORTH BORDER",
+        "description": "The Northern Ribs (Mountains)",
+        "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers."
+      },
+      {
+        "border": "SOUTH & EAST & WEST BORDERS",
+        "description": "Transition into host region (The Greenwood Vault — Forest).",
+        "lore": "An ancient expanse of moss-cloaked hemlocks and colossal oaks, now cleaved by the Silver Span and the corduroy logs of the Sylvan Trace as woodcutters push their fortified frontier into the eastern gloom."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "WEST",
+        "road": "The Sylvan Trace (Road)",
+        "road_lore": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, driven through the dense timber to supply the frontier watch at Eaveshold.",
+        "destination": "Leads toward The Silver Span (Bridge)",
+        "destination_lore": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+      }
+    ],
+    "world_relations": "Eaveshold relies on the Sylvan Trace to ship raw hemlock and colossal oak timbers west toward the Silver Span and Aethelford, receiving grain, smithing iron, and fresh pioneer recruits in return.",
+    "architectural_rationale": "The settlement is built within a dense log palisade flanked by the impassable Northern Ribs to the north, with the Sylvan Trace entering directly through the West Gate to facilitate smooth timber transport while isolating timber yards and watch posts near the perimeter."
+  },
+  "terrain_grid": [
+    "^^^^^^^^^^^^^^^^",
+    "^^^^:^:^^^:^^^^^",
+    ",,:,&,,,::,&,,,,",
+    ",,&##########&,,",
+    ",,&#........#&,,",
+    ",,&#..++++..#&,,",
+    ",,&#..+..+..#&,,",
+    "+++/+++++++/#&,,",
+    ",,&#..+..+..#&,,",
+    ",,&#..++++..#&,,",
+    ",,&##########&,,",
+    ",,;&,,,,;,;;,,,,",
+    ",,&&&&,,;;;,&&&&",
+    "&&&&&&&&;;&&&&&&",
+    "&&&&&&&&&&&&&&&&",
+    "&&&&&&&&&&&&&&&&"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0044444444440000",
+    "0043333322240000",
+    "0043333322240000",
+    "0043331111140000",
+    "1111111111140000",
+    "0043331122240000",
+    "0043332222240000",
+    "0044444444440000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Greenwood Vault",
+      "type": "buffer",
+      "lore": "Unzoned forest wilderness of moss-cloaked hemlocks and ancient oaks, bounded north by the jagged gneiss of the Northern Ribs."
+    },
+    "1": {
+      "name": "The Trace Way",
+      "type": "square",
+      "lore": "The main corduroy thoroughfare and staging yard inside the outpost, aligned directly with the western approach from the Silver Span."
+    },
+    "2": {
+      "name": "The Timber Works",
+      "type": "crafts",
+      "lore": "Saw pits, charcoal mounds, and tool smithies where woodcutters square giant timber trunks and repair logging hardware."
+    },
+    "3": {
+      "name": "Pioneer Ward",
+      "type": "residential",
+      "lore": "Dugout timber shelters and common quarters housing woodcutters, trackers, and watchmen stationed at the edge of the wilderness."
+    },
+    "4": {
+      "name": "Palisade Ramparts",
+      "type": "keep",
+      "lore": "Heavy hemlock-log palisades and elevated walkways guarding the pioneer haven against unquiet horrors from the southern mire."
+    }
+  },
+  "features": {
+    "sylvan_gate": {
+      "name": "Sylvan Gate",
+      "type": "gate",
+      "char": "G",
+      "tiles": [
+        [
+          3,
+          7
+        ]
+      ],
+      "lore": "A heavy double-timber portal made of bound hemlock trunks, marking the eastern terminus of the Sylvan Trace road."
+    },
+    "mire_sentinel_tower": {
+      "name": "Mire Sentinel Tower",
+      "type": "watchtower",
+      "char": "W",
+      "tiles": [
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "lore": "An elevated watchpost built from thick oak baulks, keeping constant vigil over the murky southern mire to signal impending threats."
+    },
+    "pioneer_hearth": {
+      "name": "Pioneer Hearth",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          4,
+          5
+        ]
+      ],
+      "lore": "A stone-lined hearth where woodsmen dry wet gear, share rations, and brew hemlock-bark tonic after clearing timber."
+    },
+    "sylvan_saw_pit": {
+      "name": "Sylvan Saw Pit",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          9,
+          8
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          9
+        ]
+      ],
+      "lore": "A subterranean pit flanked by timber gantries where woodcutters saw colossal hemlock trunks into beams bound for the Silver Span."
+    },
+    "logging_smithy": {
+      "name": "Logging Tool Smithy",
+      "type": "smithy",
+      "char": "K",
+      "tiles": [
+        [
+          10,
+          4
+        ],
+        [
+          10,
+          5
+        ]
+      ],
+      "lore": "A rugged forge refitting crosscut saws, iron wedge collars, and draft-horse shoes using charcoal burned at the forest edge."
+    },
+    "sylvan_trace_staging": {
+      "name": "Sylvan Trace Staging Yard",
+      "type": "market",
+      "char": "T",
+      "tiles": [
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          7
+        ]
+      ],
+      "lore": "The corduroy timber yard where heavy timber sleds are loaded with felled logs and swapped for grain wagons arriving from Aethelford."
+    }
+  },
+  "keyframe_index": 0
+}

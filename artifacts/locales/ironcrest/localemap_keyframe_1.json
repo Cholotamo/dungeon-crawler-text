@@ -1,0 +1,185 @@
+{
+  "feature_id": "ironcrest",
+  "name": "Ironcrest",
+  "type": "settlement",
+  "epoch": 5,
+  "keyframe_index": 1,
+  "context": {
+    "summary": "Elevated from a frontier mining redoubt into a sovereign mountain fortress-citadel. Crowned with cyclopean slate ramparts, soaring blast furnaces, and deep labyrinthine adits delved into the roots of the Northern Ribs, Ironcrest now stands as the supreme industrial and martial bastion of the highland clans, supplying cold-forged magnetite steel to the entire realm.",
+    "host_region": "The Undulating Downs (Hills)",
+    "host_region_lore": "Anchored between the twin sovereign citadels of Dun Kestrel and Ironcrest, the high rolling chalklands have transformed into a fortified highland realm of martial discipline, deep limestone quarries, terraced barley slopes, and rumbling iron-wains traversing the paved trace.",
+    "scale_profile": "Settlement turned into big city (Small / Compact -> Large / Urban). Urban Densification & Fortification.",
+    "perimeters": [
+      {
+        "border": "NORTH",
+        "description": "Transition into host region (The Northern Ribs — Alpine Crags).",
+        "lore": "The desolate alpine screes and towering granite crags thunder day and night with deep tremors of heavy excavation, blast furnaces, and cascading slag-sluices as Ironcrest delves into the ancient mountain roots."
+      },
+      {
+        "border": "SOUTH / EAST / WEST",
+        "description": "Transition into host region (The Undulating Downs — Hills).",
+        "lore": "Anchored between the twin sovereign citadels of Dun Kestrel and Ironcrest, the high rolling chalklands have transformed into a fortified highland realm of martial discipline, deep limestone quarries, terraced barley slopes, and rumbling iron-wains traversing the paved trace."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "SOUTH",
+        "road": "The Iron-Trace (Paved Highway)",
+        "road_lore": "A paved, heavy-ballasted highway of fitted slate and limestone, worn by constant convoys of heavy iron-wains hauling magnetite ingots and refined steel south to Dun Kestrel.",
+        "destination": "Leads toward Dun Kestrel (Sovereign Citadel)",
+        "destination_lore": "The sovereign stone citadel of the western highlands, defended by cyclopean chalk-ashlar ramparts and high beacon towers, bound to Ironcrest as its grand iron-foundry and armor-forge."
+      }
+    ],
+    "world_relations": "Ironcrest operates as the supreme industrial engine and martial northern anchor of the highland realm, supplying high-purity magnetite steel, armor plate, and structural slate to Dun Kestrel while commanding the mountain passes against northern threats.",
+    "architectural_rationale": "To support its evolution from a simple redoubt into a sovereign mountain fortress-citadel, the perimeter palisades were replaced with cyclopean slate and limestone ramparts. Twin iron-reinforced gatehouses secure the southern approach, while blast furnace batteries, heavy wain depots, and garrison keeps were expanded around paved inner thoroughfares. Labyrinthine adits and deep shafts now pierce directly into the mountain roots."
+  },
+  "terrain_grid": [
+    "^^^^^^^^^^^^^^^^",
+    "^^^^^^^/^^^^^^^^",
+    "^^#####+######^^",
+    "^#++++++|+++++#^",
+    "^#+....+.....+#^",
+    "^#+....+.....+#^",
+    "^#+....+.....+#^",
+    "^#+++++#+####+#^",
+    "^#+....+.....+#^",
+    "^#+....+.....+#^",
+    "^#+....+.....+#^",
+    "^:#####/######:^",
+    "::::::+++:::::::",
+    ",,,,,,:+:,,,,,,,",
+    ",,,,,,:+:,,,,,,,",
+    ",,,,,,:+:,,,,,,,"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000200000000",
+    "0022222233333300",
+    "0222222233333330",
+    "0222222233333330",
+    "0222222233333330",
+    "0222222233333330",
+    "0111111111111110",
+    "0111111111111110",
+    "0444444444444440",
+    "0444444444444440",
+    "0044444444444400",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Mountain Roots",
+      "type": "buffer",
+      "lore": "Unzoned mountain rock faces, alpine scree, and rolling downs surrounding the fortress-citadel."
+    },
+    "1": {
+      "name": "Central Citadel & Upper Square",
+      "type": "square",
+      "lore": "Paved inner courtyards and central keep grounds connecting the mine adits to the smelting foundries."
+    },
+    "2": {
+      "name": "Adit Incline & Slate Quarries",
+      "type": "crafts",
+      "lore": "Stepped quarry terraces and heavy timbered mine mouths extracting magnetite ore and dark slate slabs."
+    },
+    "3": {
+      "name": "Blast Furnace & Foundry District",
+      "type": "crafts",
+      "lore": "Roaring blast furnaces, charcoal stores, and casting hearths forging magnetite steel ingots."
+    },
+    "4": {
+      "name": "Southern Citadel Bastion & Wain Yard",
+      "type": "keep",
+      "lore": "Fortified lower wards housing border guard barracks, iron-wain staging barns, and the south gatehouse."
+    }
+  },
+  "features": {
+    "magnetite_mine_shaft": {
+      "name": "Northern Ribs Great Adit & Incline",
+      "type": "mine_shaft",
+      "char": "M",
+      "tiles": [
+        [
+          7,
+          1
+        ]
+      ],
+      "lore": "A massive timber-braced and slate-arched adit driving deep into the core of the Northern Ribs to extract high-purity magnetite ore and dark slate."
+    },
+    "slate_quarry_saw": {
+      "name": "Highland Slate Terrace Works",
+      "type": "quarry",
+      "char": "S",
+      "tiles": [
+        [
+          3,
+          5
+        ]
+      ],
+      "lore": "Expansive stepped cutting terraces and wedge-cranes splitting thick slabs of dark slate for fortress roofing and rampart facing."
+    },
+    "smelting_hearth": {
+      "name": "Soaring Blast Furnaces & Foundry",
+      "type": "smithy",
+      "char": "K",
+      "tiles": [
+        [
+          11,
+          5
+        ]
+      ],
+      "lore": "Draft-boosted charcoal blast furnaces and foundry hearths operating day and night to smelt magnetite ore into refined steel ingots."
+    },
+    "high_citadel_keep": {
+      "name": "Clan Thane's Iron Keep",
+      "type": "keep",
+      "char": "C",
+      "tiles": [
+        [
+          7,
+          7
+        ]
+      ],
+      "lore": "The central stone keep and administrative seat of Ironcrest, commanding the mine works and housing the master smiths and clan commanders."
+    },
+    "garrison_barracks": {
+      "name": "Highland Guard Barracks & Armory",
+      "type": "barracks",
+      "char": "B",
+      "tiles": [
+        [
+          3,
+          9
+        ]
+      ],
+      "lore": "A multi-story slate-roofed barracks and armory garrisoning disciplined border guards and combat engineers of the High Thane."
+    },
+    "wagon_depot": {
+      "name": "Iron-Wain Staging Yard & Depot",
+      "type": "depot",
+      "char": "W",
+      "tiles": [
+        [
+          11,
+          9
+        ]
+      ],
+      "lore": "A fortified staging yard and repair depot where heavy iron-wains and draft oxen are prepared for the journey along the Iron-Trace."
+    },
+    "iron_gatehouse": {
+      "name": "The Grand Slate Gatehouse",
+      "type": "gatehouse",
+      "char": "G",
+      "tiles": [
+        [
+          7,
+          11
+        ]
+      ],
+      "lore": "A cyclopean slate-and-iron gatehouse fitted with portcullis grates, commanding the southern entrance along the Iron-Trace highway."
+    }
+  }
+}

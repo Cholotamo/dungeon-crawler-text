@@ -1,0 +1,29 @@
+# Locale Evolution Vector: Dun Kestrel
+
+## Global Developments
+- **Dun Kestrel:** Enriched by the thriving wool trade along the Downs-Way, rich quarrying of white chalk-stone, and the unification of the highland clans under a sovereign High Thane, the timber redoubt was refortified with cyclopean ashlar ramparts, watchtowers, and deep grain vaults, ascending as the supreme highland citadel.
+- **The Hollow Polders (Waterworks):** To nourish the swelling urban populace of Dun Kestrel, clan engineers dug a vast network of drainage trenches, sluices, and earthen dykes across the northern brim of the Peat-Hollow Bogs,, and, reclaiming stagnant mire into fertile black-loam farmlands.
+- **The Hollow-Trace:** A graded track of crushed limestone and packed chalk carved down the western cliffs of Dun Kestrel to convey carts of seed, harvested grains, and peat fuel between the high citadel and the newly reclaimed polders.
+- **The Blighted Mire (Domain Expansion):** The ancient wards binding the Mire-Tomb of Mor-Ghul finally ruptured under centuries of decay, unsealing the subterranean crypts and unleashing a catastrophic wave of necrotic miasma that withered the surrounding oxbows, cypresses, and hemlocks into a calcified ash-choked wasteland.
+- **The Necropolis of Mor-Ghul:** Awakened from dormant myth into an active terror, the shattered cyclopean gates now spew forth drowned wights and restless spirits, projecting an aura of bone-chilling dread across the lower basin.
+- **Eaveshold:** Hastily upgraded from an open pioneer logging outpost into a grim, barricaded forward bastion ringed with iron-spiked palisades and flooded moat-trenches, where mortal sentinels keep desperate vigil against the death-fog creeping northward from the Blighted Mire.
+- **The Undulating Downs (Region Lore Mutation):** Transformed from quiet, wind-scoured sheep-pastures into a consolidated highland power ruled from high white-chalk citadels and supported by terraced barley fields and disciplined clan garrisons.
+- **The Peat-Hollow Bogs (Region Lore Mutation):** Severely altered along their northern perimeter by mortal drainage works and turf-cutting, provoking ferocious swamp-predators to flee deeper into the southern fens.
+- **The Drowned Clearings (Region Lore Mutation):** Corrupted by the eruption of Mor-Ghul, the peaceful oxbows and hanging willows have mutated into poisoned black waters choked with necrotic silt, where unhallowed corpse-candles burn amidst drifting bone-dust.
+- **The Greenwood Vault (Region Lore Mutation):** The primeval peace of the eastern timberlands is smothered by lingering fear as cold necrotic vapors drift through the ancient hemlock canopy, testing the iron resolve of the wardens at Eaveshold.
+
+---
+
+## Locale (Dun Kestrel) Developments
+
+### Scale New Development
+"Settlement turned into big city (Small / Compact -> Large / Urban). Urban Densification & Fortification."
+
+### Locale Lore New Development
+"Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne."
+
+### Host Region Lore New Development
+"Once pastoral sheep-walks and lonely bluffs, the highlands have unified under the High Thane of Dun Kestrel into a fortified domain of white-chalk bastions, limestone quarries, terraced barley fields, and disciplined border companies."
+
+### Road New Development
+- **The Hollow-Trace (WEST):** New road established leading toward None. A graded chalk-gravel road descending the steep western spurs of Dun Kestrel to connect the mountain citadel with the hydraulic ditches and barley fields of the Hollow Polders.

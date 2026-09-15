@@ -1,0 +1,270 @@
+{
+  "feature_id": "confluence_watch",
+  "name": "Confluence Watch",
+  "type": "settlement",
+  "epoch": 5,
+  "context": {
+    "summary": "A heavily fortified river-bastion and naval station commanding the junction of the Silver Channel and Jade River, enforcing quarantine against Mor-Ghul horrors while exporting felled river-trunks.",
+    "host_region": "The Greenwood Vault (Forest)",
+    "host_region_lore": "The ancient hemlock canopy remains dense and primeval, but its shadowed solitude is now bookended by mortal steel—anchored in the northeast by the battlements of Eaveshold and in the deep south by the water-gates of Confluence Watch, whose lumbermen fell giant river-trunks to supply the shipwrights of the lower basin.",
+    "scale_profile": "Small / Compact (Fledgling cluster. Small structural footprint with a high proportion of surrounding natural terrain, open yards, and frontier buffer.)",
+    "perimeters": [
+      {
+        "border": "NORTH BORDER",
+        "description": "The Silver Channel (River)",
+        "lore": "A majestic, half-league-wide river carrying mountain runoff through a fractured piedmont of rolling hills into the primeval basin."
+      },
+      {
+        "border": "EAST BORDER",
+        "description": "The Silent Meeting (River)",
+        "lore": "The primeval solitude of the great sister-confluence has yielded to the ring of iron and the splash of heavy oars; armed river-galleys and stone water-gates from Confluence Watch now patrol the swirling silver and jade eddies, maintaining vigilant quarantine against the poisoned runoff and wandering wights of the northern marshes."
+      },
+      {
+        "border": "SOUTH & WEST BORDERS",
+        "description": "Transition into host region (The Greenwood Vault — Forest).",
+        "lore": "The ancient hemlock canopy remains dense and primeval, but its shadowed solitude is now bookended by mortal steel—anchored in the northeast by the battlements of Eaveshold and in the deep south by the water-gates of Confluence Watch, whose lumbermen fell giant river-trunks to supply the shipwrights of the lower basin."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "Perimeter",
+        "road": "None",
+        "destination": "Wilderness Traversal",
+        "destination_lore": "None. (Isolated wilderness site; entry is via local terrain traversal)."
+      }
+    ],
+    "world_relations": "Confluence Watch receives magnetite armor and heavy ironwork from Ironcrest and veteran river-marine garrisons from Aethelford. In return, it secures the riverways for downriver trade and exports giant hemlock river-trunks harvested from the Greenwood Vault to southern shipbuilders.",
+    "architectural_rationale": "The outpost is situated on the elevated peninsula tip to maximize sightlines across both river branches. Its northern bastion wall and magnetite keep shield the interior from riverborne wights, while the open southern yard provides access for logging crews entering from the surrounding primeval forest."
+  },
+  "terrain_grid": [
+    "~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~;",
+    ";;;;;;;;;;;;;;;~",
+    "&&########;~;~;~",
+    "&,#........#~;~;",
+    "&/#..##....#====",
+    "&,#..##....#====",
+    "&,#..++++..#====",
+    "&,#####/####;;;~",
+    "&,,++++++...,;,~",
+    "&,,::::.::::,;,~",
+    "&,,::::.::::,;,~",
+    "&,,::.......,;,~",
+    "&&,;,;,;,;,;,;,~",
+    "~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0033333333330000",
+    "0033333333330000",
+    "0031111133332222",
+    "0031111133332222",
+    "0033333333332222",
+    "0033333333330000",
+    "0004444444440000",
+    "0004444444440000",
+    "0004444444440000",
+    "0005555555550000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Waterway",
+      "type": "buffer",
+      "lore": "The turbulent convergence of the Silver Channel and Jade River, framed by the primeval hemlock forest of the Greenwood Vault."
+    },
+    "1": {
+      "name": "Magnetite Redoubt",
+      "type": "keep",
+      "lore": "A formidable stone and iron command bastion reinforced with Ironcrest magnetite, housing garrison commanders and heavy siege ordnance."
+    },
+    "2": {
+      "name": "Iron-Grated Confluence Docks",
+      "type": "harbor",
+      "lore": "Heavy wooden piers and iron-grated slipways extending into the confluence to launch armed river-galleys and enforce quarantine."
+    },
+    "3": {
+      "name": "Inner Garrison Courtyard",
+      "type": "square",
+      "lore": "A compact flagstone and earth yard surrounded by timber-and-stone palisades where Aethelford river-marines drill and stand guard."
+    },
+    "4": {
+      "name": "Timber & Marine Logistics Yard",
+      "type": "crafts",
+      "lore": "An open working yard where felled river-trunks are dressed for shipment to southern shipwrights and marine armor is maintained."
+    },
+    "5": {
+      "name": "Vigilance Signal Battery",
+      "type": "sanctum",
+      "lore": "An elevated southern watch platform equipped with a signal hearth to flash warning beacons north toward Eaveshold."
+    }
+  },
+  "features": {
+    "magnetite_keep": {
+      "name": "Magnetite Command Keep",
+      "type": "keep",
+      "char": "K",
+      "tiles": [
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "lore": "A heavily reinforced two-story bastion clad in dark Ironcrest magnetite plates, serving as the strategic command post for river quarantine."
+    },
+    "water_docks": {
+      "name": "Confluence Pier & Water Gate",
+      "type": "docks",
+      "char": "D",
+      "tiles": [
+        [
+          12,
+          5
+        ],
+        [
+          13,
+          5
+        ],
+        [
+          14,
+          5
+        ],
+        [
+          15,
+          5
+        ],
+        [
+          12,
+          6
+        ],
+        [
+          13,
+          6
+        ],
+        [
+          14,
+          6
+        ],
+        [
+          15,
+          6
+        ],
+        [
+          12,
+          7
+        ],
+        [
+          13,
+          7
+        ],
+        [
+          14,
+          7
+        ],
+        [
+          15,
+          7
+        ]
+      ],
+      "lore": "Heavy timber boardwalks and iron-bound pilings anchored into the Silver Channel for mooring heavily armed river-galleys."
+    },
+    "marine_armory": {
+      "name": "Aethelford Marine Armory",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          3,
+          10
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          4,
+          11
+        ]
+      ],
+      "lore": "A bustling smithy and armory dedicated to repairing magnetite marine plate and forging heavy ballista bolts from imported Ironcrest iron."
+    },
+    "lumber_staging": {
+      "name": "River-Trunk Lumber Yard",
+      "type": "granary",
+      "char": "M",
+      "tiles": [
+        [
+          8,
+          10
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          11,
+          10
+        ],
+        [
+          8,
+          11
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          11,
+          11
+        ]
+      ],
+      "lore": "Staging racks holding massive primeval hemlock logs harvested from the Greenwood Vault, prepared for downstream raft-transport to southern shipwrights."
+    },
+    "signal_hearth": {
+      "name": "Vigilance Signal Hearth",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          5,
+          12
+        ],
+        [
+          6,
+          12
+        ]
+      ],
+      "lore": "A massive stone fire-pit kept primed with pitch-soaked hemlock to signal river alerts north to Eaveshold."
+    }
+  },
+  "keyframe_index": 0
+}

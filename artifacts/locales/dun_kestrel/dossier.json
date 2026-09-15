@@ -1,0 +1,400 @@
+{
+  "feature_id": "dun_kestrel",
+  "world_coords": [
+    5,
+    4
+  ],
+  "first_seen_epoch": 1,
+  "latest_epoch": 5,
+  "total_keyframes": 5,
+  "keyframes": [
+    {
+      "keyframe_index": 0,
+      "epoch": 1,
+      "char": "o",
+      "name": "Dun Kestrel",
+      "type": "settlement",
+      "description": "A hill-clan redoubt perched atop the chalk bluffs of the Undulating Downs, encircled by timber palisades and pastoral sheep-runs.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "genesis"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Vast rolling hills of wild rye and fescue interrupted by craggy limestone bluffs, now echoing with the horn-calls of pastoral hill-clans and the hearth-smoke of Dun Kestrel."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",.,",
+          "...",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "downs_way",
+          "road_name": "The Downs-Way",
+          "road_type": "road",
+          "gate_approach": "EAST",
+          "description": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+          "destination": {
+            "feature_id": "aethelford",
+            "name": "Aethelford",
+            "type": "settlement",
+            "description": "A pioneer river-haven and timber stockade founded on the western bank of the Silver Channel, guarding the primeval crossing into the Greenwood Vault."
+          },
+          "destination_coord": [
+            11,
+            8
+          ]
+        }
+      ],
+      "delta_from_previous": null
+    },
+    {
+      "keyframe_index": 1,
+      "epoch": 2,
+      "char": "o",
+      "name": "Dun Kestrel",
+      "type": "settlement",
+      "description": "A hill-clan redoubt perched atop the chalk bluffs of the Undulating Downs, encircled by timber palisades and pastoral sheep-runs.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Vast rolling hills of wild rye and fescue interrupted by craggy limestone bluffs, now echoing with the horn-calls of pastoral hill-clans and the hearth-smoke of Dun Kestrel."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",.,",
+          "...",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "downs_way",
+          "road_name": "The Downs-Way",
+          "road_type": "road",
+          "gate_approach": "EAST",
+          "description": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+          "destination": {
+            "feature_id": "aethelford",
+            "name": "Aethelford",
+            "type": "city",
+            "description": "The sovereign river-city of the Silver Channel, boasting stone quays, granaries, and a fortified timber-and-stone citadel guarding the crossing into the eastern forest."
+          },
+          "destination_coord": [
+            11,
+            8
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 2,
+      "epoch": 3,
+      "char": "O",
+      "name": "Dun Kestrel",
+      "type": "citadel",
+      "description": "Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "char_mutation (o -> O)",
+        "type_mutation ('settlement' -> 'citadel')",
+        "new_roads (hollow_trace)"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Once pastoral sheep-walks and lonely bluffs, the highlands have unified under the High Thane of Dun Kestrel into a fortified domain of white-chalk bastions, limestone quarries, terraced barley fields, and disciplined border companies."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",.,",
+          "...",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "downs_way",
+          "road_name": "The Downs-Way",
+          "road_type": "road",
+          "gate_approach": "EAST",
+          "description": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+          "destination": {
+            "feature_id": "aethelford",
+            "name": "Aethelford",
+            "type": "city",
+            "description": "The sovereign river-city of the Silver Channel, boasting stone quays, granaries, and a fortified timber-and-stone citadel guarding the crossing into the eastern forest."
+          },
+          "destination_coord": [
+            11,
+            8
+          ]
+        },
+        {
+          "road_id": "hollow_trace",
+          "road_name": "The Hollow-Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A graded chalk-gravel road descending the steep western spurs of Dun Kestrel to connect the mountain citadel with the hydraulic ditches and barley fields of the Hollow Polders.",
+          "destination": null,
+          "destination_coord": [
+            2,
+            5
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "'o' (settlement) -> 'O' (citadel)",
+        "new_roads": [
+          {
+            "road_id": "hollow_trace",
+            "road_name": "The Hollow-Trace",
+            "road_type": "road",
+            "gate_approach": "WEST",
+            "description": "A graded chalk-gravel road descending the steep western spurs of Dun Kestrel to connect the mountain citadel with the hydraulic ditches and barley fields of the Hollow Polders.",
+            "destination": null,
+            "destination_coord": [
+              2,
+              5
+            ]
+          }
+        ],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 3,
+      "epoch": 4,
+      "char": "O",
+      "name": "Dun Kestrel",
+      "type": "citadel",
+      "description": "Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne.",
+      "is_keyframe": true,
+      "keyframe_triggers": [
+        "new_roads (iron_trace)"
+      ],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Once pastoral sheep-walks and lonely bluffs, the highlands have unified under the High Thane of Dun Kestrel into a fortified domain of white-chalk bastions, limestone quarries, terraced barley fields, and disciplined border companies."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",.,",
+          "...",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "downs_way",
+          "road_name": "The Downs-Way",
+          "road_type": "road",
+          "gate_approach": "EAST",
+          "description": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+          "destination": {
+            "feature_id": "aethelford",
+            "name": "Aethelford",
+            "type": "city",
+            "description": "The sovereign river-city of the Silver Channel, boasting stone quays, granaries, and a fortified timber-and-stone citadel guarding the crossing into the eastern forest."
+          },
+          "destination_coord": [
+            11,
+            8
+          ]
+        },
+        {
+          "road_id": "hollow_trace",
+          "road_name": "The Hollow-Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A graded chalk-gravel road descending the steep western spurs of Dun Kestrel to connect the mountain citadel with the hydraulic ditches and barley fields of the Hollow Polders.",
+          "destination": null,
+          "destination_coord": [
+            2,
+            5
+          ]
+        },
+        {
+          "road_id": "iron_trace",
+          "road_name": "The Iron-Trace",
+          "road_type": "road",
+          "gate_approach": "NORTH",
+          "description": "A steep, graded wagon-track of crushed limestone and basalt ballast linking the high citadel of Dun Kestrel with the northern iron mines of Ironcrest.",
+          "destination": {
+            "feature_id": "ironcrest",
+            "name": "Ironcrest",
+            "type": "outpost",
+            "description": "A fortified highland mining redoubt established in the shadow of the Northern Ribs, founded by the High Thane of Dun Kestrel to mine rich veins of magnetite iron and quarry dark slate for the highland citadel."
+          },
+          "destination_coord": [
+            5,
+            2
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [
+          {
+            "road_id": "iron_trace",
+            "road_name": "The Iron-Trace",
+            "road_type": "road",
+            "gate_approach": "NORTH",
+            "description": "A steep, graded wagon-track of crushed limestone and basalt ballast linking the high citadel of Dun Kestrel with the northern iron mines of Ironcrest.",
+            "destination": {
+              "feature_id": "ironcrest",
+              "name": "Ironcrest",
+              "type": "outpost",
+              "description": "A fortified highland mining redoubt established in the shadow of the Northern Ribs, founded by the High Thane of Dun Kestrel to mine rich veins of magnetite iron and quarry dark slate for the highland citadel."
+            },
+            "destination_coord": [
+              5,
+              2
+            ]
+          }
+        ],
+        "lost_roads": []
+      }
+    },
+    {
+      "keyframe_index": 4,
+      "epoch": 5,
+      "char": "O",
+      "name": "Dun Kestrel",
+      "type": "citadel",
+      "description": "Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne.",
+      "is_keyframe": false,
+      "keyframe_triggers": [],
+      "environment": {
+        "host_region": {
+          "id": "5",
+          "name": "The Undulating Downs",
+          "type": "hills",
+          "lore": "Anchored between the twin sovereign citadels of Dun Kestrel and Ironcrest, the high rolling chalklands have transformed into a fortified highland realm of martial discipline, deep limestone quarries, terraced barley slopes, and rumbling iron-wains traversing the paved trace."
+        },
+        "terrain_char": ".",
+        "terrain_label": "plains",
+        "terrain_slice": [
+          ",.,",
+          "...",
+          ",,,"
+        ],
+        "region_slice": [
+          "555",
+          "555",
+          "555"
+        ],
+        "neighborhood_regions": []
+      },
+      "connected_roads": [
+        {
+          "road_id": "downs_way",
+          "road_name": "The Downs-Way",
+          "road_type": "road",
+          "gate_approach": "EAST",
+          "description": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+          "destination": {
+            "feature_id": "aethelford",
+            "name": "Aethelford",
+            "type": "city",
+            "description": "The sovereign river-city of the Silver Channel, boasting stone quays, granaries, and a fortified timber-and-stone citadel guarding the crossing into the eastern forest."
+          },
+          "destination_coord": [
+            11,
+            8
+          ]
+        },
+        {
+          "road_id": "hollow_trace",
+          "road_name": "The Hollow-Trace",
+          "road_type": "road",
+          "gate_approach": "WEST",
+          "description": "A graded chalk-gravel road descending the steep western spurs of Dun Kestrel to connect the mountain citadel with the hydraulic ditches and barley fields of the Hollow Polders.",
+          "destination": null,
+          "destination_coord": [
+            2,
+            5
+          ]
+        },
+        {
+          "road_id": "iron_trace",
+          "road_name": "The Iron-Trace",
+          "road_type": "road",
+          "gate_approach": "NORTH",
+          "description": "A steep, graded wagon-track of crushed limestone and basalt ballast linking the high citadel of Dun Kestrel with the northern iron mines of Ironcrest.",
+          "destination": {
+            "feature_id": "ironcrest",
+            "name": "Ironcrest",
+            "type": "citadel",
+            "description": "Elevated from a frontier mining redoubt into a sovereign mountain fortress-citadel. Crowned with cyclopean slate ramparts, soaring blast furnaces, and deep labyrinthine adits delved into the roots of the Northern Ribs, Ironcrest now stands as the supreme industrial and martial bastion of the highland clans, supplying cold-forged magnetite steel to the entire realm."
+          },
+          "destination_coord": [
+            5,
+            2
+          ]
+        }
+      ],
+      "delta_from_previous": {
+        "biome_mutation": "None",
+        "terrain_transition": "None",
+        "status_transition": "None",
+        "new_roads": [],
+        "lost_roads": []
+      }
+    }
+  ]
+}

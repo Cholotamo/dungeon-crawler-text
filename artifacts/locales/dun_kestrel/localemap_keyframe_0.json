@@ -1,0 +1,156 @@
+{
+  "feature_id": "dun_kestrel",
+  "name": "Dun Kestrel",
+  "type": "settlement",
+  "epoch": 1,
+  "context": {
+    "summary": "A compact hill-clan redoubt perched atop the chalk bluffs of the Undulating Downs, protected by timber palisades and surrounded by pastoral sheep-runs.",
+    "host_region": "The Undulating Downs (Hills)",
+    "host_region_lore": "Vast rolling hills of wild rye and fescue interrupted by craggy limestone bluffs, now echoing with the horn-calls of pastoral hill-clans and the hearth-smoke of Dun Kestrel.",
+    "scale_profile": "Small / Compact (Fledgling cluster. Small structural footprint with a high proportion of surrounding natural terrain, open yards, and frontier buffer.)",
+    "perimeters": [
+      {
+        "border": "ALL BORDERS",
+        "description": "Transition into host region (The Undulating Downs — Hills).",
+        "lore": "Vast rolling hills of wild rye and fescue interrupted by craggy limestone bluffs, now echoing with the horn-calls of pastoral hill-clans and the hearth-smoke of Dun Kestrel."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "EAST",
+        "road": "The Downs-Way (Road)",
+        "road_lore": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford.",
+        "destination": "Leads toward Aethelford (Settlement)",
+        "destination_lore": "A pioneer river-haven and timber stockade founded on the western bank of the Silver Channel, guarding the primeval crossing into the Greenwood Vault."
+      }
+    ],
+    "world_relations": "Dun Kestrel trades high-grade fleece, wool bales, salted mutton, and raw limestone along the Downs-Way to the river wharf at Aethelford, receiving Greenwood pine timber, river fish, and forged iron tools in return.",
+    "architectural_rationale": "The heavy timber palisade crowns the upper slope to shield the central hearth and chieftain's lodge from steppe winds and raiders. The east gate opens directly onto the Downs-Way approach, placing the wool storehouse and craft smithy close to the gate for quick loading onto riverbound pack mules."
+  },
+  "terrain_grid": [
+    "^,^,,,^,,,,,,,,,",
+    ",,,,,^,,,,,,,,,,",
+    ",,,########,,,,,",
+    ",,,#...#...#,:|:",
+    "^,,#.+...+..#,:|",
+    ",,,#...#...#,:|:",
+    "^,,#...+....#:::",
+    ",,,#...+..../+++",
+    "^,,#...#...#::::",
+    ",,,#.+...+..#,:|",
+    ",,,########,,:|:",
+    ",,,,,,::::,,,,,,",
+    "^,,,,,::::,,,,^,",
+    ",,,,,,,::,,,,,,,",
+    "^,^,,,,,,,,,,,^,",
+    ",,,^,,,,,,,,,,^,"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0001111111100000",
+    "0001111111100330",
+    "0001111111100330",
+    "0001111111100330",
+    "0001111111100330",
+    "0001111111144444",
+    "0002222222200330",
+    "0002222222200330",
+    "0002222222200330",
+    "0000003333000000",
+    "0000003333000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Wild Downs",
+      "type": "buffer",
+      "lore": "Unzoned rolling hills of fescue, wild rye, and craggy limestone bluffs echoing with hill-clan horn calls."
+    },
+    "1": {
+      "name": "Redoubt Commons & Hearth Yard",
+      "type": "square",
+      "lore": "The inner palisade enclosure centered around the ancient chalk hearth and hill smithy."
+    },
+    "2": {
+      "name": "High Lodge Ward",
+      "type": "keep",
+      "lore": "The sheltered southern wing housing the chieftain's timber hall and dry wool stores."
+    },
+    "3": {
+      "name": "Pastoral Sheep-Runs & Terraces",
+      "type": "farmland",
+      "lore": "Enclosed hurdle pens and hillside sheep-runs where hill-clan flocks are folded and shorn."
+    },
+    "4": {
+      "name": "Downs-Way Approach",
+      "type": "crafts",
+      "lore": "The beaten dirt and limestone track connecting the palisade threshold to Aethelford."
+    }
+  },
+  "features": {
+    "great_hearth": {
+      "name": "The Great Chalk Hearth",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          5,
+          5
+        ]
+      ],
+      "lore": "A massive central hearth built from limestone slabs where clan elders gather to burn peat and brush, signaling distant downs."
+    },
+    "clan_smithy": {
+      "name": "Kestrel Hill Smithy",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          9,
+          5
+        ]
+      ],
+      "lore": "A compact forge converting river-shipped iron ingots from Aethelford into sheep shears, palisade spikes, and hill-clan spears."
+    },
+    "chieftain_hall": {
+      "name": "High Chieftain's Lodge",
+      "type": "hall",
+      "char": "C",
+      "tiles": [
+        [
+          5,
+          8
+        ]
+      ],
+      "lore": "A heavy timber-framed hall constructed from Greenwood pine bartered from Aethelford, serving as the clan seat and council chamber."
+    },
+    "wool_storehouse": {
+      "name": "Downs Wool & Supply Vault",
+      "type": "granary",
+      "char": "G",
+      "tiles": [
+        [
+          9,
+          8
+        ]
+      ],
+      "lore": "A sturdy thatched storehouse filled with dense wool bales and salted mutton packaged for shipment along the Downs-Way."
+    },
+    "sheep_fold": {
+      "name": "East Terraced Sheepfold",
+      "type": "hurdle",
+      "char": "F",
+      "tiles": [
+        [
+          13,
+          4
+        ]
+      ],
+      "lore": "Woven hurdle enclosures holding hardy hill sheep whose high-grade fleece forms Dun Kestrel's primary export."
+    }
+  },
+  "keyframe_index": 0
+}

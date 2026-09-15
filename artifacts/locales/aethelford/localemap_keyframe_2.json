@@ -1,0 +1,222 @@
+{
+  "feature_id": "aethelford",
+  "name": "Aethelford",
+  "type": "settlement",
+  "epoch": 3,
+  "keyframe_index": 2,
+  "context": {
+    "summary": "The sovereign river-city of Aethelford stands as the heavily fortified heart of the Silver Channel, channeling vital supplies from the western crofts and Dun Kestrel's chalk quarries to the besieged frontier at Eaveshold while watching nervously over the necrotic taint creeping up from the southern oxbows.",
+    "host_region": "Aethelford Crofts (Cleared_Land)",
+    "host_region_lore": "Broad river-silt barley fields, flax plots, and rye crofts terraced along the fertile bends of the Silver Channel, feeding the bustling markets of Aethelford and supplying military rations to Eaveshold.",
+    "scale_profile": "Large / Urban River City & Bastion. Urban Densification & Riverside Fortification.",
+    "perimeters": [
+      {
+        "border": "NORTH BORDER",
+        "description": "The Greenwood Vault (Forest)",
+        "lore": "The ancient hemlock canopy cleaved along its southern boundary by expanding timber-haulers and limestone roads, now shadowed by cold necrotic vapors drifting through the eastern timberlands."
+      },
+      {
+        "border": "SOUTH & EAST BORDER",
+        "description": "The Silver Channel & The Drowned Clearings (River / Corrupted Water)",
+        "lore": "A majestic river channel whose southern oxbows have been corrupted by the eruption of Mor-Ghul, turning into poisoned black waters choked with necrotic silt, where unhallowed corpse-candles flare in the night."
+      },
+      {
+        "border": "WEST BORDERS",
+        "description": "Transition into host region (Aethelford Crofts — Cleared_Land).",
+        "lore": "Broad, terraced barley fields and flax plots yielding high-volume harvests for the river-city and highland allies."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "NORTH",
+        "road": "The Downs-Way (Road)",
+        "road_lore": "A heavily traveled, crushed-limestone track hacked through the Greenwood Vault, linking Dun Kestrel's white-chalk citadel directly to Aethelford's north gate.",
+        "destination": "Leads toward Dun Kestrel (Settlement)",
+        "destination_lore": "Dun Kestrel (Citadel): Elevated from a pastoral hill-fort into the sovereign stone citadel of the western highlands. Encircled by cyclopean chalk-ashlar ramparts, high beacon towers, and cavernous grain vaults, Dun Kestrel now commands the sheep-walks, quarries, and reclaimed polders of the downs as an equal rival to the River Throne."
+      },
+      {
+        "direction": "EAST",
+        "road": "The Silver Span (Road)",
+        "road_lore": "A monumental timber-and-stone viaduct anchored on sunken ashlar piers, bridging the Silver Channel to connect Aethelford's river market directly with the Sylvan Trace.",
+        "destination": "Leads toward The Sylvan Trace (Road)",
+        "destination_lore": "A heavily fortified corduroy road of felled hemlock logs and crushed shale driven east through the Greenwood Vault to supply the barricaded watch at Eaveshold."
+      }
+    ],
+    "world_relations": "Aethelford channels processed timber, river salmon, and surplus grain along the Silver Span to sustain the frontline garrison at Eaveshold, while receiving white chalk-stone, wool, and heavy armaments from Dun Kestrel via the Downs-Way. As necrotic corruption spreads across the lower basin from Mor-Ghul, Aethelford acts as the premier logistical lifeline and fortified bastion for the entire central river valley.",
+    "architectural_rationale": "In response to the necrotic corruption erupting in the southern Drowned Clearings, Aethelford reinforced its riverfront quays with stone battlements, watch-posts, and iron-reinforced piers. The north gatehouse and river citadel were retrofitted with white chalk-ashlar masonry imported from Dun Kestrel to withstand potential sieges and secure uninterrupted grain shipments across the Silver Span."
+  },
+  "terrain_grid": [
+    "&&&,,,,&+&,,,,&&",
+    "&&&,,,,&+&,,,,&&",
+    "&&&,,###/###,,&&",
+    ":::,....+....,,&",
+    ":::,....+....,,&",
+    ":::..+++.+++..,~",
+    ":::..+.+++.+..,~",
+    ":::..+++.+++..;;",
+    "::::..++.+++..;;",
+    "::::..+++/======",
+    ",,,,..++.++=~~~~",
+    ",,,,:::::::~~~~~",
+    ";;;;:::::::~~~~~",
+    "~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~"
+  ],
+  "district_grid": [
+    "0000000030000000",
+    "0000000030000000",
+    "0000001111100000",
+    "4440111111110000",
+    "4440111111110000",
+    "4441111111111100",
+    "4441111111111100",
+    "4441111111111100",
+    "4444111111111100",
+    "4444111115555555",
+    "0000111222220000",
+    "0000444440000000",
+    "0000444440000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Wilderness",
+      "type": "buffer",
+      "lore": "The dense hemlock canopy of the Greenwood Vault to the north and the churning, necrotic-tainted currents of the Silver Channel to the south and east."
+    },
+    "1": {
+      "name": "Citadel & Sovereign Wards",
+      "type": "residential",
+      "lore": "The fortified urban heart of Aethelford, boasting high stone masonry, paved limestone plazas, administrative halls, and dense merchant lodgings."
+    },
+    "2": {
+      "name": "Silver Channel Quays & Port",
+      "type": "harbor",
+      "lore": "Expanded ashlar quays, river landings, and crane-rigged wharves where timber rafts, grain barges, and rivercraft dock."
+    },
+    "3": {
+      "name": "Downs-Way Trailhead",
+      "type": "square",
+      "lore": "The north gate approach where crushed limestone from the Undulating Downs meets Aethelford's fortified gatehouse."
+    },
+    "4": {
+      "name": "Silver-Silt Crofts",
+      "type": "farmland",
+      "lore": "Broad, terraced river-silt crofts, flax fields, and barley strips feeding the expanding urban populace and supplying military garrisons."
+    },
+    "5": {
+      "name": "The Silver Span Viaduct",
+      "type": "bridge",
+      "lore": "A monumental timber-and-stone viaduct anchored on sunken ashlar piers, carrying road traffic across the Silver Channel toward the Sylvan Trace and Eaveshold."
+    }
+  },
+  "features": {
+    "north_gate": {
+      "name": "Downs-Way Chalk-Ashlar Gatehouse",
+      "type": "gate",
+      "char": "/",
+      "tiles": [
+        [
+          8,
+          2
+        ]
+      ],
+      "lore": "A fortified gatehouse upgraded with white chalk-ashlar masonry from Dun Kestrel, guarding the northern ingress along the Downs-Way."
+    },
+    "river_citadel": {
+      "name": "Aethelford Sovereign River-Citadel",
+      "type": "keep",
+      "char": "C",
+      "tiles": [
+        [
+          8,
+          5
+        ]
+      ],
+      "lore": "A lordly ashlar-and-timber citadel housing the sovereign council chamber, armory, and high command overlooking the river crossing."
+    },
+    "sawmill": {
+      "name": "Greenwood Sawmill & Timber Yard",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          5,
+          6
+        ]
+      ],
+      "lore": "An expanded water-powered timber mill processing massive hemlock logs hauled from the forest for city building and export to Eaveshold."
+    },
+    "granary": {
+      "name": "High Ashlar Granary Vaults",
+      "type": "granary",
+      "char": "G",
+      "tiles": [
+        [
+          10,
+          6
+        ]
+      ],
+      "lore": "Vast multi-story stone silos storing harvested barley, rye, and dried provisions from the western crofts to supply river trade and eastern posts."
+    },
+    "river_wharf": {
+      "name": "Sovereign River Quays & Docks",
+      "type": "docks",
+      "char": "D",
+      "tiles": [
+        [
+          7,
+          10
+        ]
+      ],
+      "lore": "Paved stone quays and heavy log piers fitted with cranes, mooring posts, and defensive breastworks for river barges and timber rafts."
+    },
+    "east_gate": {
+      "name": "Silver Span Gatehouse",
+      "type": "gate",
+      "char": "/",
+      "tiles": [
+        [
+          9,
+          9
+        ]
+      ],
+      "lore": "A fortified barbican and toll station guarding the western abutment of the Silver Span viaduct."
+    },
+    "silver_span": {
+      "name": "The Silver Span Viaduct",
+      "type": "bridge",
+      "char": "=",
+      "tiles": [
+        [
+          10,
+          9
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          13,
+          9
+        ],
+        [
+          14,
+          9
+        ],
+        [
+          15,
+          9
+        ]
+      ],
+      "lore": "A colossal viaduct resting on sunken stone piers and heavy oak pilings, spanning the Silver Channel to connect Aethelford with the Sylvan Trace."
+    }
+  }
+}

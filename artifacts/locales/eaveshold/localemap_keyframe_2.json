@@ -1,0 +1,251 @@
+{
+  "feature_id": "eaveshold",
+  "name": "Eaveshold",
+  "type": "settlement",
+  "epoch": 4,
+  "keyframe_index": 2,
+  "context": {
+    "summary": "Elevated from a beleaguered frontier stockade into a sovereign marcher citadel. Shielded behind the rushing waters of the Ward-Fosse canal, Eaveshold's towering granite ramparts, ballista turrets, and consecrated beacon-fires stand as the unyielding shield of the Greenwood against the horrors of Mor-Ghul.",
+    "host_region": "The Greenwood Vault (Forest)",
+    "host_region_lore": "Though ancient shadows linger beneath the towering hemlocks, the dread of the creeping blight is held at bay by the rushing torrent of the Ward-Fosse, while mortal crofts and stone battlements at Eaveshold assert dominion over the eastern timberlands.",
+    "scale_profile": "Settlement turned into big city (Small / Compact -> Large / Urban). Urban Densification & Fortification.",
+    "perimeters": [
+      {
+        "border": "NORTH BORDER",
+        "description": "The Northern Ribs (Mountains)",
+        "lore": "The desolate granite precipices and alpine screes of the southern ribs now echo with the clang of pickaxes and the smoke of charcoal bloomery furnaces, as miners from Dun Kestrel delve deep into rich veins of magnetite iron."
+      },
+      {
+        "border": "SOUTH BORDER",
+        "description": "The Ward-Fosse (Canal Moat & Blighted Mire)",
+        "lore": "New neighboring biome appeared: A deep, rapid defensive diversion channel carved east from the Silver Channel along the southern perimeter of Eaveshold, creating an impassable barrier of rushing mountain water that repels necrotic spirits and isolates the Blighted Mire."
+      },
+      {
+        "border": "EAST BORDER",
+        "description": "The Marcher Garths (Cropland)",
+        "lore": "New neighboring biome appeared: Irrigated barley and rye fields carved from the eastern hemlock woods, fed by diversion ditches from the Ward-Fosse to nourish the garrison citadel of Eaveshold."
+      },
+      {
+        "border": "WEST BORDER",
+        "description": "The Sylvan Trace & Greenwood Vault",
+        "lore": "A heavily fortified highway running west toward the Silver Span, flanked by cleared timber reserves and stone watch-posts."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "WEST",
+        "road": "The Sylvan Trace (Paved Highway)",
+        "road_lore": "A broad stone-flagged highway paved over the old corduroy road, transporting heavy shipments of iron, grain, and stone directly to the citadel's west gatehouse.",
+        "destination": "Leads toward The Silver Span (Bridge)",
+        "destination_lore": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+      },
+      {
+        "direction": "SOUTH",
+        "road": "The Ward-Fosse Span (Drawbridge)",
+        "road_lore": "A heavily guarded stone-arch span and drawbridge crossing the raging waters of the Ward-Fosse, giving access to the southern wardens' watchposts at the edge of the Mire.",
+        "destination": "Leads toward The Necropolis of Mor-Ghul (Ruin)",
+        "destination_lore": "The shattered crypts of an ancient undead sovereign, now held back by the consecrated running-water barrier of the Ward-Fosse."
+      }
+    ],
+    "world_relations": "Eaveshold stands as the dominant bastion of the Greenwood, supplied with magnetite iron from Ironcrest via the Northern Ribs, grain from its own Marcher Garths, and troop reinforcements from Aethelford across the Silver Span.",
+    "architectural_rationale": "With the diversion of the Silver Channel into the Ward-Fosse, Eaveshold expanded its timber palisades into massive granite ashlar ramparts. The fortress footprint was broadened to encompass an expanded armory, a high ballista turret, a granary to store harvests from the newly cleared Marcher Garths, and a consecrated beacon tower."
+  },
+  "terrain_grid": [
+    "^^^^^^^^^^^^^^^^",
+    "^^^^:^:^^^:^^^^^",
+    ",,:,&,,,::::,,::",
+    ",,##########&:::",
+    ",,&#........#:::",
+    ",,&#..++++..#:::",
+    ",,&#..+..+..#:::",
+    "+++/+++++++/#:::",
+    ",,&#..+..+..#:::",
+    ",,&#..++++..#:::",
+    ",,&####/#####:::",
+    "~~~~~~~~=~~~~~~~",
+    ";;;;;;;;=;;;;;;;",
+    ",,&&&&,+;;;,&&&&",
+    "&&&&&&&&;;&&&&&&",
+    "&&&&&&&&&&&&&&&&"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000000055555555",
+    "0044444444445555",
+    "0043333322245555",
+    "0043333322245555",
+    "0043331111145555",
+    "1111111111145555",
+    "0043331122245555",
+    "0043332222245555",
+    "0044444444445555",
+    "0044444444440000",
+    "0044444444440000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Necrotic Borderlands",
+      "type": "buffer",
+      "lore": "Unzoned mountain scree and southern mire borders, held at bay by the rushing Ward-Fosse canal."
+    },
+    "1": {
+      "name": "The Grand Processional Thoroughfare",
+      "type": "square",
+      "lore": "The main stone-flagged avenue and central parade ground, busy with marching patrols, heavy wagons, and courier messengers."
+    },
+    "2": {
+      "name": "Citadel Armory & Masonry Works",
+      "type": "crafts",
+      "lore": "High-capacity forge complexes, ballista workshops, and masonry yards dedicated to maintaining the citadel's defenses."
+    },
+    "3": {
+      "name": "Garrison Citadel & High Captain's Keep",
+      "type": "residential",
+      "lore": "Multi-story stone barracks, commander's quarters, and high hearth-halls housing the elite marcher wardens and knights."
+    },
+    "4": {
+      "name": "Cyclopean Ramparts & Ward-Fosse Canal",
+      "type": "keep",
+      "lore": "Massive granite curtain walls, stone gatehouses, ballista bastions, and the deep running-water moat canal."
+    },
+    "5": {
+      "name": "The Marcher Garths",
+      "type": "farmland",
+      "lore": "Irrigated barley and rye crofts carved from the eastern timberland, supplying grain directly to the citadel granaries."
+    }
+  },
+  "features": {
+    "sylvan_gate": {
+      "name": "Ironclad West Gatehouse",
+      "type": "gate",
+      "char": "G",
+      "tiles": [
+        [
+          3,
+          7
+        ]
+      ],
+      "lore": "A formidable twin-towered stone gatehouse outfitted with heavy iron portcullises, guarding the entrance from the Sylvan Trace."
+    },
+    "mire_sentinel_tower": {
+      "name": "Grand Ballista Bastion & Beacon Tower",
+      "type": "watchtower",
+      "char": "W",
+      "tiles": [
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "lore": "An elevated granite artillery tower equipped with long-range repeating ballistas and a consecrated beacon fire that pierces death-fogs."
+    },
+    "pioneer_hearth": {
+      "name": "High Captain's Hearth & Hall",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          4,
+          5
+        ]
+      ],
+      "lore": "A vaulted stone hearth-hall where commanders plan border defense strategies and maintain an ever-burning warding flame."
+    },
+    "marcher_granary": {
+      "name": "Marcher Garths Granary",
+      "type": "granary",
+      "char": "B",
+      "tiles": [
+        [
+          9,
+          8
+        ],
+        [
+          10,
+          8
+        ]
+      ],
+      "lore": "A fortified stone granary built to store grain yields harvested from the eastern Garths, ensuring self-sufficiency during sieges."
+    },
+    "logging_smithy": {
+      "name": "Citadel Arsenal & High Smithy",
+      "type": "smithy",
+      "char": "K",
+      "tiles": [
+        [
+          10,
+          4
+        ],
+        [
+          10,
+          5
+        ]
+      ],
+      "lore": "A expanded forge complex smelting magnetite iron into armor, ballista bolts, and siege weaponry."
+    },
+    "sylvan_saw_pit": {
+      "name": "Masonry Yard & Defense Workshop",
+      "type": "crafts",
+      "char": "S",
+      "tiles": [
+        [
+          9,
+          9
+        ],
+        [
+          10,
+          9
+        ]
+      ],
+      "lore": "A busy stone-cutters' yard dressing granite blocks from the Northern Ribs and fabricating heavy timber hoardings."
+    },
+    "sylvan_trace_staging": {
+      "name": "Grand Citadel Square",
+      "type": "market",
+      "char": "T",
+      "tiles": [
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          7
+        ]
+      ],
+      "lore": "The central paved square where troops muster, supply caravans assemble, and courier riders arrive from Aethelford."
+    },
+    "flooded_moat_trench": {
+      "name": "The Ward-Fosse Canal & Stone Span",
+      "type": "keep",
+      "char": "M",
+      "tiles": [
+        [
+          6,
+          11
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          8,
+          11
+        ],
+        [
+          8,
+          12
+        ]
+      ],
+      "lore": "A roaring canal diverted from the Silver Channel, creating an impassable running-water moat crossed by a defensible stone bridge."
+    }
+  }
+}

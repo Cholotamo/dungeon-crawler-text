@@ -1,0 +1,182 @@
+{
+  "feature_id": "kar_drakh",
+  "name": "Kar-Drakh",
+  "type": "dungeon",
+  "epoch": 4,
+  "context": {
+    "summary": "A colossal, cyclopean gatehouse hewn into the sheer cliff face of the Red Sandstone Canyon. While the ancient subterranean complex remains quiet and sealed, mortal miners from Dun Kestrel have begun prospecting for magnetite along the outer mountain roots to the south and east.",
+    "host_region": "Red Sandstone Canyon (Cliffs)",
+    "host_region_lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts.",
+    "scale_profile": "Compact Subterranean Complex",
+    "perimeters": [
+      {
+        "border": "SOUTH & EAST BORDER",
+        "description": "The Northern Ribs (Mountains)",
+        "lore": "The desolate granite precipices and alpine screes of the southern ribs now echo with the clang of pickaxes and the smoke of charcoal bloomery furnaces, as miners from Dun Kestrel delve deep into rich veins of magnetite iron."
+      },
+      {
+        "border": "NORTH & WEST BORDERS",
+        "description": "Transition into host region (Red Sandstone Canyon — Cliffs).",
+        "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "Perimeter",
+        "road": "None",
+        "destination": "Wilderness Traversal",
+        "destination_lore": "None. (Isolated wilderness site; entry is via local terrain traversal)."
+      }
+    ],
+    "world_relations": "Kar-Drakh remains an enigmatic, ancient sanctuary buried within the sandstone cliffs. However, the expansion of Dun Kestrel's mining operations into the surrounding Northern Ribs brings mortal prospectors into close proximity with the ancient site's outer mountain boundaries.",
+    "architectural_rationale": "The internal architectural layout of Kar-Drakh remains pristine and unviolated, protected by its sealed basalt gates and subterranean layout. Along the southern and eastern perimeter, minor scree and stone debris from nearby mountain mining activity mark the outer bedrock boundary."
+  },
+  "terrain_grid": [
+    "^^~~;;,&&^^^^###",
+    "^^~~;;,,&&^^####",
+    "^^&,,+..#+######",
+    "^^&,,/..#####..#",
+    "#####.../......#",
+    "#####+#####+####",
+    "###......#.....#",
+    "###......|.....#",
+    "###......#.....#",
+    "#####+######/###",
+    "###......#.....#",
+    "###......#..~..#",
+    "###......=.~~~.#",
+    "###......#....~#",
+    "###############:",
+    "##############::"
+  ],
+  "district_grid": [
+    "0000000000000000",
+    "0000000000000000",
+    "0011111000000000",
+    "0011122000004400",
+    "0000222222224400",
+    "0000020000000000",
+    "0003333330444440",
+    "0003333330444440",
+    "0003333330444440",
+    "0000030000000000",
+    "0005555556666660",
+    "0005555556666660",
+    "0005555556666660",
+    "0005555556666660",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Canyon Bedrock",
+      "type": "buffer",
+      "lore": "Unzoned, dizzying canyon precipices draped in primordial ferns to the north and west, and dark mountain bedrock echoing with distant mining and scree clearings to the south and east."
+    },
+    "1": {
+      "name": "Canyon Ledge Approach",
+      "type": "antechamber",
+      "lore": "A narrow, wind-scoured trail winding along the sheer red sandstone cliff edge toward the ancient gatehouse threshold."
+    },
+    "2": {
+      "name": "Cyclopean Gatehouse & Outer Antechamber",
+      "type": "antechamber",
+      "lore": "A vaulted entry hall carved into the cliff face, flanked by monumental sandstone pillars and heavy threshold barriers."
+    },
+    "3": {
+      "name": "Great Basalt Hall",
+      "type": "hall",
+      "lore": "A wide subterranean hall constructed from giant dark basalt blocks, featuring ancient fire braziers and stone partitions."
+    },
+    "4": {
+      "name": "Crypt of the Vanished",
+      "type": "crypt",
+      "lore": "A solemn hypogeum where ancient guardians were laid to rest within stone niches before recorded history."
+    },
+    "5": {
+      "name": "Vault of Primordial Runes",
+      "type": "vault",
+      "lore": "An inner chamber housing unyielding basalt steles inscribed with glowing, forgotten runes of power."
+    },
+    "6": {
+      "name": "Subterranean Chasm & Sanctum",
+      "type": "sanctum",
+      "lore": "A cavernous abyss where a jade subterranean pool plunges into hidden subterranean channels, bridged by a basalt walkway leading to a forgotten altar."
+    }
+  },
+  "features": {
+    "cyclopean_gate": {
+      "name": "Rune-Carved Basalt Gate",
+      "type": "gatehouse",
+      "char": "G",
+      "tiles": [
+        [
+          5,
+          3
+        ]
+      ],
+      "lore": "Massive basalt doors carved with ancient glyphs, sealing the colossal entrance cut into the cliff face."
+    },
+    "hearth_brazier": {
+      "name": "Basalt Pillar Brazier",
+      "type": "hearth",
+      "char": "H",
+      "tiles": [
+        [
+          6,
+          7
+        ]
+      ],
+      "lore": "A monolithic basalt pillar topped with an eternal flame brazier, casting amber light across the Great Basalt Hall."
+    },
+    "sarcophagus_vault": {
+      "name": "Cyclopean Sarcophagus",
+      "type": "sarcophagus",
+      "char": "S",
+      "tiles": [
+        [
+          12,
+          7
+        ]
+      ],
+      "lore": "A massive stone sarcophagus in the Crypt of the Vanished, sealed with iron-bound basalt slabs."
+    },
+    "runic_stele": {
+      "name": "Rune-Carved Stele",
+      "type": "monolith",
+      "char": "R",
+      "tiles": [
+        [
+          5,
+          12
+        ]
+      ],
+      "lore": "An unyielding black basalt stele inscribed with ancient runic script pre-dating mortal speech."
+    },
+    "chasm_span": {
+      "name": "Basalt Walkway Span",
+      "type": "span",
+      "char": "W",
+      "tiles": [
+        [
+          9,
+          12
+        ]
+      ],
+      "lore": "A cyclopean stone bridge spanning the subterranean pool within the inner sanctum."
+    },
+    "sanctum_altar": {
+      "name": "Altar of the Vanished",
+      "type": "altar",
+      "char": "A",
+      "tiles": [
+        [
+          12,
+          13
+        ]
+      ],
+      "lore": "An ancient sandstone altar overlooking the subterranean plunge pool, where pre-mortal rites were conducted."
+    }
+  },
+  "keyframe_index": 3
+}

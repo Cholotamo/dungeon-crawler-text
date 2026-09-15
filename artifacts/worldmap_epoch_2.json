@@ -1,0 +1,319 @@
+{
+  "name": "The Unmeasured Expanse",
+  "terrain_grid": [
+    ",,,,,,,,,##,^,^^^,^,^^^,^,^^^,^^",
+    ",,,,,,,,,##^,^^^,^,^~^,^,^^~,^,^",
+    ",,,,,,,,,#&,^^^,^,^~~,^,^^~~/,^^",
+    ",,//,.,,#&#^^^,^,^~~,^,^^^~/,^^^",
+    ",,,,...,&##,^,^,^~~,^,^,^~~/^,^,",
+    ",%%,,,,,###^,^,^~~,^,^,^,~/^,^,^",
+    ",%,,,,,###&#^,^~~,^,^,^,~~/,^,^,",
+    ",,,,,,,##.:::^~~,^,^,^,^~/,^,^,^",
+    ",,,,,,,#&::::~~,^,^,^,^~~/^,^,^,",
+    ",//,,,#&#:::~~#&.##&###~/##&###&",
+    ",,,,,,&##:::~:&###&###~~/#&###&#",
+    ",,,,%%###&:~~&###&###&~/#&###&##",
+    ",,,,%###&##~&##%~%##&~~/&###&###",
+    ",,,,,##&##~~###~%~%&#~/&###&###&",
+    ",,,,,#&###~###&#~%~#~~/###&###&#",
+    ",,,,#&###&~##&###~%#~/###&###&##",
+    ",,//&###&#~~&###&##~~/##&###&###",
+    ",,,,###&###~###&###~/##&###&###&",
+    ",,,###&###&~~#&###~~/#&###&###&#",
+    ",,%%#&###&##~~###&~/#&###&###&##",
+    ",,%#&###&###&~~#&~~/&###&###&###",
+    ",,#&###&###&##~~~~#&###&###&###&",
+    ",,&###&###&###&~##&###&###&###&#",
+    ",,###&###&###&#~~&###&###&###&##",
+    "&###&###&###&###~###&###&###&###",
+    "///,,,####;~%;~%~~%;~%####,,,,//",
+    "///;;;####~%;~%;~%;~%;####;;;;//",
+    "///;;;####%;~%;~~;~%;~####;;;;//",
+    "~~~~;;;~~~~~~~~~~~~~~~~~~~;;;;~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+  ],
+  "region_grid": [
+    "55555555544111111111111111111111",
+    "55555555544111111111311111121111",
+    "55555555544111111113311111222111",
+    "55555555444111111133111111221111",
+    "55555555444111111331111112221111",
+    "56655555444111113311111112211111",
+    "56555554444411133111111122211111",
+    "5555555444CCC1331111111122111111",
+    "555555544CCCC3311111111222111111",
+    "555555444CCC33444444444224444444",
+    "555555444CCC3C444444442224444444",
+    "5555664444C334444444442244444444",
+    "55556444444344477744422244444444",
+    "55555444443344477774422444444444",
+    "55555444443444447774222444444444",
+    "55554444443444444774224444444444",
+    "55554444443344444442224444444444",
+    "55554444444344444442244444444444",
+    "55544444444334444422244444444444",
+    "55664444444433444422444444444444",
+    "55644444444443344222444444444444",
+    "55444444444444382244444444444444",
+    "55444444444444484444444444444444",
+    "55444444444444488444444444444444",
+    "44444444444444448444444444444444",
+    "AAAAAA44449999999999994444AAAAAA",
+    "AAAAAA44449999999999994444AAAAAA",
+    "AAAAAA44449999999999994444AAAAAA",
+    "BBBBAAA9999999999999999999AAAABB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+  ],
+  "regions": {
+    "0": {
+      "name": "Unnamed Wilderness",
+      "type": "wilderness",
+      "lore": "Untamed and primeval wilderness connecting the distinct geographic landmarks of the realm."
+    },
+    "1": {
+      "name": "The Northern Ribs",
+      "type": "mountains",
+      "lore": "A jagged wall of grey gneiss, dark basalt, and folded slate tearing the sky into cloud ribbons, crowned with eternal snowpacks and paleoglaciers."
+    },
+    "2": {
+      "name": "Red Sandstone Canyon",
+      "type": "cliffs",
+      "lore": "A dizzying, mile-deep chasm where surging jade-green rapids thresh beneath sheer walls draped in hanging gardens of primordial ferns and liverworts."
+    },
+    "3": {
+      "name": "The Silver Channel",
+      "type": "river",
+      "lore": "A majestic, half-league-wide river carrying mountain runoff through a fractured piedmont of rolling hills into the primeval basin."
+    },
+    "4": {
+      "name": "The Greenwood Vault",
+      "type": "forest",
+      "lore": "An ancient expanse of moss-cloaked hemlocks and colossal oaks, now cleaved by the Silver Span and the corduroy logs of the Sylvan Trace as woodcutters push their fortified frontier into the eastern gloom."
+    },
+    "5": {
+      "name": "The Undulating Downs",
+      "type": "hills",
+      "lore": "Vast rolling hills of wild rye and fescue interrupted by craggy limestone bluffs, now echoing with the horn-calls of pastoral hill-clans and the hearth-smoke of Dun Kestrel."
+    },
+    "6": {
+      "name": "The Peat-Hollow Bogs",
+      "type": "swamp",
+      "lore": "Misty, sulfurous hollows where dark ale-colored peat-water stands stagnant among cotton-grass and gnarled dwarf willows."
+    },
+    "7": {
+      "name": "The Drowned Clearings",
+      "type": "lake",
+      "lore": "A haunted wilderness of stagnant oxbow lakes and reed marshes where witch-fires burn brighter since mortal axes approached from the north, its drowned crypts whispering with restless malevolence."
+    },
+    "8": {
+      "name": "The Silent Meeting",
+      "type": "river",
+      "lore": "The silent, monstrous confluence of the sister-rivers where their massive floods unite before cleaving the lowland forest toward the sea."
+    },
+    "9": {
+      "name": "The Labyrinthine Delta",
+      "type": "swamp",
+      "lore": "A colossal web of mud-bars, braided channels, and tidal flats where freshwater violently collides with the salt of incoming sea storms."
+    },
+    "A": {
+      "name": "The Storm-Claw Coast",
+      "type": "cliffs",
+      "lore": "A battered barrier of black shale cliffs, basalt sea-stacks, and long peninsulas reaching into the churning foam of the sea."
+    },
+    "B": {
+      "name": "The Deep Salt Sea",
+      "type": "ocean",
+      "lore": "The vast, restless oceanic expanse from which deep-sea storms sweep in to hurl towers of grey brine against the continental stone."
+    },
+    "C": {
+      "name": "Aethelford Crofts",
+      "type": "farmland",
+      "lore": "Broad river-silt barley fields, flax plots, and rye crofts terraced along the fertile bends of the Silver Channel, feeding the bustling markets of Aethelford."
+    }
+  },
+  "features": {
+    "dun_kestrel": {
+      "name": "Dun Kestrel",
+      "char": "o",
+      "type": "settlement",
+      "tiles": [
+        [
+          5,
+          4
+        ]
+      ],
+      "description": "A hill-clan redoubt perched atop the chalk bluffs of the Undulating Downs, encircled by timber palisades and pastoral sheep-runs."
+    },
+    "aethelford": {
+      "name": "Aethelford",
+      "char": "O",
+      "type": "city",
+      "tiles": [
+        [
+          11,
+          9
+        ]
+      ],
+      "description": "The sovereign river-city of the Silver Channel, boasting stone quays, granaries, and a fortified timber-and-stone citadel guarding the crossing into the eastern forest."
+    },
+    "downs_way": {
+      "name": "The Downs-Way",
+      "char": "+",
+      "type": "road",
+      "tiles": [
+        [
+          6,
+          4
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          11,
+          8
+        ]
+      ],
+      "description": "A beaten dirt and crushed-limestone track hacked through the western fringes of the Greenwood Vault, linking Dun Kestrel to the river wharf at Aethelford."
+    },
+    "kar_drakh": {
+      "name": "Kar-Drakh",
+      "char": "!",
+      "type": "dungeon",
+      "tiles": [
+        [
+          26,
+          5
+        ]
+      ],
+      "description": "A colossal, cyclopean gatehouse hewn into the sheer precipice of the Red Sandstone Canyon, sealed by rune-carved basalt doors whose creators vanished before the dawn of mortal speech."
+    },
+    "mire_tomb_mor_ghul": {
+      "name": "The Mire-Tomb of Mor-Ghul",
+      "char": "!",
+      "type": "dungeon",
+      "tiles": [
+        [
+          16,
+          13
+        ]
+      ],
+      "description": "A half-submerged necropolis amidst the stagnant oxbows of the Drowned Clearings, where witch-fires dance over moss-choked sarcophagi and primeval spirits whisper."
+    },
+    "silver_span": {
+      "name": "The Silver Span",
+      "char": "=",
+      "type": "bridge",
+      "tiles": [
+        [
+          12,
+          9
+        ],
+        [
+          13,
+          9
+        ]
+      ],
+      "description": "A monumental timber-and-stone viaduct resting on sunken ashlar piers, spanning the deep waters of the Silver Channel to link Aethelford with the untamed eastern forest."
+    },
+    "sylvan_trace": {
+      "name": "The Sylvan Trace",
+      "char": "+",
+      "type": "road",
+      "tiles": [
+        [
+          14,
+          9
+        ],
+        [
+          15,
+          9
+        ]
+      ],
+      "description": "A corduroy road of felled hemlock logs and crushed shale running east from the Silver Span, driven through the dense timber to supply the frontier watch at Eaveshold."
+    },
+    "eaveshold": {
+      "name": "Eaveshold",
+      "char": "o",
+      "type": "settlement",
+      "tiles": [
+        [
+          16,
+          9
+        ]
+      ],
+      "description": "A fortified palisade outpost and pioneer logging haven established at the eastern edge of the cleared trace, keeping vigil against the unquiet horrors of the southern mire."
+    }
+  },
+  "elevation_grid": [
+    "54454454433797898797898797898799",
+    "44544544533978987978787978977978",
+    "45445445433789879786679789665789",
+    "54664454333898797855797898557898",
+    "44544544333787878457878785558787",
+    "43345445333878784478787874587878",
+    "53454453333387834787878744578787",
+    "44544543333338337878787845787878",
+    "45445443333333378787878345878787",
+    "56654433333333333333333353333333",
+    "44544533333333333333333353333333",
+    "45443333333333333333333533333333",
+    "54453333333233322233333533333333",
+    "44544333332233322223335333333333",
+    "45445222222222222222235222222222",
+    "54452222222222222222252222222222",
+    "44662222222222222222252222222222",
+    "45442222222222222222522222222222",
+    "54422222222222222222522222222222",
+    "44332222222222222225222222222222",
+    "45322222222222222225222222222222",
+    "54222222222222222222222222222222",
+    "44222222222222222222222222222222",
+    "45222222222222222222222222222222",
+    "22222222222222222222222222222222",
+    "44422222221111111111112222222244",
+    "33311122221111111111112222111133",
+    "33311122221111111111112222111133",
+    "00001111111111111111111111111100",
+    "00000000000000000000000000000000",
+    "00000000000000000000000000000000",
+    "00000000000000000000000000000000"
+  ],
+  "timeline": [
+    "## Epoch 1: The First Hearthfires and the Awakening Stone\n\n- **Dun Kestrel (o) at [5, 4]:** Founded by pastoral clans migrating across the high chalk ridges of the Undulating Downs, establishing a timber-and-earthwork redoubt to shelter sheep-herders from primeval predators.\n- **Aethelford (o) at [11, 9]:** Established by river-pioneers on the western bank of the Silver Channel to harvest seasonal salmon runs and fell ancient hemlock for river-barges.\n- **The Downs-Way [5, 4] <-> [11, 9]:** Cleared through the western eaves of the Greenwood Vault to connect the highland shepherds of Dun Kestrel with the timber yards and river-trade of Aethelford.\n- **Aethelford Crofts (Domain Expansion):** River-silt terraces and barley plots cleared along the fertile bends of the Silver Channel to sustain the growing population of Aethelford.\n- **Kar-Drakh (!) at [26, 5]:** Discovered by mountain scouts within a sheer cleft of the Red Sandstone Canyon—a cyclopean gatehouse of rune-carved basalt predating mortal reckoning.\n- **The Mire-Tomb of Mor-Ghul (!) at [16, 13]:** Uncovered amidst the stagnant oxbows of the Drowned Clearings when hunters pursued swamp-beasts into half-submerged necromantic ruins where baleful witch-fires burn.\n- **The Undulating Downs (Region Lore Mutation):** The quiet fescue hills now echo with pastoral horn-calls, herdsman camps, and the hearth-smoke of the newly raised haven of Dun Kestrel.\n- **The Greenwood Vault (Region Lore Mutation):** The primeval silence of the hemlock canopy has been broken by woodcutter axes and tilled crofts along the banks of the Silver Channel.",
+    "## Epoch 2: The River Throne and the Crossing of the Silver Channel\n\n- **Aethelford ('o' -> 'O'):** Enriched by flourishing salmon fisheries, timber barging, and trade along the Downs-Way, the humble river stockade was fortified with stone quays, high ashlar granaries, and a lordly river-citadel, rising as the sovereign capital of the central valleys.\n- **Aethelford Crofts (Domain Expansion):** The expanding urban populace of Aethelford cleared adjacent light woods and terraced the rich alluvial silts along the western banks of the Silver Channel into productive barley strips, flax fields, and rye crofts.\n- **The Silver Span (=) at [12, 9]:** Master masons and timber-wrights drove deep oak pilings and laid ashlar piers across the churning depths of the Silver Channel, erecting a colossal viaduct spanning from [12, 9] to [13, 9] to open mortal passage into the eastern wild.\n- **The Sylvan Trace [14, 9] <-> [15, 9]:** A fortified corduroy road of felled hemlock logs and crushed slate was driven eastward through primeval old-growth to supply pioneer lumber camps and convey heavy virgin timber back to the Aethelford mills.\n- **Eaveshold (o) at [16, 9]:** Established on cleared ground at the terminus of the Sylvan Trace as a fortified frontier bastion, built to harvest the eastern timberlands and maintain a wary sentinel watch against the necromantic blights festering in the marshes to the south.\n- **The Greenwood Vault (Region Lore Mutation):** The primeval silence of the ancient hemlock canopy has been shattered by mortal iron, its western heart cleaved by the stone piers of the Silver Span and the timber-haulers of the Sylvan Trace.\n- **The Drowned Clearings (Region Lore Mutation):** Stirred by the encroachment of mortal axes to the north, the ancient spirits within the southern oxbows grow wrathful; green witch-fires flare across the mossy waters and predatory swamp horrors prowl closer to the cleared borders."
+  ],
+  "epoch": 2
+}

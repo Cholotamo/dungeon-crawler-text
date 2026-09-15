@@ -1,0 +1,216 @@
+{
+  "feature_id": "dun_kestrel",
+  "name": "Dun Kestrel",
+  "type": "settlement",
+  "epoch": 5,
+  "keyframe_index": 4,
+  "context": {
+    "summary": "As one of the twin sovereign citadels of the highland realm alongside Ironcrest, Dun Kestrel has expanded its ashlar fortifications, heavy iron foundries, and supply yards, serving as the high administrative, agricultural, and martial capital of the chalklands.",
+    "host_region": "The Undulating Downs (Hills)",
+    "host_region_lore": "Anchored between the twin sovereign citadels of Dun Kestrel and Ironcrest, the high rolling chalklands have transformed into a fortified highland realm of martial discipline, deep limestone quarries, terraced barley slopes, and rumbling iron-wains traversing the paved trace.",
+    "scale_profile": "Large Urban Citadel & Highland Capital.",
+    "perimeters": [
+      {
+        "border": "ALL BORDERS",
+        "description": "Transition into host region (The Undulating Downs — Hills).",
+        "lore": "Anchored between the twin sovereign citadels of Dun Kestrel and Ironcrest, the high rolling chalklands have transformed into a fortified highland realm of martial discipline, deep limestone quarries, terraced barley slopes, and rumbling iron-wains traversing the paved trace."
+      }
+    ],
+    "approaches": [
+      {
+        "direction": "WEST",
+        "road": "The Hollow-Trace (Road)",
+        "road_lore": "A graded chalk-gravel road descending the steep western spurs of Dun Kestrel to connect the mountain citadel with the hydraulic ditches and barley fields of the Hollow Polders.",
+        "destination": "Leads toward The Hollow Polders (Waterworks)",
+        "destination_lore": "The Hollow Polders (Waterworks): A vast hydraulic grid of drainage trenches, sluices, and dykes where reclaimed peat-bogs produce abundant barley and grain for the highland garrisons."
+      },
+      {
+        "direction": "EAST",
+        "road": "The Downs-Way (Road)",
+        "road_lore": "A heavily traveled beaten dirt and crushed-limestone track linking Dun Kestrel's east gate directly to the bustling river markets and ashlar quays of Aethelford.",
+        "destination": "Leads toward Aethelford (City)",
+        "destination_lore": "Aethelford (City): The sovereign river-city of the Silver Channel, boasting stone quays, granaries, and a fortified timber-and-stone citadel guarding the crossing into the eastern forest."
+      },
+      {
+        "direction": "NORTH",
+        "road": "The Iron-Trace (Road)",
+        "road_lore": "A heavily paved causeway of basalt and crushed limestone ballast, carrying continuous heavy iron-wain convoys between the twin citadels of Dun Kestrel and Ironcrest.",
+        "destination": "Leads toward Ironcrest (Citadel)",
+        "destination_lore": "Ironcrest (Citadel): Elevated from a frontier mining redoubt into a sovereign mountain fortress-citadel. Crowned with cyclopean slate ramparts, soaring blast furnaces, and deep labyrinthine adits delved into the roots of the Northern Ribs, Ironcrest now stands as the supreme industrial and martial bastion of the highland clans, supplying cold-forged magnetite steel to the entire realm."
+      }
+    ],
+    "world_relations": "Dun Kestrel receives continuous heavy shipments of dark slate slabs and raw magnetite ore from Ironcrest along the Iron-Trace, forging masterwork steel weaponry and plate armor while distributing polder barley, cut limestone, and finished ironware down the Downs-Way to Aethelford and Confluence Watch.",
+    "architectural_rationale": "To support its role as the administrative and agricultural capital alongside Ironcrest's industrial powerhouse, Dun Kestrel paved key interior thoroughfares with dressed flagstone, expanded its storage depots and iron foundries, and fortified its northern and eastern gatehouses with heavy stone bastions to manage non-stop wain traffic."
+  },
+  "terrain_grid": [
+    "^,^,,,^+,,,,,,,,",
+    ",,,,,^+,,,,,,,,,",
+    ",,,####/###,,,,,",
+    ",,,#...+...#,:|:",
+    "^,,#.+..+..#,:|:",
+    ",,,#.+.#...+,:|:",
+    "++++/...+...+:::",
+    "++++#...+.../+++",
+    "^,,#.+.#...+::::",
+    ",,,#.+...+..#,:|",
+    ",,,########,,:|:",
+    ",,,,,,::::,,,,,,",
+    "^,,,,,::::,,,,^,",
+    ",,,,,,,::,,,,,,,",
+    "^,^,,,,,,,,,,,^,",
+    ",,,^,,,,,,,,,,^,"
+  ],
+  "district_grid": [
+    "0000006600000000",
+    "0000006600000000",
+    "0001111111100000",
+    "0001111111100330",
+    "0001111111100330",
+    "0001111111100330",
+    "5555111111100330",
+    "5555111111144444",
+    "0002222222200330",
+    "0002222222200330",
+    "0002222222200330",
+    "0000003333000000",
+    "0000003333000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+  ],
+  "districts": {
+    "0": {
+      "name": "Frontier Buffer & Wild Downs",
+      "type": "buffer",
+      "lore": "Unzoned rolling hills of fescue, wild rye, and craggy limestone bluffs."
+    },
+    "1": {
+      "name": "High Citadel Commons & Armory Ward",
+      "type": "square",
+      "lore": "The stone-paved upper yard housing the beacon kiln, high smithy, and subterranean grain vaults."
+    },
+    "2": {
+      "name": "High Thane's Keep & Vaults Ward",
+      "type": "keep",
+      "lore": "The monumental ashlar southern wing housing the High Thane's citadel and dressed stone storehouses."
+    },
+    "3": {
+      "name": "Terraced Sheep-Runs & Polder Slopes",
+      "type": "farmland",
+      "lore": "Enclosed hurdle terraces and hillside pastures overlooking the western polders and eastern roads."
+    },
+    "4": {
+      "name": "Downs-Way Approach",
+      "type": "crafts",
+      "lore": "The eastern ashlar gate approach connecting Dun Kestrel to Aethelford."
+    },
+    "5": {
+      "name": "Hollow-Trace Approach",
+      "type": "crafts",
+      "lore": "The graded western chalk track connecting the citadel gates to the hydraulic barley polders."
+    },
+    "6": {
+      "name": "Iron-Trace Approach",
+      "type": "crafts",
+      "lore": "The steep northern causeway approach connecting Dun Kestrel to the mountain fortress-citadel of Ironcrest."
+    }
+  },
+  "features": {
+    "high_beacon": {
+      "name": "High Chalk Beacon Tower",
+      "type": "hearth",
+      "char": "B",
+      "tiles": [
+        [
+          5,
+          3
+        ]
+      ],
+      "lore": "A towering stone beacon kiln built over the ancient chalk hearth, burning continuous coal-and-hardwood fires to signal night supply trains along the Iron-Trace."
+    },
+    "clan_armory": {
+      "name": "Highland Forge & Armory",
+      "type": "smithy",
+      "char": "S",
+      "tiles": [
+        [
+          9,
+          3
+        ]
+      ],
+      "lore": "Expanded into heavy blast foundries processing magnetite iron ore from Ironcrest into dark steel weaponry and defensive armor plating."
+    },
+    "grain_vaults": {
+      "name": "Highland Grain & Polder Vaults",
+      "type": "granary",
+      "char": "V",
+      "tiles": [
+        [
+          5,
+          5
+        ]
+      ],
+      "lore": "Deep stone subterranean vaults storing thousands of bushels of barley harvested from the Hollow Polders to feed the highland garrisons."
+    },
+    "thanes_citadel": {
+      "name": "High Thane's Citadel",
+      "type": "keep",
+      "char": "C",
+      "tiles": [
+        [
+          5,
+          8
+        ]
+      ],
+      "lore": "A grand ashlar-walled citadel crowning the highest bluff, co-sovereign seat of the highland realm reinforced with dark slate roofing and iron-plated gates."
+    },
+    "limestone_quarry": {
+      "name": "Chalk-Stone Supply Depot",
+      "type": "vault",
+      "char": "G",
+      "tiles": [
+        [
+          9,
+          8
+        ]
+      ],
+      "lore": "Heavy stone storehouses and dressed ashlar yards holding cut limestone blocks, dark slate slabs, and raw magnetite ore from Ironcrest."
+    },
+    "west_gatehouse": {
+      "name": "Hollow-Trace Gatehouse",
+      "type": "gatehouse",
+      "char": "W",
+      "tiles": [
+        [
+          4,
+          6
+        ]
+      ],
+      "lore": "A heavily fortified ashlar gatehouse guarding the steep western descent towards the Hollow Polders."
+    },
+    "east_gatehouse": {
+      "name": "Downs-Way East Gate",
+      "type": "gatehouse",
+      "char": "E",
+      "tiles": [
+        [
+          12,
+          7
+        ]
+      ],
+      "lore": "The monumental stone entrance opening onto the Downs-Way, equipped with iron portcullises and guard barracks."
+    },
+    "north_gatehouse": {
+      "name": "Iron-Trace North Gate",
+      "type": "gatehouse",
+      "char": "N",
+      "tiles": [
+        [
+          7,
+          2
+        ]
+      ],
+      "lore": "A massive ashlar gatehouse flanked by twin beacon turrets, guarding the steep northern ascent of the Iron-Trace causeway leading to Ironcrest."
+    }
+  }
+}
