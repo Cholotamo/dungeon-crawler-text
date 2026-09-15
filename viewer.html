@@ -614,34 +614,48 @@
   </footer>
 
   <script>
-    // ═══════════════════════════════════════════════════════════
-    //  DEFINITIONS & GLYPH STYLES
-    // ═══════════════════════════════════════════════════════════
-    const TERRAIN_DEFS = {
-      ",": { name: "Grassland", desc: "Open rolling grassland" },
-      ".": { name: "Plains", desc: "Flat cleared terrain" },
-      "#": { name: "Dense Rock", desc: "Exposed rock face" },
-      "^": { name: "Mountain Peak", desc: "Alpine summit" },
-      "~": { name: "Water", desc: "Open water surface" },
-      "&": { name: "Dense Forest", desc: "Thick old-growth canopy" },
-      "%": { name: "Swamp", desc: "Boggy marshland" },
-      "/": { name: "Cliff Edge", desc: "Steep cliff or canyon wall" },
-      ";": { name: "Shore", desc: "Coastal shoreline" },
-      ":": { name: "Cleared Land", desc: "Human-altered terrain" },
-      "*": { name: "Blighted Ground", desc: "Corrupted wasteland" },
-      "+": { name: "Road", desc: "Constructed path" },
-      "=": { name: "Bridge", desc: "Crossing structure" },
-      "|": { name: "Wall", desc: "Fortification wall" },
-      "@": { name: "Dam", desc: "Water control structure" },
-      "X": { name: "Ruin", desc: "Ruined structure" },
-      "!": { name: "Dungeon", desc: "Dungeon entrance" },
-      "o": { name: "Settlement", desc: "Small settlement" },
-      "O": { name: "City", desc: "Major city" },
-      " ": { name: "Void", desc: "Empty space" }
+    // Canonical World Terrain Specifications (matches architect_worldmap.md & map_printer.py)
+    const WORLD_TERRAIN_DEFS = {
+      ".": { name: "Plains / Wilderness", desc: "Open lowlands, meadows, and temperate grasslands" },
+      ",": { name: "Hills / Slopes", desc: "Rolling uplands, pastures, and foothills" },
+      "#": { name: "Forest / Woods", desc: "Temperate woodland, timberlands, and copses" },
+      "&": { name: "Dense Forest / Deep Jungle", desc: "Ancient primeval old-growth and tangled canopy" },
+      "%": { name: "Swamp / Bog / Marsh", desc: "Wetlands, mires, and sodden peat fens" },
+      "~": { name: "Water / River / Ocean", desc: "Cardinal waterways, lakes, and deep ocean" },
+      ";": { name: "Coast / Beach / Shallows", desc: "Shorelines, tidal flats, and sandbanks" },
+      "^": { name: "Mountain Peak / Ridge", desc: "Alpine summits and jagged mountain crests" },
+      "/": { name: "Cliffs / Edges / Chasms", desc: "Precipitous escarpments, ravines, and fissures" },
+      "*": { name: "Wastelands / Ash / Barrier", desc: "Volcanic ash barrens, cursed wastes, or civil barrier" },
+      ":": { name: "Farmland / Crops", desc: "Cultivated agricultural plots, terraces, and polders" },
+      " ": { name: "Void", desc: "Uncharted perimeter empty space" }
     };
 
+    // Canonical Submap Terrain Specifications (matches subarchitect.py TERRAIN_LEGEND)
+    const SUBMAP_TERRAIN_DEFS = {
+      ".": { name: "Floor / Flagstone", desc: "Open dirt, cobblestone, or chamber floor" },
+      ",": { name: "Turf / Wild Grass", desc: "Meadow, wild turf, moss, or lichen" },
+      "#": { name: "Solid Wall / Bedrock", desc: "Stone masonry, timber palisade, or hewn bedrock" },
+      "|": { name: "Partition / Grate", desc: "Wooden fence, low hurdle, or iron portcullis" },
+      "/": { name: "Ingress / Threshold", desc: "Doorway, gate threshold, or cavern mouth" },
+      "+": { name: "Thoroughfare / Corridor", desc: "Dirt road, beaten path, corridor, or hallway" },
+      "=": { name: "Span / Boardwalk", desc: "Bridge, wooden boardwalk, pier, or chasm walkway" },
+      "~": { name: "Water / Subterranean Pool", desc: "Deep water, river, lake, or flooded pool" },
+      ";": { name: "Shallows / Flooded Floor", desc: "Shoreline, mud bank, or flooded floor" },
+      "&": { name: "Overgrowth / Fungi", desc: "Thicket, brambles, fungal colony, or webbing" },
+      "^": { name: "Elevated Stone / Crag", desc: "Rocky ridge, outcrop, or stalagmites" },
+      ":": { name: "Cultivated / Rubble", desc: "Farmland, diked soil, scree, or debris" },
+      " ": { name: "Void", desc: "Uncharted perimeter empty space" }
+    };
+
+    // Layering priority: lower draws first, higher overlays on top (matches map_printer.py & world_state.py)
     const FEATURE_PRIORITY = {
-      "!": 1, "X": 2, "O": 3, "o": 4, "=": 5, "@": 6, "+": 20
+      "~": 5,   // Canal / Water Channel
+      "+": 10,  // Active Road / Trade Route
+      "=": 20,  // Bridge / River Crossing
+      "*": 25,  // Masonry Dam / Civil Barrier
+      "o": 30,  // Civilized Outpost / Village / Fort
+      "O": 40,  // Civilized City / Metropolis / Citadel
+      "!": 50   // Hostile Lair / Dungeon / Ruin
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -665,7 +679,8 @@
 
     let pinnedTile = null;             // { x, y, view: "world"|"submap" } or null
     let hoveredCell = null;            // cell object
-    let activeBottomTab = "timeline";  // "timeline" | "lore"
+    let activeBottomTab = "timeline";  // "timeline" | "lore" | "legend"
+    let legendView = null;             // null (follows activeView) | "world" | "submap"
 
     // ═══════════════════════════════════════════════════════════
     //  DATA LOADER (DYNAMIC SERVER FETCH)
@@ -760,8 +775,19 @@
     // ═══════════════════════════════════════════════════════════
     //  DATA PROCESSING (WORLD & LOCALE MAPS)
     // ═══════════════════════════════════════════════════════
-    function getTerrainDef(ch) {
-      return TERRAIN_DEFS[ch] || { name: "Uncharted", desc: "Unknown territory" };
+    function getTerrainDef(ch, isSubmap = null, cell = null) {
+      const sub = isSubmap !== null ? isSubmap : (activeView === "submap");
+      if (sub) {
+        return SUBMAP_TERRAIN_DEFS[ch] || { name: "Interior Ground", desc: "Locale structure or floor" };
+      }
+      if (ch === "*" && cell) {
+        const isDam = (cell.topFeature && (cell.topFeature.type === "dam" || cell.topFeature.char === "*" || (cell.topFeature.name && cell.topFeature.name.toLowerCase().includes("dam")))) ||
+                      (cell.regionType === "river" || cell.regionType === "dam" || (cell.regionName && cell.regionName.toLowerCase().includes("dam")));
+        if (isDam) {
+          return { name: "Masonry Dam / Barrier", desc: "Engineered heavy stone barrage impounding river waterways" };
+        }
+      }
+      return WORLD_TERRAIN_DEFS[ch] || { name: "Uncharted Ground", desc: "Unknown wilderness territory" };
     }
 
     function processMapData(data, isSubmap = false) {
@@ -843,6 +869,7 @@
 
     function loadAndRenderWorldView() {
       activeView = "world";
+      legendView = null;
       activeSubmapFeatureId = null;
 
       // Update Header
@@ -871,6 +898,7 @@
 
     async function loadAndRenderSubmapView() {
       activeView = "submap";
+      legendView = null;
       const fId = activeSubmapFeatureId;
 
       // Update Header
@@ -1053,7 +1081,7 @@
     // ═══════════════════════════════════════════════════════
     function updateTooltip(cell, e) {
       const tt = document.getElementById("cliTooltip");
-      const td = getTerrainDef(cell.terrainChar);
+      const td = getTerrainDef(cell.terrainChar, cell.isSubmap, cell);
       const glyph = cell.compositeChar;
       const mainName = cell.topFeature ? cell.topFeature.name : td.name;
       const coords = `[${String(cell.x).padStart(2, "0")}, ${String(cell.y).padStart(2, "0")}]`;
@@ -1379,7 +1407,7 @@
         `;
 
         // Terrain Info
-        const td = getTerrainDef(cell.terrainChar);
+        const td = getTerrainDef(cell.terrainChar, cell.isSubmap, cell);
         html += `
           <div class="lore-section">
             <div class="lore-tag">TERRAIN</div>
@@ -1482,53 +1510,152 @@
       const content = document.getElementById("panelContent");
       if (!content) return;
 
-      let html = `
-        <div class="meta-line">[CARTOGRAPHY REFERENCE // MAP GLYPHS & NOTATION]</div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 6px;">
-          <div class="lore-section">
-            <div class="lore-tag">CIVILIZATION & SITES</div>
-            <div class="lore-body" style="line-height: 1.6;">
-              <div><span class="hl-bold">['O']</span> <strong>City</strong> &mdash; Major regional capital / provincial hub</div>
-              <div><span class="hl-bold">['o']</span> <strong>Settlement</strong> &mdash; Town, hamlet, or redoubt (Click to open Submap)</div>
-              <div><span class="hl-bold">['!']</span> <strong>Dungeon</strong> &mdash; Underworld descent, vault, or perilous site</div>
-              <div><span class="hl-bold">['X']</span> <strong>Ruin</strong> &mdash; Ancient fallen structure or necropolis</div>
-              <div><span class="hl-bold">['+']</span> <strong>Road</strong> &mdash; Paved highway or arterial trade route</div>
-              <div><span class="hl-bold">['=']</span> <strong>Bridge</strong> &mdash; Crossing over river, chasm, or fosse</div>
-              <div><span class="hl-bold">['|']</span> <strong>Wall</strong> &mdash; Defensive rampart, palisade, or bastion</div>
-              <div><span class="hl-bold">['@']</span> <strong>Dam</strong> &mdash; Water regulation or reservoir barrier</div>
+      const currentMode = legendView || activeView; // "world" | "submap"
+
+      // Build Submap Features list if in submap mode
+      let submapFeaturesHtml = "";
+      if (currentMode === "submap") {
+        let featList = [];
+        if (activeSubmapFeatureId) {
+          const kfKey = `${activeSubmapFeatureId}_kf_${currentEpoch}`;
+          const kfData = KEYFRAME_CACHE[kfKey];
+          if (kfData && kfData.features && typeof kfData.features === "object") {
+            featList = Object.values(kfData.features);
+          }
+        }
+        if (featList.length > 0) {
+          submapFeaturesHtml = featList.map(f => `
+            <div><span class="hl-bold">['${escapeHtml(f.char || "X")}']</span> <strong>${escapeHtml(f.name || "Feature")}</strong> &mdash; ${escapeHtml(f.type || "Facility")}${f.lore ? `: ${escapeHtml(f.lore)}` : ""}</div>
+          `).join("");
+        } else {
+          submapFeaturesHtml = `
+            <div><span class="hl-bold">['H']</span> <strong>Common Hearth</strong> &mdash; Central communal hearth, moot, or town hall</div>
+            <div><span class="hl-bold">['D']</span> <strong>Docks / Pier</strong> &mdash; Curragh docks, fishery, boatwright, or watergate</div>
+            <div><span class="hl-bold">['S']</span> <strong>Smithy / Forge</strong> &mdash; Tool smithy, copper-works, or armory</div>
+            <div><span class="hl-bold">['A']</span> <strong>Altar / Sanctum</strong> &mdash; Consecrated shrine, relic altar, or temple</div>
+            <div><span class="hl-bold">['M']</span> <strong>Marketplace</strong> &mdash; Caravan exchange, trading stalls, or granary</div>
+            <div><span class="hl-bold">['T']</span> <strong>Throne / Sarcophagus</strong> &mdash; Warlord dais, tomb, or resonant crypt</div>
+            <div><span class="hl-bold">['K']</span> <strong>Keep / Watchtower</strong> &mdash; Fortified redoubt, rampart, or bastion</div>
+          `;
+        }
+      }
+
+      let bodyHtml = "";
+      if (currentMode === "world") {
+        bodyHtml = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 6px;">
+            <div class="lore-section">
+              <div class="lore-tag">NATURAL BASE TERRAIN (WORLD)</div>
+              <div class="lore-body" style="line-height: 1.6;">
+                <div><span class="hl-bold">['.']</span> <strong>Plains / Wilderness</strong> &mdash; Open lowlands, meadows, and fertile grasslands</div>
+                <div><span class="hl-bold">[',']</span> <strong>Hills / Slopes</strong> &mdash; Rolling uplands, pastures, and defensive foothills</div>
+                <div><span class="hl-bold">['#']</span> <strong>Forest / Woods</strong> &mdash; Temperate woodland, timberlands, and copses</div>
+                <div><span class="hl-bold">['&amp;']</span> <strong>Dense Forest / Jungle</strong> &mdash; Primeval old-growth, tangled roots, and deep canopy</div>
+                <div><span class="hl-bold">['%']</span> <strong>Swamp / Bog / Marsh</strong> &mdash; Stagnant wetlands, peat bogs, and misty fens</div>
+                <div><span class="hl-bold">['~']</span> <strong>Water / River / Ocean</strong> &mdash; Cardinal rivers, lakes, and deep ocean</div>
+                <div><span class="hl-bold">[';']</span> <strong>Coast / Beach / Shallows</strong> &mdash; Shorelines, tidal flats, and shallow fords</div>
+                <div><span class="hl-bold">['^']</span> <strong>Mountain Peak / Ridge</strong> &mdash; Alpine summits and jagged mountain crests</div>
+                <div><span class="hl-bold">['/']</span> <strong>Cliffs / Edges / Chasms</strong> &mdash; Sheer precipices, escarpments, and fissures</div>
+                <div><span class="hl-bold">['*']</span> <strong>Wastelands / Ash / Barrier</strong> &mdash; Volcanic ash barrens, blights, or heavy civil barrier</div>
+                <div><span class="hl-bold">[':']</span> <strong>Farmland / Crops</strong> &mdash; Cultivated agricultural plots, terraces, and polders</div>
+              </div>
+            </div>
+
+            <div class="lore-section">
+              <div class="lore-tag">CIVILIZATION & FEATURES (OVERLAYS)</div>
+              <div class="lore-body" style="line-height: 1.6;">
+                <div><span class="hl-bold">['O']</span> <strong>City / Citadel</strong> &mdash; Sovereign metropolitan capital or fortified citadel</div>
+                <div><span class="hl-bold">['o']</span> <strong>Settlement / Outpost</strong> &mdash; Town, hamlet, fort, or clan haven (Click to open Submap)</div>
+                <div><span class="hl-bold">['!']</span> <strong>Hostile Lair / Dungeon</strong> &mdash; Monster den, crypt, vault, or perilous descent</div>
+                <div><span class="hl-bold">['+']</span> <strong>Road / Trade Highway</strong> &mdash; Paved legion highway or arterial trade route</div>
+                <div><span class="hl-bold">['=']</span> <strong>Bridge / River Crossing</strong> &mdash; Engineered span or viaduct over water/chasm</div>
+                <div><span class="hl-bold">['*']</span> <strong>Masonry Dam / Civil Barrier</strong> &mdash; Heavy stone barrage impounding river waterways</div>
+                <div><span class="hl-bold">['~']</span> <strong>Canal / Water Channel</strong> &mdash; Excavated waterworks or irrigation cut</div>
+              </div>
+            </div>
+
+            <div class="lore-section">
+              <div class="lore-tag">NAVIGATION & CONTROLS</div>
+              <div class="lore-body" style="line-height: 1.6;">
+                <div><span class="hl-bold">[CLICK TILE]</span> Pin tile & inspect details in LORE tab</div>
+                <div><span class="hl-bold">[CLICK SITE]</span> Seamlessly transition into Locale Submap</div>
+                <div><span class="hl-bold">[ESC]</span> Return from Submap to World Map / Unpin tile</div>
+                <div><span class="hl-bold">[◄ / ►]</span> or <span class="hl-bold">[H / L]</span> Cycle Epochs (0 to 5)</div>
+                <div><span class="hl-bold">[- / +]</span> Adjust map tile zoom</div>
+                <div><span class="hl-bold">[CHRONICLE]</span> Hover feature names in Timeline to highlight on map</div>
+              </div>
             </div>
           </div>
+        `;
+      } else {
+        bodyHtml = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 6px;">
+            <div class="lore-section">
+              <div class="lore-tag">PHYSICAL SURFACES & ENCLOSURES</div>
+              <div class="lore-body" style="line-height: 1.6;">
+                <div><span class="hl-bold">['.']</span> <strong>Floor / Flagstone</strong> &mdash; Open dirt, cobblestone, or chamber floor</div>
+                <div><span class="hl-bold">[',']</span> <strong>Turf / Wild Grass</strong> &mdash; Meadow, wild turf, moss, or lichen</div>
+                <div><span class="hl-bold">['#']</span> <strong>Solid Wall / Bedrock</strong> &mdash; Stone masonry, timber palisade, or hewn bedrock</div>
+                <div><span class="hl-bold">['|']</span> <strong>Partition / Grate</strong> &mdash; Wooden fence, low hurdle, or iron portcullis</div>
+                <div><span class="hl-bold">['/']</span> <strong>Ingress / Doorway</strong> &mdash; Gate threshold, portal, or cavern mouth</div>
+                <div><span class="hl-bold">['+']</span> <strong>Thoroughfare / Corridor</strong> &mdash; Dirt road, beaten path, corridor, or hallway</div>
+                <div><span class="hl-bold">['=']</span> <strong>Span / Boardwalk</strong> &mdash; Wooden bridge, pier, or chasm walkway</div>
+                <div><span class="hl-bold">['~']</span> <strong>Water / Pool</strong> &mdash; Deep water, river, lake, or subterranean pool</div>
+                <div><span class="hl-bold">[';']</span> <strong>Shallows / Flooded</strong> &mdash; Shoreline, mud bank, or flooded floor</div>
+                <div><span class="hl-bold">['&amp;']</span> <strong>Overgrowth / Fungi</strong> &mdash; Thicket, bramble, fungal colony, or webbing</div>
+                <div><span class="hl-bold">['^']</span> <strong>Elevated Stone / Crag</strong> &mdash; Rocky outcrop, chasm edge, or stalagmites</div>
+                <div><span class="hl-bold">[':']</span> <strong>Cultivated / Rubble</strong> &mdash; Farmland, diked soil, scree, or debris</div>
+              </div>
+            </div>
 
-          <div class="lore-section">
-            <div class="lore-tag">NATURAL TERRAIN</div>
-            <div class="lore-body" style="line-height: 1.6;">
-              <div><span class="hl-bold">['~']</span> <strong>Water</strong> &mdash; Ocean, lake, or major waterway</div>
-              <div><span class="hl-bold">['^']</span> <strong>Mountain</strong> &mdash; Alpine summit or crag</div>
-              <div><span class="hl-bold">['#']</span> <strong>Dense Rock</strong> &mdash; Exposed stone, cliffs, or scree</div>
-              <div><span class="hl-bold">['&amp;']</span> <strong>Forest</strong> &mdash; Ancient canopy or dense timber</div>
-              <div><span class="hl-bold">['%']</span> <strong>Swamp</strong> &mdash; Marshland, bog, or mire</div>
-              <div><span class="hl-bold">[',']</span> <strong>Grassland</strong> &mdash; Rolling downs or savanna</div>
-              <div><span class="hl-bold">['.']</span> <strong>Plains</strong> &mdash; Flat cleared expanse or scrub</div>
-              <div><span class="hl-bold">[';']</span> <strong>Shore</strong> &mdash; Coastal littoral or beach</div>
-              <div><span class="hl-bold">['*']</span> <strong>Blight</strong> &mdash; Corrupted soil or tainted ground</div>
+            <div class="lore-section">
+              <div class="lore-tag">${activeSubmapFeatureId ? `NOTABLE STRUCTURES (${activeSubmapFeatureId.toUpperCase()})` : "SITE NOTABLE FACILITIES"}</div>
+              <div class="lore-body" style="line-height: 1.6;">
+                ${submapFeaturesHtml}
+              </div>
+            </div>
+
+            <div class="lore-section">
+              <div class="lore-tag">LOCALE NAVIGATION & CONTROLS</div>
+              <div class="lore-body" style="line-height: 1.6;">
+                <div><span class="hl-bold">[CLICK TILE]</span> Inspect tile surface, district zoning, or structure in LORE tab</div>
+                <div><span class="hl-bold">[ESC]</span> Return from Locale Submap to World Map</div>
+                <div><span class="hl-bold">[◄ / ►]</span> or <span class="hl-bold">[H / L]</span> Cycle Epochs (freely available while viewing submaps)</div>
+                <div><span class="hl-bold">[- / +]</span> Adjust submap grid zoom</div>
+                <div><span class="hl-bold">[DISTRICTS]</span> Hover or pin tiles to view functional ward / wing zoning</div>
+              </div>
             </div>
           </div>
+        `;
+      }
 
-          <div class="lore-section">
-            <div class="lore-tag">NAVIGATION & CONTROLS</div>
-            <div class="lore-body" style="line-height: 1.6;">
-              <div><span class="hl-bold">[CLICK TILE]</span> Pin tile & inspect details in LORE tab</div>
-              <div><span class="hl-bold">[CLICK SITE]</span> Seamlessly transition into Locale Submap</div>
-              <div><span class="hl-bold">[ESC]</span> Return from Submap to World Map / Unpin tile</div>
-              <div><span class="hl-bold">[◄ / ►]</span> or <span class="hl-bold">[H / L]</span> Cycle Epochs (0 to 5)</div>
-              <div><span class="hl-bold">[- / +]</span> Adjust map tile zoom</div>
-              <div><span class="hl-bold">[CHRONICLE]</span> Hover feature names in Timeline to highlight on map</div>
-            </div>
+      let headerHtml = `
+        <div class="meta-line" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span>[CARTOGRAPHY REFERENCE // ${currentMode === "submap" ? "LOCALE SUBMAP GLYPHS & ARCHITECTURE" : "WORLD MAP GLYPHS & GEOGRAPHY"}]</span>
+          <div style="display: flex; gap: 6px;">
+            <button class="tab-trigger ${currentMode === 'world' ? 'active' : ''}" id="btnLegendToggleWorld" style="font-size: 0.72rem; padding: 1px 6px;">[WORLD MAP]</button>
+            <button class="tab-trigger ${currentMode === 'submap' ? 'active' : ''}" id="btnLegendToggleSubmap" style="font-size: 0.72rem; padding: 1px 6px;">[LOCALE SUBMAP]</button>
           </div>
         </div>
       `;
 
-      content.innerHTML = html;
+      content.innerHTML = headerHtml + bodyHtml;
+
+      // Event listeners for manual legend switching
+      const btnW = document.getElementById("btnLegendToggleWorld");
+      const btnS = document.getElementById("btnLegendToggleSubmap");
+      if (btnW) {
+        btnW.addEventListener("click", () => {
+          legendView = "world";
+          renderLegend();
+        });
+      }
+      if (btnS) {
+        btnS.addEventListener("click", () => {
+          legendView = "submap";
+          renderLegend();
+        });
+      }
     }
 
     function updateBottomPanel() {
