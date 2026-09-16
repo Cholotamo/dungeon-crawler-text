@@ -70,8 +70,25 @@
     @media (max-width: 600px) {
       .term-brand,
       .term-brand + .term-sep,
-      .hide-mobile {
+      .hide-mobile,
+      .cli-tooltip {
         display: none !important;
+      }
+
+      .center-reticle {
+        display: flex !important;
+      }
+
+      .viewport {
+        padding: 0 50vw !important;
+      }
+
+      .viewport::before,
+      .viewport::after {
+        content: "";
+        display: block;
+        flex-shrink: 0;
+        height: 50vh;
       }
     }
 
@@ -187,9 +204,46 @@
       border-color: var(--fg-bright);
     }
 
+    .viewport-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .center-reticle {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      align-items: center;
+      justify-content: center;
+      color: var(--fg-bright);
+      font-family: var(--font);
+      font-size: 1.2rem;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 50;
+      text-shadow: 0 0 2px #000, 0 0 4px #000;
+      line-height: 1;
+      user-select: none;
+      -webkit-user-select: none;
+      box-sizing: border-box;
+    }
+
     /* ── MAP VIEWPORT (CENTERED, SCROLLABLE ON OVERFLOW) ── */
     .viewport {
       flex: 1;
+      box-sizing: border-box;
+      width: 100%;
+      max-width: 100%;
       overflow: auto;
       display: flex;
       flex-direction: column;
@@ -597,17 +651,20 @@
   </header>
 
   <!-- Shared Map Viewport -->
-  <main class="viewport" id="viewport">
-    <div class="map-frame" id="mapFrame">
-      <div class="map-status-bar">
-        <span id="mapModeLabel">LOADING...</span>
-        <span id="mapDimsLabel"></span>
+  <div class="viewport-wrapper">
+    <div class="center-reticle" id="centerReticle">┼</div>
+    <main class="viewport" id="viewport">
+      <div class="map-frame" id="mapFrame">
+        <div class="map-status-bar">
+          <span id="mapModeLabel">LOADING...</span>
+          <span id="mapDimsLabel"></span>
+        </div>
+        <div id="gridContainerMount">
+          <div class="no-data" style="padding: 40px;">Probing artifacts server...</div>
+        </div>
       </div>
-      <div id="gridContainerMount">
-        <div class="no-data" style="padding: 40px;">Probing artifacts server...</div>
-      </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
   <!-- Resize Handle -->
   <div class="resize-bar" id="resizeBar"></div>
@@ -1105,6 +1162,17 @@
       matrixEl.addEventListener("click", handleMatrixClick);
 
       mount.appendChild(container);
+
+      if (window.innerWidth <= 600) {
+        setTimeout(() => {
+          const vp = document.getElementById("viewport");
+          if (vp) {
+            vp.scrollLeft = (vp.scrollWidth - vp.clientWidth) / 2;
+            vp.scrollTop = (vp.scrollHeight - vp.clientHeight) / 2;
+          }
+          handleViewportScroll();
+        }, 50);
+      }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1142,30 +1210,34 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  INTERACTIONS (HOVER, PIN, CLICK-TO-ENTER)
-    // ═══════════════════════════════════════════════════════
-    function handleMatrixMouseMove(e) {
-      const tile = e.target.closest(".tile");
+    //  INTERACTIONS (HOVER, PIN, CLICK-TO-ENTER, MOBILE RETICLE)
+    // ═══════════════════════════════════════════════════════════
+    function highlightTileElement(tile, e = null) {
       if (!tile || !currentMatrix) return;
 
       const x = parseInt(tile.dataset.x, 10);
       const y = parseInt(tile.dataset.y, 10);
-      if (y >= currentMatrix.length || x >= currentMatrix[0].length) return;
+      if (isNaN(x) || isNaN(y) || y >= currentMatrix.length || x >= currentMatrix[0].length) return;
 
       const cell = currentMatrix[y][x];
+      if (hoveredCell === cell) return;
       hoveredCell = cell;
 
       // Hover visual
       const matrixEl = document.getElementById("tileMatrix");
-      const prev = matrixEl.querySelector(".tile.hovered");
-      if (prev) prev.classList.remove("hovered");
+      if (matrixEl) {
+        const prev = matrixEl.querySelector(".tile.hovered");
+        if (prev) prev.classList.remove("hovered");
+      }
       tile.classList.add("hovered");
 
       // Rulers crosshairs
       highlightCrosshairs(x, y);
 
-      // Tooltip
-      updateTooltip(cell, e);
+      // Tooltip (only when event provided, e.g. on desktop mouse hover)
+      if (e) {
+        updateTooltip(cell, e);
+      }
 
       // Live lore update if not pinned
       if (!pinnedTile && activeBottomTab === "lore") {
@@ -1173,7 +1245,49 @@
       }
     }
 
+    function handleMatrixMouseMove(e) {
+      if (window.innerWidth <= 600) return;
+      const tile = e.target.closest(".tile");
+      highlightTileElement(tile, e);
+    }
+
+    let isReticleScrolling = false;
+    function handleViewportScroll() {
+      if (window.innerWidth > 600) return;
+      if (!isReticleScrolling) {
+        window.requestAnimationFrame(() => {
+          const reticle = document.getElementById("centerReticle");
+          if (!reticle) {
+            isReticleScrolling = false;
+            return;
+          }
+          const rect = reticle.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const el = document.elementFromPoint(centerX, centerY);
+          const tile = el ? el.closest(".tile") : null;
+          if (tile) {
+            highlightTileElement(tile);
+          } else {
+            const matrixEl = document.getElementById("tileMatrix");
+            if (matrixEl) {
+              const prev = matrixEl.querySelector(".tile.hovered");
+              if (prev) prev.classList.remove("hovered");
+            }
+            highlightCrosshairs(null, null);
+            hoveredCell = null;
+            if (!pinnedTile && activeBottomTab === "lore") {
+              renderLore();
+            }
+          }
+          isReticleScrolling = false;
+        });
+        isReticleScrolling = true;
+      }
+    }
+
     function handleMatrixMouseLeave() {
+      if (window.innerWidth <= 600) return;
       const matrixEl = document.getElementById("tileMatrix");
       if (matrixEl) {
         const prev = matrixEl.querySelector(".tile.hovered");
@@ -1190,14 +1304,23 @@
     }
 
     async function handleMatrixClick(e) {
-      const tile = e.target.closest(".tile");
-      if (!tile || !currentMatrix) return;
+      let cell, x, y;
 
-      const x = parseInt(tile.dataset.x, 10);
-      const y = parseInt(tile.dataset.y, 10);
-      if (y >= currentMatrix.length || x >= currentMatrix[0].length) return;
+      if (window.innerWidth <= 600) {
+        if (!hoveredCell || !currentMatrix) return;
+        cell = hoveredCell;
+        x = cell.x;
+        y = cell.y;
+      } else {
+        const tile = e.target.closest(".tile");
+        if (!tile || !currentMatrix) return;
 
-      const cell = currentMatrix[y][x];
+        x = parseInt(tile.dataset.x, 10);
+        y = parseInt(tile.dataset.y, 10);
+        if (isNaN(x) || isNaN(y) || y >= currentMatrix.length || x >= currentMatrix[0].length) return;
+
+        cell = currentMatrix[y][x];
+      }
 
       // On World Map: If clicking a feature with a sub-map, enter the sub-map!
       if (activeView === "world" && cell.topFeature) {
@@ -1898,6 +2021,17 @@
 
       // Initialize ASCII Box Borders
       initAsciiBoxBorders();
+
+      // Viewport scroll listener for mobile stationary reticle
+      const vp = document.getElementById("viewport");
+      if (vp) {
+        vp.addEventListener("scroll", handleViewportScroll, { passive: true });
+      }
+      window.addEventListener("resize", () => {
+        if (window.innerWidth <= 600) {
+          handleViewportScroll();
+        }
+      });
     }
 
     // Boot
