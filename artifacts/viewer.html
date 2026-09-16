@@ -69,7 +69,8 @@
 
     @media (max-width: 600px) {
       .term-brand,
-      .term-brand + .term-sep {
+      .term-brand + .term-sep,
+      .hide-mobile {
         display: none !important;
       }
     }
@@ -562,7 +563,7 @@
     <span class="term-sep">│</span>
     
     <div class="view-breadcrumb">
-      <button class="btn-back" id="btnBackToWorld">◄ WORLD MAP [ESC]</button>
+      <button class="btn-back" id="btnBackToWorld">◄ WORLD<span class="hide-mobile"> MAP [ESC]</span></button>
       <span class="view-title" id="viewTitleDisplay">CONNECTING...</span>
     </div>
     
