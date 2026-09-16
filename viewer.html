@@ -342,6 +342,21 @@
       outline: 1px solid var(--fg-bright);
     }
 
+    .water-bob {
+      display: inline-block;
+      pointer-events: none;
+      animation: waterBob 1.5s steps(1, end) infinite;
+    }
+
+    @keyframes waterBob {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-15%);
+      }
+    }
+
     /* ── CURSOR-FOLLOWING TOOLTIP ── */
     .cli-tooltip {
       position: fixed;
@@ -1062,7 +1077,12 @@
           tile.dataset.x = x;
           tile.dataset.y = y;
 
-          tile.textContent = cell.compositeChar;
+          if (cell.compositeChar === "~") {
+            const delay = ((x + y) * 0.15).toFixed(2);
+            tile.innerHTML = `<span class="water-bob" style="animation-delay: -${delay}s;">~</span>`;
+          } else {
+            tile.textContent = cell.compositeChar;
+          }
 
           if (cell.topFeature) {
             tile.classList.add("feat");
