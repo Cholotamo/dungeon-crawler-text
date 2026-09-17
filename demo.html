@@ -18,8 +18,9 @@
       font-family: system-ui, -apple-system, sans-serif;
       background-color: #ffffff;
       color: #333333;
-      min-height: 100vh;
+      min-height: 250vh; /* Generous height to test scrolling past the terminal */
       box-sizing: border-box;
+      position: relative;
     }
 
     .demo-instructions {
@@ -64,6 +65,15 @@
       font-size: 13px;
       overflow-x: auto;
     }
+
+    .scroll-test-section {
+      margin-top: 560px;
+      padding: 30px;
+      border: 2px dashed #9ca3af;
+      background: #f3f4f6;
+      border-radius: 4px;
+      max-width: 650px;
+    }
   </style>
 </head>
 <body>
@@ -71,18 +81,18 @@
   <!-- Plain backdrop notice (shows isolation from external DOM/CSS) -->
   <div class="demo-instructions">
     <h1>Modular Retro Terminal - Isolation Test Page</h1>
-    <p>This page uses a completely blank, un-themed backdrop with standard browser fonts to test style isolation.</p>
+    <p>This page uses a completely blank, un-themed backdrop to verify style isolation.</p>
     <ul>
-      <li><strong>Draggable:</strong> Click and drag the top title bar (<code>┌─[ cholo@portfolio:~ ]─┐</code>) to move the terminal anywhere.</li>
-      <li><strong>Interactive:</strong> Click inside the terminal to focus. Type simulated commands (e.g. <code>help</code>, <code>about</code>, <code>skills</code>, <code>clear</code>).</li>
-      <li><strong>Blinking Cursor:</strong> Notice the retro blinking cursor next to <code>cholo&gt; |</code>.</li>
-      <li><strong>Retro Controls:</strong> Click <code>[_]</code> to minimize to a titlebar strip or <code>[X]</code> to reset.</li>
-      <li><strong>Zero Leakage:</strong> All terminal styles, fonts, and CRT scanlines are locked inside its Shadow DOM.</li>
+      <li><strong>Scroll Past It:</strong> The terminal is positioned in the document flow (<code>position: absolute</code>). Scroll down to see it left behind.</li>
+      <li><strong>Draggable Anywhere:</strong> Drag the top bar (<code>dungeon-crawler-text</code>) to place it anywhere on the page—even after scrolling down.</li>
+      <li><strong>Static Display:</strong> User input is disabled; it cleanly shows <code>loremaster &gt; |</code> with a blinking cursor.</li>
+      <li><strong>Square Form Factor:</strong> Styled in a clean 1:1 aspect ratio matching the viewer's grid styling.</li>
+      <li><strong>Unhighlightable:</strong> Text selection is disabled (<code>user-select: none</code>).</li>
     </ul>
 
     <div class="embed-snippet">&lt;!-- Embed into your portfolio with 2 lines: --&gt;
 &lt;script src="retro-terminal.js"&gt;&lt;/script&gt;
-&lt;retro-terminal title="cholo@portfolio:~" prompt="cholo&gt;"&gt;&lt;/retro-terminal&gt;</div>
+&lt;retro-terminal window-title="dungeon-crawler-text" prompt="loremaster &gt;" width="450px" height="450px"&gt;&lt;/retro-terminal&gt;</div>
   </div>
 
   <!-- 
@@ -90,13 +100,20 @@
     Self-contained custom element powered by Shadow DOM.
   -->
   <retro-terminal 
-    title="cholo@portfolio:~" 
-    prompt="cholo>" 
-    width="580px" 
-    height="360px" 
-    top="180px" 
+    window-title="dungeon-crawler-text" 
+    prompt="loremaster >" 
+    width="450px" 
+    height="450px" 
+    top="260px" 
     left="40px">
   </retro-terminal>
+
+  <!-- Section below to demonstrate scrolling past the terminal -->
+  <div class="scroll-test-section">
+    <h2>Page Content Below Terminal</h2>
+    <p>As you scroll down, the terminal moves upward and out of view with the page content, rather than staying stuck to the viewport camera.</p>
+    <p>You can also drag the terminal down into this section if desired!</p>
+  </div>
 
   <!-- Component Script -->
   <script src="retro-terminal.js"></script>
