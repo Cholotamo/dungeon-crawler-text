@@ -23,10 +23,18 @@ class RetroTerminal extends HTMLElement {
 
     // Drag state
     this.isDragging = false;
-    this.dragStartX = 0;
-    this.dragStartY = 0;
+    this.dragStartClientX = 0;
+    this.dragStartClientY = 0;
+    this.lastClientX = 0;
+    this.lastClientY = 0;
+    this.initialScrollX = 0;
+    this.initialScrollY = 0;
     this.initialLeft = 0;
     this.initialTop = 0;
+    this.maxDragLeft = Infinity;
+    this.maxDragTop = Infinity;
+    this.autoScrollRAF = null;
+    this._onScroll = this.handleScroll.bind(this);
 
     this.render();
   }
@@ -38,6 +46,11 @@ class RetroTerminal extends HTMLElement {
 
   disconnectedCallback() {
     this.removeEventListeners();
+    if (this.autoScrollRAF) {
+      cancelAnimationFrame(this.autoScrollRAF);
+      this.autoScrollRAF = null;
+    }
+    window.removeEventListener('scroll', this._onScroll);
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -292,17 +305,41 @@ class RetroTerminal extends HTMLElement {
     }
   }
 
-  /* ── Drag & Reposition Logic (Page-scroll aware) ── */
+  /* ── Drag & Reposition Logic (Scroll-aware & Auto-scroll) ── */
   handlePointerDown(e) {
     this.isDragging = true;
     this.dragHandle.setPointerCapture(e.pointerId);
 
-    // Use page coordinates to handle page scrolling smoothly
-    this.dragStartX = e.pageX;
-    this.dragStartY = e.pageY;
+    // Track viewport client coordinates
+    this.dragStartClientX = e.clientX;
+    this.dragStartClientY = e.clientY;
+    this.lastClientX = e.clientX;
+    this.lastClientY = e.clientY;
+
+    // Track scroll positions at drag start
+    this.initialScrollX = window.scrollX;
+    this.initialScrollY = window.scrollY;
 
     this.initialLeft = parseFloat(this.style.left) || this.offsetLeft;
     this.initialTop = parseFloat(this.style.top) || this.offsetTop;
+
+    // Calculate document limits at start of drag to prevent infinite page expansion
+    const termWidth = this.windowEl ? this.windowEl.offsetWidth : (this.offsetWidth || 450);
+    const termHeight = this.windowEl ? this.windowEl.offsetHeight : (this.offsetHeight || 450);
+    const docWidth = Math.max(
+      document.body.scrollWidth, document.documentElement.scrollWidth,
+      document.body.offsetWidth, document.documentElement.offsetWidth
+    );
+    const docHeight = Math.max(
+      document.body.scrollHeight, document.documentElement.scrollHeight,
+      document.body.offsetHeight, document.documentElement.offsetHeight
+    );
+
+    this.maxDragLeft = Math.max(0, docWidth - termWidth);
+    this.maxDragTop = Math.max(0, docHeight - termHeight);
+
+    window.addEventListener('scroll', this._onScroll, { passive: true });
+    this.startAutoScroll();
 
     e.preventDefault();
   }
@@ -310,23 +347,89 @@ class RetroTerminal extends HTMLElement {
   handlePointerMove(e) {
     if (!this.isDragging) return;
 
-    const dx = e.pageX - this.dragStartX;
-    const dy = e.pageY - this.dragStartY;
+    this.lastClientX = e.clientX;
+    this.lastClientY = e.clientY;
 
-    let nextLeft = this.initialLeft + dx;
-    let nextTop = this.initialTop + dy;
+    this.updateDragPosition();
+  }
 
-    // Boundary protection: prevent dragging above top or off left of canvas
-    nextLeft = Math.max(0, nextLeft);
-    nextTop = Math.max(0, nextTop);
+  handleScroll() {
+    if (!this.isDragging) return;
+    this.updateDragPosition();
+  }
+
+  updateDragPosition() {
+    const dx = this.lastClientX - this.dragStartClientX;
+    const dy = this.lastClientY - this.dragStartClientY;
+    const scrollDeltaX = window.scrollX - this.initialScrollX;
+    const scrollDeltaY = window.scrollY - this.initialScrollY;
+
+    let nextLeft = this.initialLeft + dx + scrollDeltaX;
+    let nextTop = this.initialTop + dy + scrollDeltaY;
+
+    // Boundary protection: clamp to document limits so terminal cannot stretch page infinitely
+    nextLeft = Math.max(0, Math.min(nextLeft, this.maxDragLeft));
+    nextTop = Math.max(0, Math.min(nextTop, this.maxDragTop));
 
     this.style.left = `${nextLeft}px`;
     this.style.top = `${nextTop}px`;
   }
 
+  startAutoScroll() {
+    if (this.autoScrollRAF) {
+      cancelAnimationFrame(this.autoScrollRAF);
+    }
+
+    const checkScroll = () => {
+      if (!this.isDragging) return;
+
+      const edgeThreshold = 60;
+      const scrollSpeed = 14;
+      const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const maxScrollX = Math.max(0, document.documentElement.scrollWidth - window.innerWidth);
+
+      if (this.lastClientY < edgeThreshold) {
+        // Dragging near top edge: scroll screen up
+        if (window.scrollY > 0) {
+          window.scrollBy(0, -scrollSpeed);
+          this.updateDragPosition();
+        }
+      } else if (this.lastClientY > window.innerHeight - edgeThreshold) {
+        // Dragging near bottom edge: scroll screen down only if not at the bottom of the document
+        if (window.scrollY < maxScrollY) {
+          window.scrollBy(0, scrollSpeed);
+          this.updateDragPosition();
+        }
+      }
+
+      if (this.lastClientX < edgeThreshold) {
+        // Dragging near left edge: scroll screen left
+        if (window.scrollX > 0) {
+          window.scrollBy(-scrollSpeed, 0);
+          this.updateDragPosition();
+        }
+      } else if (this.lastClientX > window.innerWidth - edgeThreshold) {
+        // Dragging near right edge: scroll screen right
+        if (window.scrollX < maxScrollX) {
+          window.scrollBy(scrollSpeed, 0);
+          this.updateDragPosition();
+        }
+      }
+
+      this.autoScrollRAF = requestAnimationFrame(checkScroll);
+    };
+
+    this.autoScrollRAF = requestAnimationFrame(checkScroll);
+  }
+
   handlePointerUp(e) {
     if (this.isDragging) {
       this.isDragging = false;
+      if (this.autoScrollRAF) {
+        cancelAnimationFrame(this.autoScrollRAF);
+        this.autoScrollRAF = null;
+      }
+      window.removeEventListener('scroll', this._onScroll);
       try {
         this.dragHandle.releasePointerCapture(e.pointerId);
       } catch (_) {}
