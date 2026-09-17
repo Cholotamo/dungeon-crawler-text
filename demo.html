@@ -74,6 +74,29 @@
       border-radius: 4px;
       max-width: 650px;
     }
+
+    /* Floating button to test spawning the terminal */
+    .spawn-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      background: #0e0e0e;
+      color: #b0b0b0;
+      border: 1px solid #444444;
+      padding: 10px 16px;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .spawn-btn:hover {
+      background: #e0e0e0;
+      color: #050505;
+      border-color: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -87,7 +110,8 @@
       <li><strong>Draggable Anywhere:</strong> Drag the top bar (<code>dungeon-crawler-text</code>) to place it anywhere on the page—even after scrolling down.</li>
       <li><strong>Static Display:</strong> User input is disabled; it cleanly shows <code>loremaster &gt; |</code> with a blinking cursor.</li>
       <li><strong>Square Form Factor:</strong> Styled in a clean 1:1 aspect ratio matching the viewer's grid styling.</li>
-      <li><strong>Unhighlightable:</strong> Text selection is disabled (<code>user-select: none</code>).</li>
+      <li><strong>Minimize / Close:</strong> Click <code>[_]</code> to collapse it, or <code>[X]</code> to kill it completely from the DOM.</li>
+      <li><strong>Test Spawner:</strong> Click the floating <code>[+] Spawn Terminal</code> button at the bottom-right to bring it back (guaranteed single instance).</li>
     </ul>
 
     <div class="embed-snippet">&lt;!-- Embed into your portfolio with 2 lines: --&gt;
@@ -115,7 +139,41 @@
     <p>You can also drag the terminal down into this section if desired!</p>
   </div>
 
+  <!-- Button to test bringing the terminal instance back up -->
+  <button id="spawnBtn" class="spawn-btn" title="Open terminal">[+] Spawn Terminal</button>
+
   <!-- Component Script -->
   <script src="retro-terminal.js"></script>
+
+  <!-- Page script to demonstrate programmatic, single-instance spawning -->
+  <script>
+    function spawnTerminal(config = {}) {
+      // Singleton check: prevent duplicate terminal instances
+      if (document.querySelector('retro-terminal')) {
+        console.warn('[Demo] Terminal instance is already active on the page.');
+        return null;
+      }
+
+      const term = document.createElement('retro-terminal');
+
+      // Set customizable properties
+      term.setAttribute('window-title', config.title || 'dungeon-crawler-text');
+      term.setAttribute('prompt', config.prompt || 'loremaster >');
+      term.setAttribute('width', config.width || '450px');
+      term.setAttribute('height', config.height || '450px');
+      term.setAttribute('left', config.left || '40px');
+
+      // Spawn smoothly within the user's current viewport scroll
+      const spawnTop = config.top !== undefined ? config.top : (window.scrollY + 60) + 'px';
+      term.setAttribute('top', spawnTop);
+
+      document.body.appendChild(term);
+      return term;
+    }
+
+    document.getElementById('spawnBtn').addEventListener('click', () => {
+      spawnTerminal();
+    });
+  </script>
 </body>
 </html>

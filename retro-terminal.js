@@ -21,8 +21,9 @@ class RetroTerminal extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
 
-    // Drag state
+    // Drag & window state
     this.isDragging = false;
+    this.isMinimized = false;
     this.dragStartClientX = 0;
     this.dragStartClientY = 0;
     this.lastClientX = 0;
@@ -127,6 +128,16 @@ class RetroTerminal extends HTMLElement {
           box-shadow: 0 0 12px rgba(0,0,0,0.8) !important;
         }
 
+        /* Minimized state */
+        .terminal-window.minimized {
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        .terminal-window.minimized .content-area {
+          display: none !important;
+        }
+
         /* ── Header Row (Title bar & Decorative Window Controls) ── */
         .header-row {
           display: flex;
@@ -157,11 +168,11 @@ class RetroTerminal extends HTMLElement {
           flex-shrink: 0;
         }
 
-        /* Bracketed retro buttons (purely visual flair) */
+        /* Bracketed retro buttons */
         .box-btn {
           background: transparent;
           border: none;
-          color: #606060;
+          color: #b0b0b0;
           font-family: inherit;
           font-size: 13px;
           line-height: 1;
@@ -169,6 +180,16 @@ class RetroTerminal extends HTMLElement {
           padding: 0 2px;
           margin: 0;
           user-select: none;
+        }
+
+        .box-btn:hover {
+          background: #e0e0e0;
+          color: #0a0a0a;
+        }
+
+        .box-btn:active {
+          background: #ffffff;
+          color: #000000;
         }
 
         /* ── Terminal Content Area ── */
@@ -253,8 +274,8 @@ class RetroTerminal extends HTMLElement {
         <div class="header-row" id="dragHandle">
           <div class="box-title" id="title">${this.terminalTitle}</div>
           <div class="box-btn-group">
-            <span class="box-btn" aria-hidden="true">[_]</span>
-            <span class="box-btn" aria-hidden="true">[X]</span>
+            <button class="box-btn btn-min" id="btnMin" aria-label="Minimize">[_]</button>
+            <button class="box-btn btn-close" id="btnClose" aria-label="Close">[X]</button>
           </div>
         </div>
 
@@ -275,6 +296,8 @@ class RetroTerminal extends HTMLElement {
     this.dragHandle = this.shadowRoot.getElementById('dragHandle');
     this.titleEl = this.shadowRoot.getElementById('title');
     this.promptEl = this.shadowRoot.getElementById('promptLabel');
+    this.btnMin = this.shadowRoot.getElementById('btnMin');
+    this.btnClose = this.shadowRoot.getElementById('btnClose');
   }
 
   setupInitialPosition() {
@@ -294,6 +317,17 @@ class RetroTerminal extends HTMLElement {
     this.dragHandle.addEventListener('pointermove', this._onPointerMove);
     this.dragHandle.addEventListener('pointerup', this._onPointerUp);
     this.dragHandle.addEventListener('pointercancel', this._onPointerUp);
+
+    // Minimize & Close button controls
+    this.btnMin.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleMinimize();
+    });
+
+    this.btnClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeTerminal();
+    });
   }
 
   removeEventListeners() {
@@ -307,6 +341,8 @@ class RetroTerminal extends HTMLElement {
 
   /* ── Drag & Reposition Logic (Scroll-aware & Auto-scroll) ── */
   handlePointerDown(e) {
+    if (e.target.closest('.box-btn')) return;
+
     this.isDragging = true;
     this.dragHandle.setPointerCapture(e.pointerId);
 
@@ -435,6 +471,25 @@ class RetroTerminal extends HTMLElement {
       } catch (_) {}
     }
   }
+
+  /* ── Window Controls ── */
+  toggleMinimize() {
+    this.isMinimized = !this.isMinimized;
+    if (this.isMinimized) {
+      this.windowEl.classList.add('minimized');
+      this.btnMin.textContent = '[+]';
+      this.btnMin.setAttribute('aria-label', 'Restore');
+    } else {
+      this.windowEl.classList.remove('minimized');
+      this.btnMin.textContent = '[_]';
+      this.btnMin.setAttribute('aria-label', 'Minimize');
+    }
+  }
+
+  closeTerminal() {
+    // Completely teardown and remove element from DOM
+    this.remove();
+  }
 }
 
 // Register Custom Element
@@ -446,3 +501,55 @@ if (!customElements.get('retro-terminal')) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { RetroTerminal };
 }
+
+/* ==============================================================================
+   HOW TO SPAWN THIS TERMINAL IN OTHER PROJECTS (Agent Implementation Guide)
+   ==============================================================================
+   The <retro-terminal> is a zero-dependency, self-contained native Web Component.
+   
+   1. SCRIPT INCLUSION:
+      Include this script in your HTML:
+      <script src="path/to/retro-terminal.js"></script>
+
+   2. HTML DECLARATIVE USAGE:
+      <retro-terminal 
+        window-title="dungeon-crawler-text" 
+        prompt="loremaster >" 
+        width="450px" 
+        height="450px" 
+        top="100px" 
+        left="100px">
+      </retro-terminal>
+
+   3. PROGRAMMATIC JAVASCRIPT SPAWNING (Single Instance / Anti-Duplicate):
+      Use this helper function to dynamically spawn the terminal anywhere:
+
+      function spawnTerminal(config = {}) {
+        // Enforce singleton: prevent duplicate terminal instances
+        if (document.querySelector('retro-terminal')) {
+          console.warn('[RetroTerminal] Instance already exists on page.');
+          return null;
+        }
+
+        const term = document.createElement('retro-terminal');
+
+        // Optional attributes & defaults
+        term.setAttribute('window-title', config.title || 'dungeon-crawler-text');
+        term.setAttribute('prompt', config.prompt || 'loremaster >');
+        term.setAttribute('width', config.width || '450px');
+        term.setAttribute('height', config.height || '450px');
+        term.setAttribute('left', config.left || '60px');
+        // If top is omitted, spawn 60px below current viewport scroll
+        term.setAttribute('top', config.top || `${window.scrollY + 60}px`);
+
+        document.body.appendChild(term);
+        return term;
+      }
+
+   4. TEARDOWN / KILL:
+      The terminal's [X] button automatically calls `this.remove()` to destroy itself.
+      To programmatically close it from outside code:
+      const existing = document.querySelector('retro-terminal');
+      if (existing) existing.remove();
+   ============================================================================== */
+
