@@ -15,6 +15,89 @@
 class RetroTerminal extends HTMLElement {
   static highestZIndex = 1000;
 
+  static TERRAIN_GRID = [
+    ",,,,,,,,,##,^,^^^,^,^^^,^,^^^,^^",
+    ",,,,,,,,,##^,^^^,^,^~^,^,^^~,^,^",
+    ",,,,,,,,,#&,^^^,^,^~~,^,^^~~/,^^",
+    ",,//,,,,#&#^^^,^,^~~,^,^^^~/,^^^",
+    ",,,,,,,,&##,^,^,^~~,^,^,^~~/^,^,",
+    ",%%,,,,,###^,^,^~~,^,^,^,~/^,^,^",
+    ",%,,,,,###&#^,^~~,^,^,^,~~/,^,^,",
+    ",,,,,,,##&###^~~,^,^,^,^~/,^,^,^",
+    ",,,,,,,#&###&~~,^,^,^,^~~/^,^,^,",
+    ",//,,,#&###&~~#&###&###~/##&###&",
+    ",,,,,,&###&#~#&###&###~~/#&###&#",
+    ",,,,%%###&#~~&###&###&~/#&###&##",
+    ",,,,%###&##~&##%~%##&~~/&###&###",
+    ",,,,,##&##~~###~%~%&#~/&###&###&",
+    ",,,,,#&###~###&#~%~#~~/###&###&#",
+    ",,,,#&###&~##&###~%#~/###&###&##",
+    ",,//&###&#~~&###&##~~/##&###&###",
+    ",,,,###&###~###&###~/##&###&###&",
+    ",,,###&###&~~#&###~~/#&###&###&#",
+    ",,%%#&###&##~~###&~/#&###&###&##",
+    ",,%#&###&###&~~#&~~/&###&###&###",
+    ",,#&###&###&##~~~~#&###&###&###&",
+    ",,&###&###&###&~##&###&###&###&#",
+    ",,###&###&###&#~~&###&###&###&##",
+    "&###&###&###&###~###&###&###&###",
+    "///,,,####;~%;~%~~%;~%####,,,,//",
+    "///;;;####~%;~%;~%;~%;####;;;;//",
+    "///;;;####%;~%;~~;~%;~####;;;;//",
+    "~~~~;;;~~~~~~~~~~~~~~~~~~~;;;;~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+  ].join('');
+
+  static REGION_GRID = [
+    "55555555544111111111111111111111",
+    "55555555544111111111311111121111",
+    "55555555544111111113311111222111",
+    "55555555444111111133111111221111",
+    "55555555444111111331111112221111",
+    "56655555444111113311111112211111",
+    "56555554444411133111111122211111",
+    "55555554444441331111111122111111",
+    "55555554444443311111111222111111",
+    "55555544444433444444444224444444",
+    "55555544444434444444442224444444",
+    "55556644444334444444442244444444",
+    "55556444444344477744422244444444",
+    "55555444443344477774422444444444",
+    "55555444443444447774222444444444",
+    "55554444443444444774224444444444",
+    "55554444443344444442224444444444",
+    "55554444444344444442244444444444",
+    "55544444444334444422244444444444",
+    "55664444444433444422444444444444",
+    "55644444444443344222444444444444",
+    "55444444444444382244444444444444",
+    "55444444444444484444444444444444",
+    "55444444444444488444444444444444",
+    "44444444444444448444444444444444",
+    "AAAAAA44449999999999994444AAAAAA",
+    "AAAAAA44449999999999994444AAAAAA",
+    "AAAAAA44449999999999994444AAAAAA",
+    "BBBBAAA9999999999999999999AAAABB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+  ].join('');
+
+  static PARAGRAPH_REGIONS = {
+    1: ['1'],
+    2: [],
+    3: [],
+    4: ['2'],
+    5: ['3', '4'],
+    6: ['7'],
+    7: ['5', '6'],
+    8: ['8'],
+    9: ['9', 'A'],
+    10: ['B']
+  };
+
   static get observedAttributes() {
     return ['window-title', 'prompt', 'width', 'height', 'top', 'left', 'mode'];
   }
@@ -44,6 +127,8 @@ class RetroTerminal extends HTMLElement {
     this.mapSpawned = false;
     this.tetheredTo = null;
     this.spawnTimeout = null;
+    this.mapFullyLoaded = false;
+    this.gridTiles = [];
 
     // Game & Interactive state
     this.gameState = 'BOOT'; // 'BOOT' | 'PRINTING' | 'FINISHED'
@@ -79,7 +164,7 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
     this.setupEventListeners();
     this.setupInitialPosition();
     if (this.currentMode === 'map') {
-      this.startMapGrid();
+      this.initMapStandby();
     } else {
       this.initBootScreen();
     }
@@ -486,14 +571,14 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
           }
 
           .tile-matrix {
-            grid-template-columns: repeat(32, 8px);
-            grid-template-rows: repeat(32, 8px);
+            grid-template-columns: repeat(32, 7px);
+            grid-template-rows: repeat(32, 7px);
           }
 
           .tile {
-            width: 8px;
-            height: 8px;
-            font-size: 5.8px;
+            width: 7px;
+            height: 7px;
+            font-size: 5px;
           }
 
           .ascii-box {
@@ -834,12 +919,10 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
 
   handleEnterKey() {
     if (this.gameState === 'BOOT') {
-      this.startLoremasterProse();
       if (this.currentMode === 'text' && !this.mapSpawned) {
-        this.spawnTimeout = setTimeout(() => {
-          this.spawnMapTerminal();
-        }, 600);
+        this.spawnMapTerminal();
       }
+      this.startLoremasterProse();
     } else if (this.gameState === 'PRINTING') {
       // Skipping disabled: Enter key does nothing during typewriter
     } else if (this.gameState === 'FINISHED') {
@@ -881,42 +964,80 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
       currentCursor = proseBlock.querySelector('.cursor');
       this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
 
-      typeNextChar(pText);
-    };
-
-    const typeNextChar = (pText) => {
-      if (!this.typewriterActive) return;
-
-      if (charIndex < pText.length) {
-        currentProseSpan.textContent += pText[charIndex];
-        charIndex++;
-        this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
-
-        // Vintage typewriter rhythm
-        const char = pText[charIndex - 1];
-        let delay = 12;
-        if (char === '.' || char === '!' || char === '?') {
-          delay = 130;
-        } else if (char === ',' || char === '—') {
-          delay = 60;
+      // 1. Prepare map synchronization promise (pure signal listener, attached at paragraph start)
+      let mapPromise = Promise.resolve();
+      if (this.tetheredTo) {
+        if (index === 0) {
+          if (!this.tetheredTo.mapFullyLoaded) {
+            mapPromise = new Promise((resolve) => {
+              this.tetheredTo.addEventListener('terminal-map-complete', resolve, { once: true });
+            });
+          }
+        } else {
+          mapPromise = new Promise((resolve) => {
+            const onMutationDone = (e) => {
+              if (e.detail && e.detail.paraIndex === index) {
+                this.tetheredTo.removeEventListener('terminal-map-mutation-complete', onMutationDone);
+                resolve();
+              }
+            };
+            this.tetheredTo.addEventListener('terminal-map-mutation-complete', onMutationDone);
+          });
         }
+      }
 
-        this.typewriterTimeout = setTimeout(() => typeNextChar(pText), delay);
-      } else {
-        // Current paragraph complete - remove its blinking cursor
+      // 2. Emit signal that paragraph started (triggers concurrent map radar/mutation!)
+      this.dispatchEvent(new CustomEvent('terminal-para-start', { detail: { index } }));
+
+      // 3. Prepare typing promise
+      const typingPromise = new Promise((resolve) => {
+        const typeNextChar = () => {
+          if (!this.typewriterActive) {
+            resolve();
+            return;
+          }
+
+          if (charIndex < pText.length) {
+            currentProseSpan.textContent += pText[charIndex];
+            charIndex++;
+            this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+
+            // Vintage typewriter rhythm
+            const char = pText[charIndex - 1];
+            let delay = 12;
+            if (char === '.' || char === '!' || char === '?') {
+              delay = 130;
+            } else if (char === ',' || char === '—') {
+              delay = 60;
+            }
+
+            this.typewriterTimeout = setTimeout(typeNextChar, delay);
+          } else {
+            // Typing complete for this paragraph
+            this.dispatchEvent(new CustomEvent('terminal-para-end', { detail: { index } }));
+            resolve();
+          }
+        };
+
+        typeNextChar();
+      });
+
+      // 4. Synchronize: proceed only when BOTH the prose typing and map operations have resolved
+      Promise.all([typingPromise, mapPromise]).then(() => {
+        if (!this.typewriterActive) return;
+
         if (currentCursor) {
           currentCursor.remove();
           currentCursor = null;
         }
 
-        paraIndex++;
-        if (paraIndex < paragraphs.length) {
-          // Pause briefly between paragraphs before starting next loremaster prompt
-          this.typewriterTimeout = setTimeout(() => startParagraph(paraIndex), 220);
+        const nextIndex = index + 1;
+        if (nextIndex < paragraphs.length) {
+          this.typewriterTimeout = setTimeout(() => startParagraph(nextIndex), 220);
         } else {
           this.finishLoremasterProse();
         }
-      }
+      });
     };
 
     startParagraph(0);
@@ -998,6 +1119,26 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
     this.tetheredTo = mapTerm;
     mapTerm.tetheredTo = this;
 
+    // Standardized cross-terminal event trigger:
+    // When this loremaster terminal emits 'terminal-para-start':
+    // - Index 0 triggers initial 32x32 radar dot grid scan (with 600ms cinematic delay)
+    // - Index > 0 triggers the corresponding regional map mutation concurrently!
+    const onParaStart = (e) => {
+      if (!e.detail) return;
+      if (e.detail.index === 0) {
+        setTimeout(() => {
+          if (mapTerm && typeof mapTerm.startMapGrid === 'function') {
+            mapTerm.startMapGrid();
+          }
+        }, 600);
+      } else if (e.detail.index > 0) {
+        if (mapTerm && typeof mapTerm.startMapMutation === 'function') {
+          mapTerm.startMapMutation(e.detail.index);
+        }
+      }
+    };
+    this.addEventListener('terminal-para-start', onParaStart);
+
     // Append to same container
     if (this.parentNode) {
       this.parentNode.appendChild(mapTerm);
@@ -1007,12 +1148,13 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
     }
   }
 
-  startMapGrid() {
-    this.gameState = 'PRINTING';
+  initMapStandby() {
+    this.gameState = 'STANDBY';
+    this.mapFullyLoaded = false;
     this.outputContainer.innerHTML = '';
     this.inputRow.style.display = 'none';
 
-    // Map frame matching viewer page layout
+    // Map frame matching viewer page layout (standby mode)
     const mapFrame = document.createElement('div');
     mapFrame.className = 'map-frame';
     mapFrame.innerHTML = `
@@ -1027,16 +1169,34 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
     this.outputContainer.appendChild(mapFrame);
 
     const matrixEl = mapFrame.querySelector('#tileMatrix');
-    const totalTiles = 32 * 32; // 1024
-    let tileIndex = 0;
-
-    this.typewriterActive = true;
-
-    // Scanner cursor tile
+    // Scanner cursor tile waiting in standby
     const cursorTile = document.createElement('span');
     cursorTile.className = 'tile scan-cursor';
     cursorTile.textContent = '|';
     matrixEl.appendChild(cursorTile);
+  }
+
+  startMapGrid() {
+    if (this.mapFullyLoaded || this.gameState === 'PRINTING') return;
+
+    this.gameState = 'PRINTING';
+    this.dispatchEvent(new CustomEvent('terminal-map-start'));
+
+    // Check if matrix already initialized by standby
+    let matrixEl = this.shadowRoot.getElementById('tileMatrix');
+    let cursorTile = this.shadowRoot.querySelector('.tile.scan-cursor');
+
+    if (!matrixEl) {
+      this.initMapStandby();
+      matrixEl = this.shadowRoot.getElementById('tileMatrix');
+      cursorTile = this.shadowRoot.querySelector('.tile.scan-cursor');
+    }
+
+    const totalTiles = 32 * 32; // 1024
+    let tileIndex = 0;
+
+    this.typewriterActive = true;
+    this.gridTiles = [];
 
     const typeNextTile = () => {
       if (!this.typewriterActive) return;
@@ -1045,7 +1205,12 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
         const tile = document.createElement('span');
         tile.className = 'tile';
         tile.textContent = '.';
-        matrixEl.insertBefore(tile, cursorTile);
+        if (cursorTile && cursorTile.parentNode === matrixEl) {
+          matrixEl.insertBefore(tile, cursorTile);
+        } else {
+          matrixEl.appendChild(tile);
+        }
+        this.gridTiles.push(tile);
         tileIndex++;
 
         this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
@@ -1059,12 +1224,71 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
         this.typewriterTimeout = setTimeout(typeNextTile, delay);
       } else {
         // Complete scan
-        cursorTile.remove();
+        if (cursorTile) cursorTile.remove();
+        this.mapFullyLoaded = true;
         this.finishLoremasterProse();
+        this.dispatchEvent(new CustomEvent('terminal-map-complete'));
       }
     };
 
     typeNextTile();
+  }
+
+  startMapMutation(paraIndex) {
+    if (!this.gridTiles || this.gridTiles.length === 0) {
+      const matrixEl = this.shadowRoot.getElementById('tileMatrix');
+      if (matrixEl) {
+        this.gridTiles = Array.from(matrixEl.querySelectorAll('.tile:not(.scan-cursor)'));
+      }
+    }
+
+    const targetRegions = RetroTerminal.PARAGRAPH_REGIONS[paraIndex] || [];
+    if (!targetRegions || targetRegions.length === 0 || !this.gridTiles || this.gridTiles.length === 0) {
+      setTimeout(() => {
+        this.dispatchEvent(new CustomEvent('terminal-map-mutation-complete', { detail: { paraIndex } }));
+      }, 20);
+      return;
+    }
+
+    // Find all tiles belonging to targetRegions that need mutation
+    const indicesToMutate = [];
+    for (let i = 0; i < RetroTerminal.REGION_GRID.length; i++) {
+      if (targetRegions.includes(RetroTerminal.REGION_GRID[i])) {
+        if (this.gridTiles[i] && this.gridTiles[i].textContent !== RetroTerminal.TERRAIN_GRID[i]) {
+          indicesToMutate.push(i);
+        }
+      }
+    }
+
+    if (indicesToMutate.length === 0) {
+      setTimeout(() => {
+        this.dispatchEvent(new CustomEvent('terminal-map-mutation-complete', { detail: { paraIndex } }));
+      }, 20);
+      return;
+    }
+
+    this.dispatchEvent(new CustomEvent('terminal-map-mutation-start', { detail: { paraIndex, count: indicesToMutate.length } }));
+
+    let mIdx = 0;
+    const mutateNext = () => {
+      if (!this.parentNode) return;
+
+      if (mIdx < indicesToMutate.length) {
+        const tileIdx = indicesToMutate[mIdx];
+        const targetChar = RetroTerminal.TERRAIN_GRID[tileIdx];
+        if (this.gridTiles[tileIdx]) {
+          this.gridTiles[tileIdx].textContent = targetChar;
+        }
+        mIdx++;
+
+        this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+        this.typewriterTimeout = setTimeout(mutateNext, 12);
+      } else {
+        this.dispatchEvent(new CustomEvent('terminal-map-mutation-complete', { detail: { paraIndex } }));
+      }
+    };
+
+    mutateNext();
   }
 }
 
