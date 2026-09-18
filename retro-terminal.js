@@ -13,8 +13,10 @@
  */
 
 class RetroTerminal extends HTMLElement {
+  static highestZIndex = 1000;
+
   static get observedAttributes() {
-    return ['window-title', 'prompt', 'width', 'height', 'top', 'left'];
+    return ['window-title', 'prompt', 'width', 'height', 'top', 'left', 'mode'];
   }
 
   constructor() {
@@ -36,6 +38,12 @@ class RetroTerminal extends HTMLElement {
     this.maxDragTop = Infinity;
     this.autoScrollRAF = null;
     this._onScroll = this.handleScroll.bind(this);
+
+    // Mode & Tethering state
+    this.mode = 'text'; // 'text' (default) | 'map'
+    this.mapSpawned = false;
+    this.tetheredTo = null;
+    this.spawnTimeout = null;
 
     // Game & Interactive state
     this.gameState = 'BOOT'; // 'BOOT' | 'PRINTING' | 'FINISHED'
@@ -70,7 +78,11 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
   connectedCallback() {
     this.setupEventListeners();
     this.setupInitialPosition();
-    this.initBootScreen();
+    if (this.currentMode === 'map') {
+      this.startMapGrid();
+    } else {
+      this.initBootScreen();
+    }
   }
 
   disconnectedCallback() {
@@ -83,12 +95,19 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
       clearTimeout(this.typewriterTimeout);
       this.typewriterTimeout = null;
     }
+    if (this.spawnTimeout) {
+      clearTimeout(this.spawnTimeout);
+      this.spawnTimeout = null;
+    }
     this.typewriterActive = false;
     window.removeEventListener('scroll', this._onScroll);
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue) return;
+    if (name === 'mode') {
+      this.mode = newValue;
+    }
     if (name === 'window-title' && this.titleEl) {
       this.titleEl.textContent = newValue;
     }
@@ -101,6 +120,10 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
     if (name === 'height' && this.windowEl) {
       this.windowEl.style.height = newValue;
     }
+  }
+
+  get currentMode() {
+    return this.getAttribute('mode') || this.mode || 'text';
   }
 
   get terminalTitle() {
@@ -337,6 +360,68 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
           white-space: pre-wrap;
         }
 
+        /* ── Map Mode Styling (Matching Viewer Page Grid) ── */
+        .map-frame {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          width: max-content;
+          margin: 4px auto auto auto;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        .map-status-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          color: #606060;
+          font-size: 11px;
+          padding: 0 1px 4px 1px;
+          letter-spacing: 0.5px;
+          width: 100%;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .map-grid-container {
+          display: inline-grid;
+          border: 1px solid #444444;
+          background: #000000;
+          box-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
+          width: max-content;
+          margin: 0 auto;
+        }
+
+        .tile-matrix {
+          display: grid;
+          grid-template-columns: repeat(32, 12px);
+          grid-template-rows: repeat(32, 12px);
+          gap: 0px;
+          background: #000000;
+          padding: 0;
+          width: max-content;
+        }
+
+        .tile {
+          width: 12px;
+          height: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: inherit;
+          font-size: 8.6px;
+          color: #b0b0b0;
+          background: #000000;
+          line-height: 1;
+        }
+
+        .tile.scan-cursor {
+          color: #ffffff;
+          font-weight: 700;
+          background: #1a1a1a;
+        }
+
         .log-row {
           display: flex;
           align-items: baseline;
@@ -392,6 +477,30 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
             opacity: 0;
           }
         }
+
+        /* ── Mobile Responsive Overrides (Viewer standard <= 600px) ── */
+        @media (max-width: 600px) {
+          .terminal-window {
+            width: 310px !important;
+            height: 310px !important;
+          }
+
+          .tile-matrix {
+            grid-template-columns: repeat(32, 8px);
+            grid-template-rows: repeat(32, 8px);
+          }
+
+          .tile {
+            width: 8px;
+            height: 8px;
+            font-size: 5.8px;
+          }
+
+          .ascii-box {
+            font-size: 9.5px;
+            line-height: 1.1;
+          }
+        }
       </style>
 
       <div class="terminal-window" id="window">
@@ -437,10 +546,23 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
   }
 
   setupInitialPosition() {
-    const customTop = this.getAttribute('top') || '60px';
-    const customLeft = this.getAttribute('left') || '60px';
+    const isMobile = window.innerWidth <= 600;
+    const customTop = this.getAttribute('top') || (isMobile ? '20px' : '60px');
+    let customLeft = this.getAttribute('left') || (isMobile ? '10px' : '60px');
+    
+    if (isMobile) {
+      let leftVal = parseFloat(customLeft);
+      const termWidth = 310;
+      // Only clamp if it actually overflows the viewport
+      if (leftVal + termWidth > window.innerWidth - 5) {
+        customLeft = Math.max(5, window.innerWidth - termWidth - 5) + 'px';
+      }
+    }
+    
     this.style.top = customTop;
     this.style.left = customLeft;
+    RetroTerminal.highestZIndex = (RetroTerminal.highestZIndex || 1000) + 1;
+    this.style.zIndex = RetroTerminal.highestZIndex;
   }
 
   setupEventListeners() {
@@ -675,12 +797,20 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
   }
 
   closeTerminal() {
+    if (this.tetheredTo && this.tetheredTo.parentNode) {
+      const other = this.tetheredTo;
+      this.tetheredTo = null;
+      other.tetheredTo = null;
+      other.closeTerminal();
+    }
     // Completely teardown and remove element from DOM
     this.remove();
   }
 
   /* ── Interactive & Game Flow Methods ── */
   activate() {
+    RetroTerminal.highestZIndex = (RetroTerminal.highestZIndex || 1000) + 1;
+    this.style.zIndex = RetroTerminal.highestZIndex;
     this.cmdInput.focus({ preventScroll: true });
     this.windowEl.classList.add('active');
     this.isActive = true;
@@ -705,6 +835,11 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
   handleEnterKey() {
     if (this.gameState === 'BOOT') {
       this.startLoremasterProse();
+      if (this.currentMode === 'text' && !this.mapSpawned) {
+        this.spawnTimeout = setTimeout(() => {
+          this.spawnMapTerminal();
+        }, 600);
+      }
     } else if (this.gameState === 'PRINTING') {
       // Skipping disabled: Enter key does nothing during typewriter
     } else if (this.gameState === 'FINISHED') {
@@ -800,6 +935,136 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
     this.cmdInput.value = '';
     this.inputText.textContent = '';
     this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+  }
+
+  spawnMapTerminal() {
+    this.mapSpawned = true;
+
+    const isMobile = window.innerWidth <= 600;
+    const defaultDimension = isMobile ? '310px' : '450px';
+
+    const mapTerm = document.createElement('retro-terminal');
+    mapTerm.setAttribute('mode', 'map');
+    mapTerm.setAttribute('window-title', 'dungeon-crawler-text');
+    mapTerm.setAttribute('prompt', 'sensor >');
+    mapTerm.setAttribute('width', this.getAttribute('width') || defaultDimension);
+    mapTerm.setAttribute('height', this.getAttribute('height') || defaultDimension);
+
+    // Calculate position: intentional retro messy overlap cascade
+    const currentLeft = parseFloat(this.style.left) || (isMobile ? 10 : 40);
+    const currentTop = parseFloat(this.style.top) || (isMobile ? 20 : 40);
+    const currentTermWidth = this.windowEl ? this.windowEl.offsetWidth : (isMobile ? 310 : 450);
+
+    let targetLeft, targetTop;
+
+    if (isMobile) {
+      // Aggressive vertical cascade for distinct overlapping on narrow screens
+      const mobileOffsetTop = 50 + Math.floor(Math.random() * 25); // 50px - 75px
+      targetTop = currentTop + mobileOffsetTop;
+
+      const minLeft = 8;
+      const maxLeft = Math.max(minLeft, window.innerWidth - currentTermWidth - 8);
+
+      // Bidirectional / alternating horizontal stagger
+      if (maxLeft > minLeft + 15) {
+        // If parent is towards left edge, place child towards right edge, and vice-versa
+        if (currentLeft < (minLeft + maxLeft) / 2) {
+          targetLeft = Math.round(maxLeft - Math.random() * 8);
+        } else {
+          targetLeft = Math.round(minLeft + Math.random() * 8);
+        }
+      } else {
+        // Very tight screen: small jitter within bounds
+        const jitter = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.floor(Math.random() * 10));
+        targetLeft = Math.max(minLeft, Math.min(maxLeft, currentLeft + jitter));
+      }
+    } else {
+      // Desktop messy cascade
+      const offsetLeft = 40 + Math.floor(Math.random() * 30);
+      const offsetTop = 50 + Math.floor(Math.random() * 20);
+      targetLeft = currentLeft + offsetLeft;
+      targetTop = currentTop + offsetTop;
+
+      // Keep within desktop bounds
+      if (targetLeft + currentTermWidth > window.innerWidth - 10) {
+        targetLeft = Math.max(10, window.innerWidth - currentTermWidth - 10);
+      }
+    }
+
+    mapTerm.setAttribute('left', `${targetLeft}px`);
+    mapTerm.setAttribute('top', `${targetTop}px`);
+
+    // Cross-tether both terminals so closing either kills both
+    this.tetheredTo = mapTerm;
+    mapTerm.tetheredTo = this;
+
+    // Append to same container
+    if (this.parentNode) {
+      this.parentNode.appendChild(mapTerm);
+      setTimeout(() => {
+        if (mapTerm.activate) mapTerm.activate();
+      }, 50);
+    }
+  }
+
+  startMapGrid() {
+    this.gameState = 'PRINTING';
+    this.outputContainer.innerHTML = '';
+    this.inputRow.style.display = 'none';
+
+    // Map frame matching viewer page layout
+    const mapFrame = document.createElement('div');
+    mapFrame.className = 'map-frame';
+    mapFrame.innerHTML = `
+      <div class="map-status-bar">
+        <span>[WORLD MAP]</span>
+        <span>[32x32]</span>
+      </div>
+      <div class="map-grid-container">
+        <div class="tile-matrix" id="tileMatrix"></div>
+      </div>
+    `;
+    this.outputContainer.appendChild(mapFrame);
+
+    const matrixEl = mapFrame.querySelector('#tileMatrix');
+    const totalTiles = 32 * 32; // 1024
+    let tileIndex = 0;
+
+    this.typewriterActive = true;
+
+    // Scanner cursor tile
+    const cursorTile = document.createElement('span');
+    cursorTile.className = 'tile scan-cursor';
+    cursorTile.textContent = '|';
+    matrixEl.appendChild(cursorTile);
+
+    const typeNextTile = () => {
+      if (!this.typewriterActive) return;
+
+      if (tileIndex < totalTiles) {
+        const tile = document.createElement('span');
+        tile.className = 'tile';
+        tile.textContent = '.';
+        matrixEl.insertBefore(tile, cursorTile);
+        tileIndex++;
+
+        this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+
+        // Vintage CRT line scan cadence: 5ms per dot, 25ms pause at end of each 32-tile row
+        let delay = 5;
+        if (tileIndex % 32 === 0) {
+          delay = 25;
+        }
+
+        this.typewriterTimeout = setTimeout(typeNextTile, delay);
+      } else {
+        // Complete scan
+        cursorTile.remove();
+        this.finishLoremasterProse();
+      }
+    };
+
+    typeNextTile();
   }
 }
 

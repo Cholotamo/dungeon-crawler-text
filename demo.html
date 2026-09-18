@@ -109,8 +109,11 @@
       <li><strong>Scroll Past It:</strong> The terminal is positioned in the document flow (<code>position: absolute</code>). Scroll down to see it left behind.</li>
       <li><strong>Draggable Anywhere:</strong> Drag the top bar (<code>dungeon-crawler-text</code>) to place it anywhere on the page—even after scrolling down.</li>
       <li><strong>Typewriter Lore Prose:</strong> Types out each paragraph with its own <code>loremaster &gt;</code> prompt character by character. (Skipping is disabled to let the atmosphere unfold).</li>
+      <li><strong>Map Sensor Terminal:</strong> Spawns 600ms after you press <code>Enter</code> on the boot screen, displaying a 32x32 CRT line-scan grid alongside the lore prose.</li>
+      <li><strong>Tethered Window Lifecycle:</strong> Both terminals are cross-tethered by the <code>[X]</code> button—closing either terminal closes both!</li>
       <li><strong>Self-Contained:</strong> All story text is embedded directly into <code>retro-terminal.js</code>—zero external fetch requests or dependencies needed.</li>
-      <li><strong>Square Form Factor:</strong> Styled in a clean 1:1 aspect ratio matching the viewer's grid styling.</li>
+      <li><strong>Square Form Factor:</strong> Styled in a clean 1:1 aspect ratio matching the viewer's grid styling (responsive 310px on mobile).</li>
+      <li><strong>Active Window Focus:</strong> Clicking or dragging either window elevates it to the top layer.</li>
       <li><strong>Minimize / Close:</strong> Click <code>[_]</code> to collapse it, or <code>[X]</code> to kill it completely from the DOM.</li>
       <li><strong>Test Spawner:</strong> Click the floating <code>[+] Spawn Terminal</code> button at the bottom-right to bring it back (guaranteed single instance).</li>
     </ul>
@@ -155,17 +158,20 @@
         return null;
       }
 
+      const isMobile = window.innerWidth <= 600;
+      const defaultDim = isMobile ? '310px' : '450px';
+
       const term = document.createElement('retro-terminal');
 
       // Set customizable properties
       term.setAttribute('window-title', config.title || 'dungeon-crawler-text');
       term.setAttribute('prompt', config.prompt || 'loremaster >');
-      term.setAttribute('width', config.width || '450px');
-      term.setAttribute('height', config.height || '450px');
-      term.setAttribute('left', config.left || '40px');
+      term.setAttribute('width', config.width || defaultDim);
+      term.setAttribute('height', config.height || defaultDim);
+      term.setAttribute('left', config.left || (isMobile ? '10px' : '40px'));
 
       // Spawn smoothly within the user's current viewport scroll
-      const spawnTop = config.top !== undefined ? config.top : (window.scrollY + 60) + 'px';
+      const spawnTop = config.top !== undefined ? config.top : (window.scrollY + (isMobile ? 20 : 60)) + 'px';
       term.setAttribute('top', spawnTop);
 
       document.body.appendChild(term);
